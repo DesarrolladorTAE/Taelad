@@ -1,5 +1,5 @@
-import React, {Suspense} from "react";
-import {useRoutes} from "react-router-dom";
+import React, { Suspense } from "react";
+import { useRoutes } from "react-router-dom";
 
 //components
 import Root from "./Root";
@@ -27,52 +27,83 @@ type LoadingComponentProps = {
     component: React.LazyExoticComponent<() => JSX.Element>;
 };
 
-const LoadComponent = ({component: Component}: LoadingComponentProps) => {
+const LoadComponent = ({ component: Component }: LoadingComponentProps) => {
     return (
         <Suspense fallback={loading()}>
-            <Component/>
+            <Component />
         </Suspense>
     )
 };
 
+// const AllRoutes = () => {
+//     return useRoutes([
+//         {
+//             //root route
+//             path: '/',
+//             element: <Root/>
+//         },
+//         {
+//             //public routes
+//             path: '/',
+//             children: [
+//                 {
+//                     path: 'landing',
+//                     element: <LoadComponent component={Home}/>,
+//                 },
+//                 {
+//                     path: 'landing',
+//                     children: [
+//                         {path: 'index1', element: <LoadComponent component={Index1}/>},
+//                         {path: 'index2', element: <LoadComponent component={index2}/>},
+//                         {path: 'index3', element: <LoadComponent component={index3}/>},
+//                         {path: 'index4', element: <LoadComponent component={index4}/>},
+//                         {path: 'index5', element: <LoadComponent component={index5}/>},
+//                         {path: 'index6', element: <LoadComponent component={index6}/>},
+
+//                     ],
+//                 },
+//                 {
+
+//                     // path: 'auth',
+//                     // children: [
+//                     //     { path: 'login', element: <LoadComponent component={Login} /> },
+//                     //     { path: 'signup', element: <LoadComponent component={SignUp} /> },
+//                     // ],
+//                 },
+//             ]
+//         }
+//     ])
+// }
+
 const AllRoutes = () => {
     return useRoutes([
         {
-            //root route
             path: '/',
-            element: <Root/>
+            element: <Root />
         },
         {
-            //public routes
             path: '/',
             children: [
                 {
-                    path: 'landing',
-                    element: <LoadComponent component={Home}/>,
+                    path: '',
+                    element: <LoadComponent component={Index1} />, // <-- esto hace que / muestre Index1
                 },
                 {
                     path: 'landing',
                     children: [
-                        {path: 'index1', element: <LoadComponent component={Index1}/>},
-                        {path: 'index2', element: <LoadComponent component={index2}/>},
-                        {path: 'index3', element: <LoadComponent component={index3}/>},
-                        {path: 'index4', element: <LoadComponent component={index4}/>},
-                        {path: 'index5', element: <LoadComponent component={index5}/>},
-                        {path: 'index6', element: <LoadComponent component={index6}/>},
-
+                        { path: '', element: <LoadComponent component={Index1} /> }, // <-- esto hace que /landing muestre Index1
+                        { path: 'index1', element: <LoadComponent component={Index1} /> },
+                        { path: 'index2', element: <LoadComponent component={index2} /> },
+                        { path: 'index3', element: <LoadComponent component={index3} /> },
+                        { path: 'index4', element: <LoadComponent component={index4} /> },
+                        { path: 'index5', element: <LoadComponent component={index5} /> },
+                        { path: 'index6', element: <LoadComponent component={index6} /> },
                     ],
-                },
-                {
-
-                    // path: 'auth',
-                    // children: [
-                    //     { path: 'login', element: <LoadComponent component={Login} /> },
-                    //     { path: 'signup', element: <LoadComponent component={SignUp} /> },
-                    // ],
                 },
             ]
         }
     ])
 }
+
 
 export default AllRoutes;
