@@ -1,12 +1,15 @@
-import {Link, useLocation} from "react-router-dom";
-import {useEffect, useRef, useState} from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import classNames from "classnames";
-import {Nav} from "react-bootstrap";
-import {HashLink} from "react-router-hash-link";
+import { Nav } from "react-bootstrap";
+import { HashLink } from "react-router-hash-link";
 
 // images
-import logoDark from "../../assets/images/logo-dark.png";
-import logoLight from "../../assets/images/logo-light.png";
+// import logoDark from "../../assets/images/logo-dark.png";
+// import logoLight from "../../assets/images/logo-light.png";
+
+import logoDark from "../../assets/images/Tae/LOGO-TAE-HORIZONTAL_AZUL.png";
+import logoLight from "../../assets/images/Tae/LOGO-TAE-HORIZONTAL_BLANCO.png";
 
 import Container from "react-bootstrap/esm/Container";
 import NavbarCollapse from "react-bootstrap/esm/NavbarCollapse";
@@ -16,16 +19,18 @@ type NavbarProp = {
     classname?: string; isLogoDark: boolean;
 };
 
-const sectionData = [{id: "home", title: "Home"}, {id: "features", title: "Features"}, {
-    id: "screenshot",
-    title: "Screenshot"
-}, {id: "testimonial", title: "Testimonial"},
-    {id: "pricing", title: "Pricing"},
-    {id: "contact", title: "Contact Us"},
+const sectionData = [
+  { id: "home", title: "Hogar" },
+  { id: "features", title: "Facturación Electrónica" },
+  { id: "screenshot", title: "Contabilidad Electrónica" },
+  { id: "testimonial", title: "Testimonios" },
+  { id: "pricing", title: "Precios" },
+  { id: "contact", title: "Contáctanos" },
 ];
-const Navbar1 = ({classname, isLogoDark}: NavbarProp) => {
 
-    const [activeSection, setActiveSection] = useState<string>("home");
+const Navbar1 = ({ classname, isLogoDark }: NavbarProp) => {
+
+    const [activeSection, setActiveSection] = useState<string>("hogar");
     const navbar = useRef<HTMLDivElement>(null);
 
     const path = useLocation();
@@ -97,9 +102,12 @@ const Navbar1 = ({classname, isLogoDark}: NavbarProp) => {
             <Container>
                 <Navbar.Brand>
                     <Link className="logo text-uppercase" to="#">
-                        {isLogoDark ? (<img src={logoDark} alt="" className="logo-dark"/>) : (<>
-                            <img src={logoDark} alt="" className="logo-dark"/>
-                            <img src={logoLight} alt="" className="logo-light"/>
+                        {isLogoDark ? (<img src={logoDark} alt="" className="logo-dark" />) : (<>
+                            {/* <img src={logoDark} alt="" className="logo-dark"/>
+                            <img src={logoLight} alt="" className="logo-light"/> */}
+                            <img src={logoDark} alt="" className="logo-dark" style={{ height: 55, width: "auto" }} />
+                            <img src={logoLight} alt="" className="logo-light" style={{ height: 55, width: "auto" }} />
+
                         </>)}
                     </Link>
                 </Navbar.Brand>

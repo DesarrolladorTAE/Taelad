@@ -29,12 +29,12 @@ const index1 = () => {
       <div id="features">
       {/* features1 */}
       <Features1 />
-      {/* fetures2 */}
-      <Features2 />
       {/* counter */}
-      <Counter />
+      {/* <Counter /> */}
       </div>
       <div id="screenshot">
+      {/* fetures2 */}
+      <Features2 />
       {/* slider */}
       <Slider />
       </div>

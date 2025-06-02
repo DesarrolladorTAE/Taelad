@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import hero1Img from "../../assets/images/heros/hero-1-img.png";
+import Laptop from "../../assets/images/Tae/4110955-removebg-preview.png";
 import hero1BottomShape from "../../assets/images/heros/hero-1-bottom-shape.png";
 import { Container, Row, Col, Form } from "react-bootstrap";
+
 const Hero1 = () => {
   return (
     <section className="hero-1" >
@@ -10,14 +12,13 @@ const Hero1 = () => {
         <Row className="align-items-center hero-content">
           <Col lg={6}>
             <h1 className="hero-title fw-bold mb-4 pb-3 text-white">
-              Here is the best way to present your apps
+              Diseño web, Tiendas en linea y Marketing digital
             </h1>
             <p className="text-white opacity-75 mb-4 pb-3 fs-17">
-              Maecenas tempus, tellus eget condimentum rhoncus quam semper
-              libero sit amet adipiscing sem neque sed ipsum nam quam nunc
-              blandit vel luctus pulvinar.
+              Implementamos La Tecnología Para Hacer El Trabajo Diario Más Fácil, Creamos Sitios Web Únicos
+              Y Diseñamos La Imagen Corporativa De Tu Negocio.
             </p>
-            <div className="subscribe-form me-lg-5 mb-5 mb-lg-0">
+            {/* <div className="subscribe-form me-lg-5 mb-5 mb-lg-0">
               <i className="mdi mdi-email-outline form-icon"></i>
               <Form.Control
                 type="email"
@@ -28,10 +29,10 @@ const Hero1 = () => {
                 <span>Download Now</span>{" "}
                 <i className="mdi mdi-download download-icon"></i>
               </Link>
-            </div>
+            </div> */}
           </Col>
           <Col lg={6} className=" text-center text-lg-end">
-            <img src={hero1Img} alt="" className="img-fluid" />
+            <img src={Laptop} alt="" className="img-fluid" />
           </Col>
         </Row>
       </Container>
@@ -47,11 +48,11 @@ const Hero1 = () => {
       <Container>
         <Row>
           <Col>
-            <div className="down-arrow-btn">
+            {/* <div className="down-arrow-btn">
               <Link to="#how-it-work" className="down-arrow">
                 <i className="mdi mdi-arrow-down"></i>
               </Link>
-            </div>
+            </div> */}
           </Col>
         </Row>
       </Container>
