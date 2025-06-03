@@ -4,17 +4,18 @@ import { useRoutes } from "react-router-dom";
 //components
 import Root from "./Root";
 
-
 //home
 const Home = React.lazy(() => import('../pages/Home'));
 
 //landings
 const Index1 = React.lazy(() => import('../pages/landings/Index1'));
-const index2 = React.lazy(() => import('../pages/landings/Index2'));
+// const index2 = React.lazy(() => import('../pages/landings/Index2'));
 const index3 = React.lazy(() => import('../pages/landings/Index3'));
 const index4 = React.lazy(() => import('../pages/landings/Index4'));
 const index5 = React.lazy(() => import('../pages/landings/Index5'));
 const index6 = React.lazy(() => import('../pages/landings/Index6'));
+
+const FacEle = React.lazy(() => import('../pages/landings/Index1/FacEle'));
 
 
 //auth
@@ -84,26 +85,15 @@ const AllRoutes = () => {
         {
             path: '/',
             children: [
-                {
-                    path: '',
-                    element: <LoadComponent component={Index1} />, // <-- esto hace que / muestre Index1
-                },
-                {
-                    path: 'landing',
-                    children: [
-                        { path: '', element: <LoadComponent component={Index1} /> }, // <-- esto hace que /landing muestre Index1
-                        { path: 'index1', element: <LoadComponent component={Index1} /> },
-                        { path: 'index2', element: <LoadComponent component={index2} /> },
-                        { path: 'index3', element: <LoadComponent component={index3} /> },
-                        { path: 'index4', element: <LoadComponent component={index4} /> },
-                        { path: 'index5', element: <LoadComponent component={index5} /> },
-                        { path: 'index6', element: <LoadComponent component={index6} /> },
-                    ],
-                },
+                { path: 'landing', element: <LoadComponent component={Index1} /> }, // Hogar
+                { path: 'facturacion', element: <LoadComponent component={FacEle} /> }, // Facturación Electrónica
+                { path: 'contabilidad', element: <LoadComponent component={index3} /> }, // Contabilidad Electrónica
+                { path: 'testimonios', element: <LoadComponent component={index4} /> }, // Testimonios
+                { path: 'precios', element: <LoadComponent component={index5} /> }, // Precios
+                { path: 'contacto', element: <LoadComponent component={index6} /> }, // Contáctanos
             ]
         }
     ])
 }
-
 
 export default AllRoutes;

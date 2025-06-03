@@ -19,13 +19,22 @@ type NavbarProp = {
     classname?: string; isLogoDark: boolean;
 };
 
+// const sectionData = [
+//     { id: "home", title: "Hogar" },
+//     { id: "features", title: "Facturación Electrónica" },
+//     { id: "screenshot", title: "Contabilidad Electrónica" },
+//     { id: "testimonial", title: "Testimonios" },
+//     { id: "pricing", title: "Precios" },
+//     { id: "contact", title: "Contáctanos" },
+// ];
+
 const sectionData = [
-  { id: "home", title: "Hogar" },
-  { id: "features", title: "Facturación Electrónica" },
-  { id: "screenshot", title: "Contabilidad Electrónica" },
-  { id: "testimonial", title: "Testimonios" },
-  { id: "pricing", title: "Precios" },
-  { id: "contact", title: "Contáctanos" },
+    { path: "/landing", title: "Hogar" },
+    { path: "/facturacion", title: "Facturación Electrónica" },
+    { path: "/contabilidad", title: "Contabilidad Electrónica" },
+    { path: "/testimonios", title: "Testimonios" },
+    { path: "/precios", title: "Precios" },
+    { path: "/contacto", title: "Contáctanos" },
 ];
 
 const Navbar1 = ({ classname, isLogoDark }: NavbarProp) => {
@@ -36,9 +45,7 @@ const Navbar1 = ({ classname, isLogoDark }: NavbarProp) => {
     const path = useLocation();
 
     useEffect(() => {
-        window.addEventListener("scroll", (e) => {
-            e.preventDefault();
-            // Navbar class
+        const handleScroll = () => {
             const navbar1 = navbar.current;
             if (navbar1 != null) {
                 if (classname) {
@@ -51,47 +58,24 @@ const Navbar1 = ({ classname, isLogoDark }: NavbarProp) => {
                     navbar1.classList.remove("nav-sticky");
                 }
             }
-
-        });
-
-        //adding active class
-        const handleScroll = () => {
-            const scrollPosition = window.scrollY;
-            let sections: (HTMLElement | null)[] = [];
-            for (let i = 0; i < sectionData.length; i++) {
-                sections.push(document.getElementById(sectionData[i].id));
-                let currentActive = -1;
-                sections.forEach((section, index) => {
-                    if (section) {
-                        const sectionTop = section.offsetTop - 70;
-                        const sectionHeight = section.offsetHeight;
-
-                        if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
-                            currentActive = index;
-                        }
-                    }
-                });
-                if (currentActive !== -1) {
-                    setActiveSection(sectionData[currentActive].id);
-                }
-            }
         };
 
         window.addEventListener("scroll", handleScroll);
 
         return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
+    }, [classname]);
 
-    const handleLinkClick = (id: string) => {
-        const section = document.getElementById(id);
-        if (section != null) {
-            const sectionTop = section.offsetTop;
 
-            window.scrollTo({
-                top: sectionTop, behavior: "smooth",
-            });
-        }
-    };
+    // const handleLinkClick = (id: string) => {
+    //     const section = document.getElementById(id);
+    //     if (section != null) {
+    //         const sectionTop = section.offsetTop;
+
+    //         window.scrollTo({
+    //             top: sectionTop, behavior: "smooth",
+    //         });
+    //     }
+    // };
 
     return (<>
         <Nav
@@ -101,10 +85,18 @@ const Navbar1 = ({ classname, isLogoDark }: NavbarProp) => {
         >
             <Container>
                 <Navbar.Brand>
-                    <Link className="logo text-uppercase" to="#">
+                    {/* <Link className="logo text-uppercase" to="#"> */}
+                    <Link
+                        className="logo text-uppercase"
+                        to="/"
+                        onClick={(e) => {
+                            if (path.pathname === "/landing") {
+                                e.preventDefault(); // Evita navegación si ya estás en la raíz
+                            }
+                        }}
+                    >
+
                         {isLogoDark ? (<img src={logoDark} alt="" className="logo-dark" />) : (<>
-                            {/* <img src={logoDark} alt="" className="logo-dark"/>
-                            <img src={logoLight} alt="" className="logo-light"/> */}
                             <img src={logoDark} alt="" className="logo-dark" style={{ height: 55, width: "auto" }} />
                             <img src={logoLight} alt="" className="logo-light" style={{ height: 55, width: "auto" }} />
 
@@ -123,16 +115,35 @@ const Navbar1 = ({ classname, isLogoDark }: NavbarProp) => {
                 </Navbar.Toggle>
                 <NavbarCollapse id="navbarCollapse">
                     <Nav className="navbar-nav mx-auto navbar-center" id="mySidenav">
-                        {sectionData.map((section) => <Nav.Item as="li">
-                            <HashLink
-                                smooth
-                                to={path.pathname + "#" + section.id}
-                                className={classNames("nav-link", activeSection === section.id ? "active" : "")}
-                                onClick={() => handleLinkClick(section.id)}
-                            >
-                                {section.title}
-                            </HashLink>
-                        </Nav.Item>)}
+
+                        {/* {sectionData.map((section) => (
+                            <Nav.Item as="li" key={section.path}>
+                                <Link
+                                    to={section.path}
+                                    className={classNames("nav-link", path.pathname === section.path ? "active" : "")}
+                                >
+                                    {section.title}
+                                </Link>
+                            </Nav.Item>
+                        ))} */}
+
+                        {sectionData.map((section) => (
+                            <Nav.Item as="li" key={section.path}>
+                                <Link
+                                    to={section.path}
+                                    className={classNames("nav-link", path.pathname === section.path ? "active" : "")}
+                                    onClick={(e) => {
+                                        if (path.pathname === section.path) {
+                                            // Cancelamos la navegación si ya estamos en esa ruta
+                                            e.preventDefault();
+                                        }
+                                    }}
+                                >
+                                    {section.title}
+                                </Link>
+                            </Nav.Item>
+                        ))}
+
 
                     </Nav>
                     <Nav as="ul" className="navbar-nav navbar-center">
