@@ -1,66 +1,69 @@
-import { Hero1 } from "../../../components/heros";
-import HowItWork from "../../../components/HowItWork";
+import BackToTop from "../../../components/BackToTop";
+import Contact from "../../../components/Contact";
+import Cta from "../../../components/Cta";
+import Faqs from "../../../components/Faqs";
 import Features1 from "../../../components/Features1";
 import Features2 from "../../../components/Features2";
-import Counter from "../../../components/Counter";
+import { Hero3 } from "../../../components/heros";
+import HowItWork from "../../../components/HowItWork";
 import Testimonial from "../../../components/Testimonial";
-import Faqs from "../../../components/Faqs";
-import Cta from "../../../components/Cta";
-import Contact from "../../../components/Contact";
-import BackToTop from "../../../components/BackToTop";
 import Login from "../../auth/Login";
 import Signin from "../../auth/Signin";
 import { Navbar1 } from "../../../components/navbar";
 import Slider from "../../../components/Slider";
 import Pricing from "../../../components/Pricing";
 import Footer from "../../../components/Footer";
+import Counter from "../../../components/Counter";
+import ICHero from "../../../components/ImaCor/ICHero";
+import Como from "../../../components/ImaCor/Como";
+import PaqLogo from "../../../components/ImaCor/PaqLogo";
 import TaeFooter from "../../../components/TaeFooter";
 
-const index1 = () => {
+const index = () => {
   return (
     <>
       {/* navbar */}
       <Navbar1 classname="navbar-light" isLogoDark={false} />
       {/* header and hero */}
       <div id="home">
-      <Hero1 />
+      <ICHero />
       {/* how it work */}
-      <HowItWork />
+      <Como />
       </div>
       <div id="features">
       {/* features1 */}
-      <Features1 />
+      <PaqLogo />
+      {/* fetures2 */}
+      {/* <Features2 /> */}
       {/* counter */}
       {/* <Counter /> */}
       </div>
       <div id="screenshot">
-      {/* fetures2 */}
-      <Features2 />
       {/* slider */}
-      <Slider />
+      {/* <Slider /> */}
       </div>
       {/* testimonial */}
-      <Testimonial />
+      {/* <Testimonial /> */}
       <div id="pricing">
       {/* pricing */}
-      <Pricing />
+      {/* <Pricing /> */}
       {/* faqs */}
-      <Faqs />
+      {/* <Faqs /> */}
       {/* cta */}
-      <Cta />
+      {/* <Cta /> */}
       </div>
       {/* contact */}
-      <Contact />
+      {/* <Contact /> */}
       {/* footer */}
       <TaeFooter />
       {/* back to top button */}
-      <BackToTop />
+      {/* <BackToTop /> */}
       {/* login form */}
-      <Login />
+      {/* <Login /> */}
       {/* signin form */}
-      <Signin />
+      {/* <Signin /> */}
     </>
   );
 };
 
-export default index1;
+export default index;

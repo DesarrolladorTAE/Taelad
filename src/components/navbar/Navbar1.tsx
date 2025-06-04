@@ -32,9 +32,9 @@ const sectionData = [
     { path: "/landing", title: "Hogar" },
     { path: "/facturacion", title: "Facturación Electrónica" },
     { path: "/contabilidad", title: "Contabilidad Electrónica" },
-    { path: "/testimonios", title: "Testimonios" },
-    { path: "/precios", title: "Precios" },
-    { path: "/contacto", title: "Contáctanos" },
+    { path: "/diseno", title: "Diseño Web" },
+    { path: "/imagen", title: "Imagen Corporativa" },
+    { path: "/marketing", title: "Marketing Digital" },
 ];
 
 const Navbar1 = ({ classname, isLogoDark }: NavbarProp) => {
@@ -146,7 +146,7 @@ const Navbar1 = ({ classname, isLogoDark }: NavbarProp) => {
 
 
                     </Nav>
-                    <Nav as="ul" className="navbar-nav navbar-center">
+                    {/* <Nav as="ul" className="navbar-nav navbar-center">
                         <Nav.Item as="li">
                             <Link to="#" className="nav-link" id="login">
                                 Login
@@ -157,7 +157,7 @@ const Navbar1 = ({ classname, isLogoDark }: NavbarProp) => {
                                 Sign Up
                             </Link>
                         </Nav.Item>
-                    </Nav>
+                    </Nav> */}
                 </NavbarCollapse>
             </Container>
         </Nav>

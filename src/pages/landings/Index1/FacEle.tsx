@@ -12,6 +12,10 @@ import BackToTop from "../../../components/BackToTop";
 import { Navbar1 } from "../../../components/navbar";
 import FEHero from "../../../components/FacEle/FEHero";
 import Intro from "../../../components/FacEle/Intro";
+import Precios from "../../../components/FacEle/Precios";
+import Beneficios from "../../../components/FacEle/Beneficios";
+import Contactanos from "../../../components/FacEle/Contactanos";
+import TaeFooter from "../../../components/TaeFooter";
 
 const FacEle = () => {
   return (
@@ -32,24 +36,24 @@ const FacEle = () => {
 
       {/* Más detalles */}
       {/* <div id="screenshot"> */}
-        <Features2 />
+        <Precios />
       {/* </div> */}
 
       {/* Testimonios */}
-      <Testimonial />
+      <Beneficios />
 
       {/* Precios / Planes */}
       {/* <div id="pricing"> */}
-        <Pricing />
-        <Faqs />
-        <Cta />
+        <Contactanos />
+        {/* <Faqs />
+        <Cta /> */}
       {/* </div> */}
 
       {/* Contacto */}
-      <Contact />
+      {/* <Contact /> */}
 
       {/* Footer */}
-      <Footer />
+      <TaeFooter />
 
       {/* Back to top */}
       <BackToTop />

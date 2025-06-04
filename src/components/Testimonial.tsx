@@ -1,10 +1,25 @@
-//images
+import { Container, Row, Col } from "react-bootstrap";
+import { FaStar } from "react-icons/fa";
 import user1 from "../assets/images/users/user-1.jpg";
-import dribbble from "../assets/images/brand-logo/dribbble.png";
-import insta from "../assets/images/brand-logo/insta.png";
-import bootstrap from "../assets/images/brand-logo/bootstrap.png";
-import jquery from "../assets/images/brand-logo/jquery.png";
-import { Col, Container, Row } from "react-bootstrap";
+import Manuel from "../assets/images/users/Manuel.png";
+import Eduardo from "../assets/images/users/Eduardo.png";
+
+const googleReviews = [
+  {
+    name: "Manuel Herrera",
+    comment:
+      "Estoy alegre porque logré conseguir mi proyecto a mi gusto. Hay una buena comunicación. Contratar sus servicios es una buena decisión.Estoy alegre porque logre conseguir mi proyecto a mi gusto , hay una buena comunicacion contratar sus seevicios es una buena atención donde puedes hablar con toda confianza y libertad para que los detalles sean proyectados.",
+    rating: 5,
+    photo: Manuel,
+  },
+  {
+    name: "Eduardo Bautista",
+    comment:
+      "Excelente, muy atentos al cliente, resolvieron mis dudas y me apoyaron en el sitio web a mi negocio.",
+    rating: 5,
+    photo: Eduardo,
+  },
+];
 
 const Testimonial = () => {
   return (
@@ -12,61 +27,40 @@ const Testimonial = () => {
       <Container>
         <Row className="justify-content-center mb-5">
           <Col md={8} lg={6} className="text-center">
-            <h6 className="subtitle">
-              Our <span className="fw-bold">Testimonial</span>
-            </h6>
-            <h2 className="title">What Our Customers Say</h2>
+            <h6 className="subtitle text-primary">Testimonios</h6>
+            <h2 className="title">Lo que dicen nuestros clientes</h2>
             <p className="text-muted">
-              Sed ut perspiciatis unde omnis iste natus error voluptatem
-              accusantium doloremque rem aperiam.
+              Opiniones reales de personas que ya usan nuestros servicios.
             </p>
           </Col>
         </Row>
 
         <Row className="justify-content-center">
-          <Col lg={8}>
-            <div className="testimonial-box text-center">
-              <p className="text-muted mb-2">
-                “Itaque earum us tenetur sapiente delectus asperiores repellat.”
-              </p>
-              <h5 className="fs-18 fw-semibold lh-base mb-4 pb-3">
-                At vero eos et accusamus iusto odio dignissimos ducimus qui
-                blanditiis praesentium voluptatum deleniti atqued corrupti as
-                quos dolores quas molestias excepturi occaecati provident.
-              </h5>
-              <img
-                src={user1}
-                alt=""
-                className="shadow rounded-circle"
-                width="70"
-              />
-              <h5 className="fs-18 fw-semibold mt-4 mb-0">Mayra Vasquez</h5>
-              <p className="text-muted fs-14">Web Development, USA</p>
-            </div>
-          </Col>
-        </Row>
+          {googleReviews.map((review, idx) => (
+            <Col md={6} lg={5} key={idx} className="mb-4">
+              <div className="bg-white p-4 shadow-sm rounded h-100">
+                <div className="d-flex align-items-center mb-3">
+                  <img
+                    src={review.photo}
+                    alt={review.name}
+                    className="rounded-circle me-3"
+                    width="50"
+                    height="50"
+                  />
+                  <div>
+                    <h6 className="mb-0 fw-bold">{review.name}</h6>
+                    <div className="text-warning">
+                      {Array.from({ length: review.rating }).map((_, i) =>
+                        (FaStar as any)({ key: i, className: "me-1" })
+                      )}
+                    </div>
 
-        <Row className="mt-md-5">
-          <Col sm={6} md={3}>
-            <div className="text-center py-3">
-              <img src={dribbble} alt="" height="40" />
-            </div>
-          </Col>
-          <Col sm={6} md={3}>
-            <div className="text-center py-3">
-              <img src={insta} alt="" height="40" />
-            </div>
-          </Col>
-          <Col sm={6} md={3}>
-            <div className="text-center py-3">
-              <img src={bootstrap} alt="" height="40" />
-            </div>
-          </Col>
-          <Col sm={6} md={3}>
-            <div className="text-center py-3">
-              <img src={jquery} alt="" height="40" />
-            </div>
-          </Col>
+                  </div>
+                </div>
+                <p className="text-muted fst-italic">“{review.comment}”</p>
+              </div>
+            </Col>
+          ))}
         </Row>
       </Container>
     </section>

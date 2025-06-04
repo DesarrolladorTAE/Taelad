@@ -16,7 +16,10 @@ const index5 = React.lazy(() => import('../pages/landings/Index5'));
 const index6 = React.lazy(() => import('../pages/landings/Index6'));
 
 const FacEle = React.lazy(() => import('../pages/landings/Index1/FacEle'));
-
+const ConEle = React.lazy(() => import('../pages/landings/Index1/ConEle'));
+const DisWeb = React.lazy(() => import('../pages/landings/Index1/DisWeb'));
+const ImaCor = React.lazy(() => import('../pages/landings/Index1/ImaCor'));
+const MarDig = React.lazy(() => import('../pages/landings/Index1/MarDig'));
 
 //auth
 // const Login = React.lazy(() => import('../pages/auth/Login'))
@@ -87,10 +90,10 @@ const AllRoutes = () => {
             children: [
                 { path: 'landing', element: <LoadComponent component={Index1} /> }, // Hogar
                 { path: 'facturacion', element: <LoadComponent component={FacEle} /> }, // Facturación Electrónica
-                { path: 'contabilidad', element: <LoadComponent component={index3} /> }, // Contabilidad Electrónica
-                { path: 'testimonios', element: <LoadComponent component={index4} /> }, // Testimonios
-                { path: 'precios', element: <LoadComponent component={index5} /> }, // Precios
-                { path: 'contacto', element: <LoadComponent component={index6} /> }, // Contáctanos
+                { path: 'contabilidad', element: <LoadComponent component={ConEle} /> }, // Contabilidad Electrónica
+                { path: 'diseno', element: <LoadComponent component={DisWeb} /> }, // Testimonios
+                { path: 'imagen', element: <LoadComponent component={ImaCor} /> }, // Precios
+                { path: 'marketing', element: <LoadComponent component={MarDig} /> }, // Contáctanos
             ]
         }
     ])
