@@ -1,323 +1,135 @@
-import { Col, Container, Nav, NavLink, Row, Tab } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import React from "react";
+import { Container, Row, Col } from "react-bootstrap";
 
-const Pricing = () => {
-  return (
-    <section className="section" >
-      <Container>
-        <Row className="justify-content-center mb-5">
-          <Col md={8} lg={6} className="text-center">
-            <h6 className="subtitle">
-              Our <span className="fw-bold">Pricing</span>
-            </h6>
-            <h2 className="title">Pricing Plan</h2>
-            <p className="text-muted">
-              Sed ut perspiciatis unde omnis iste natus error voluptatem
-              accusantium doloremque rem aperiam.
-            </p>
-          </Col>
-        </Row>
+const waNumber = "5217442188925";
 
-        <Tab.Container defaultActiveKey="monthly">
-          <Row>
-            <Col>
-              <Nav variant="pills" className="pricing-tab mb-4">
-                <Nav.Item as="li" className="me-2">
-                  <NavLink eventKey="monthly">Monthly</NavLink>
-                </Nav.Item>
-                <Nav.Item as="li">
-                  <NavLink eventKey="yearly">Yearly</NavLink>
-                </Nav.Item>
-              </Nav>
-              <Tab.Content>
-                <Tab.Pane className="fade" eventKey="monthly">
-                  <Row>
-                    <Col lg={4}>
-                      <div className="pricing-box">
-                        <div className="text-center mb-4 bg-light p-4 rounded">
-                          <h5>Free</h5>
-                          <h1 className="mt-3 mb-0 text-primary">
-                            $0.00
-                            <span className="text-muted fs-16 fw-normal">
-                              {" "}
-                              /Month
-                            </span>
-                          </h1>
-                        </div>
-                        <ul className="list-unstyled text-secondary mb-5 pt-2">
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">3</span>{" "}
-                            Projects
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">580GB</span>{" "}
-                            Storage
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">
-                              Unlimited
-                            </span>{" "}
-                            Contacts
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">5</span>{" "}
-                            Domains
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i> Free Support{" "}
-                            <span className="fw-semibold text-dark">24/7</span>
-                          </li>
-                        </ul>
-                        <Link to="#" className="btn btn-gradient-primary w-100">
-                          Choose Plan
-                        </Link>
-                      </div>
-                    </Col>
-                    <Col lg={4}>
-                      <div className="pricing-box">
-                        <span className="pricing-badge">Most Popular</span>
-                        <div className="text-center mb-4 bg-light p-4 rounded">
-                          <h5>Standard</h5>
-                          <h1 className="mt-3 mb-0 text-primary">
-                            $29.00
-                            <span className="text-muted fs-16 fw-normal">
-                              {" "}
-                              /Month
-                            </span>
-                          </h1>
-                        </div>
-                        <ul className="list-unstyled text-secondary mb-5 pt-2">
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">10</span>{" "}
-                            Projects
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">1TB</span>{" "}
-                            Storage
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">
-                              Unlimited
-                            </span>{" "}
-                            Contacts
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">12</span>{" "}
-                            Domains
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i> Free Support{" "}
-                            <span className="fw-semibold text-dark">24/7</span>
-                          </li>
-                        </ul>
-                        <Link to="#" className="btn btn-gradient-primary w-100">
-                          Choose Plan
-                        </Link>
-                      </div>
-                    </Col>
-                    <Col lg={4}>
-                      <div className="pricing-box">
-                        <div className="text-center mb-4 bg-light p-4 rounded">
-                          <h5>Enterprice</h5>
-                          <h1 className="mt-3 mb-0 text-primary">
-                            $49.00
-                            <span className="text-muted fs-16 fw-normal">
-                              {" "}
-                              /Month
-                            </span>
-                          </h1>
-                        </div>
-                        <ul className="list-unstyled text-secondary mb-5 pt-2">
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">20</span>{" "}
-                            Projects
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">2.5TB</span>{" "}
-                            Storage
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">
-                              Unlimited
-                            </span>{" "}
-                            Contacts
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">18</span>{" "}
-                            Domains
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i> Free Support{" "}
-                            <span className="fw-semibold text-dark">24/7</span>
-                          </li>
-                        </ul>
-                        <Link to="#" className="btn btn-gradient-primary w-100">
-                          Choose Plan
-                        </Link>
-                      </div>
-                    </Col>
-                  </Row>
-                </Tab.Pane>
+const paquetes = [
+  {
+    nombre: "PAQUETE BASICO",
+    precio: "$1,500",
+    beneficios: [
+      "Diseño de hasta 3 propuestas",
+      "3 Modificaciones",
+      "Se entrega en formato JPG y PNG",
+    ],
+  },
+  {
+    nombre: "PAQUETE REGULAR",
+    precio: "$3,000",
+    badge: "Más vendido",
+    beneficios: [
+      "Diseño de hasta 3 propuestas",
+      "5 Modificaciones",
+      "Sugerencias de diseño",
+      "Manual de identidad básico (paleta de colores, código de colores, archivos de formato JPG y PNG y archivo editables).",
+    ],
+  },
+  {
+    nombre: "PAQUETE AVANZADO",
+    precio: "$5,000",
+    beneficios: [
+      "Diseño de 3 propuestas",
+      "Cambios",
+      "Manual de Identidad (paleta de colores, código de colores, archivos de formato JPG y PNG, archivo editables e incluye fotomontajes)",
+      "Versión monocromática (1 sólo color)",
+      "Estilos Tipográficos",
+      "Colores Web",
+      "Colores Impresión",
+      "Archivo CDR",
+      "Imágenes en distintos formatos para su uso.",
+    ],
+  },
+];
 
-                <Tab.Pane className="fade" eventKey="yearly">
-                  <Row>
-                    <Col lg={4}>
-                      <div className="pricing-box">
-                        <div className="text-center mb-4 bg-light p-4 rounded">
-                          <h5>Basic</h5>
-                          <h1 className="mt-3 mb-0 text-primary">
-                            $39.00
-                            <span className="text-muted fs-16 fw-normal">
-                              {" "}
-                              /Year
-                            </span>
-                          </h1>
-                        </div>
-                        <ul className="list-unstyled text-secondary mb-5 pt-2">
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">15</span>{" "}
-                            Projects
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">3TB</span>{" "}
-                            Storage
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">
-                              Unlimited
-                            </span>{" "}
-                            Contacts
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">20</span>{" "}
-                            Domains
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i> Free Support{" "}
-                            <span className="fw-semibold text-dark">24/7</span>
-                          </li>
-                        </ul>
-                        <Link to="#" className="btn btn-gradient-primary w-100">
-                          Choose Plan
-                        </Link>
-                      </div>
-                    </Col>
-                    <Col lg={4}>
-                      <div className="pricing-box">
-                        <span className="pricing-badge">Most Popular</span>
-                        <div className="text-center mb-4 bg-light p-4 rounded">
-                          <h5>Standard</h5>
-                          <h1 className="mt-3 mb-0 text-primary">
-                            $79.00
-                            <span className="text-muted fs-16 fw-normal">
-                              {" "}
-                              /Year
-                            </span>
-                          </h1>
-                        </div>
-                        <ul className="list-unstyled text-secondary mb-5 pt-2">
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">32</span>{" "}
-                            Projects
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">6TB</span>{" "}
-                            Storage
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">
-                              Unlimited
-                            </span>{" "}
-                            Contacts
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">35</span>{" "}
-                            Domains
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i> Free Support{" "}
-                            <span className="fw-semibold text-dark">24/7</span>
-                          </li>
-                        </ul>
-                        <Link to="#" className="btn btn-gradient-primary w-100">
-                          Choose Plan
-                        </Link>
-                      </div>
-                    </Col>
-                    <Col lg={4}>
-                      <div className="pricing-box">
-                        <div className="text-center mb-4 bg-light p-4 rounded">
-                          <h5>Enterprice</h5>
-                          <h1 className="mt-3 mb-0 text-primary">
-                            $99.00
-                            <span className="text-muted fs-16 fw-normal">
-                              {" "}
-                              /Year
-                            </span>
-                          </h1>
-                        </div>
-                        <ul className="list-unstyled text-secondary mb-5 pt-2">
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">50</span>{" "}
-                            Projects
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">10TB</span>{" "}
-                            Storage
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">
-                              Unlimited
-                            </span>{" "}
-                            Contacts
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i>{" "}
-                            <span className="fw-semibold text-dark">55</span>{" "}
-                            Domains
-                          </li>
-                          <li className="my-3">
-                            <i className="mdi mdi-check me-1"></i> Free Support{" "}
-                            <span className="fw-semibold text-dark">24/7</span>
-                          </li>
-                        </ul>
-                        <Link to="#" className="btn btn-gradient-primary w-100">
-                          Choose Plan
-                        </Link>
-                      </div>
-                    </Col>
-                  </Row>
-                </Tab.Pane>
-              </Tab.Content>
-            </Col>
-          </Row>
-        </Tab.Container>
-      </Container>
-    </section>
-  );
+const getWaLink = (nombrePaquete: string): string => {
+  const mensaje = `Hola, quiero adquirir el ${nombrePaquete} de diseño de logo`;
+  return `https://wa.me/${waNumber}?text=${encodeURIComponent(mensaje)}`;
 };
 
-export default Pricing;
+const PricingIdentidad = () => (
+  <section style={{ background: "#f9f9ff", padding: "48px 0" }}>
+    <Container>
+      <Row className="justify-content-center g-4">
+        {paquetes.map((paq, idx) => (
+          <Col md={6} lg={4} key={idx}>
+            <div
+              className="rounded border position-relative h-100 d-flex flex-column"
+              style={{
+                background: idx === 0 ? "#4478cc" : "#fff",
+                color: idx === 0 ? "#fff" : "#4478cc",
+                borderColor: "#4478cc",
+              }}
+            >
+              {/* Badge */}
+              {paq.badge && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    right: -35,
+                    background: "red",
+                    color: "#fff",
+                    fontWeight: "bold",
+                    fontSize: "0.8rem",
+                    padding: "4px 36px",
+                    transform: "rotate(45deg)",
+                    zIndex: 2,
+                  }}
+                >
+                  {paq.badge.toUpperCase()}
+                </span>
+              )}
+              {/* Header */}
+              <div className="text-center py-3 border-bottom border-light">
+                <h4 className="fw-bold m-0">{paq.nombre}</h4>
+              </div>
+              {/* Precio */}
+              <div className="text-center my-3">
+                <h1 style={{ fontWeight: 800, fontSize: "3rem" }}>{paq.precio}</h1>
+              </div>
+              {/* Beneficios */}
+              <ul className="list-unstyled px-4 flex-grow-1">
+                {paq.beneficios.map((b, i) => (
+                  <li key={i} className="d-flex align-items-start mb-2" style={{ fontSize: "1rem" }}>
+                    <span
+                      style={{
+                        color: idx === 0 ? "#fff" : "#4478cc",
+                        fontSize: 18,
+                        marginRight: 10,
+                        lineHeight: "1.5",
+                      }}
+                    >
+                      ✔️
+                    </span>
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+              {/* Botón */}
+              <div className="text-center py-3">
+                <a
+                  href={getWaLink(paq.nombre)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn"
+                  style={{
+                    background: idx === 0 ? "#fff" : "#4478cc",
+                    color: idx === 0 ? "#4478cc" : "#fff",
+                    fontWeight: 600,
+                    borderRadius: "8px",
+                    fontSize: "1rem",
+                    padding: "10px 28px",
+                  }}
+                >
+                  Adquiere
+                </a>
+              </div>
+            </div>
+          </Col>
+        ))}
+      </Row>
+    </Container>
+  </section>
+);
+
+export default PricingIdentidad;

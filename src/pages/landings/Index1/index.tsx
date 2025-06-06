@@ -43,22 +43,22 @@ const index1 = () => {
       <Testimonial />
       <div id="pricing">
       {/* pricing */}
-      <Pricing />
+      {/* <Pricing /> */}
       {/* faqs */}
-      <Faqs />
+      {/* <Faqs /> */}
       {/* cta */}
-      <Cta />
+      {/* <Cta /> */}
       </div>
       {/* contact */}
-      <Contact />
+      {/* <Contact /> */}
       {/* footer */}
       <TaeFooter />
       {/* back to top button */}
       <BackToTop />
       {/* login form */}
-      <Login />
+      {/* <Login /> */}
       {/* signin form */}
-      <Signin />
+      {/* <Signin /> */}
     </>
   );
 };

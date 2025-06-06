@@ -17,6 +17,7 @@ import Signin from "../../auth/Signin";
 import MDHero from "../../../components/MarDig/MDHero";
 import Creamos from "../../../components/MarDig/Creamos";
 import TaeFooter from "../../../components/TaeFooter";
+import Servicios from "../../../components/MarDig/Servicios";
 
 const index = () => {
   return (
@@ -31,7 +32,7 @@ const index = () => {
       </div>
       <div id="features">
       {/* features1 */}
-      {/* <Features1 /> */}
+      <Servicios />
       {/* fetures2 */}
       {/* <Features2 /> */}
       {/* counter */}

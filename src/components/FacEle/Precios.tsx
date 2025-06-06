@@ -1,12 +1,10 @@
 import { Col, Container, Row } from "react-bootstrap";
-import { Link } from "react-router-dom";
 
 const folioPlans = [
+    { title: "10 Folios", price: "$140", free: false },
+    { title: "25 Folios", price: "$250", free: false },
     { title: "50 Folios", price: "$300", free: false },
     { title: "100 Folios", price: "$500", free: false },
-    { title: "Folios Gratis", price: "Gratis", free: true },
-    { title: "200 Folios", price: "$700", free: false },
-    { title: "500 Folios", price: "$1400", free: false },
 ];
 
 const Pricing = () => {
@@ -29,10 +27,7 @@ const Pricing = () => {
                                 <div>
                                     <h5 className="fw-bold">{plan.title}</h5>
                                     <h2 className="text-dark my-3">{plan.price}</h2>
-
-                                    {/* Icono de RemixIcon */}
                                     <i className="ri-file-text-line text-primary fs-3 mb-2"></i>
-
                                     <p className="text-muted" style={{ fontSize: "0.9rem" }}>
                                         La vigencia de los folios<br />es de 12 meses
                                     </p>
@@ -43,9 +38,13 @@ const Pricing = () => {
                                             ¡GRATIS!
                                         </button>
                                     ) : (
-                                        <button className="btn btn-primary w-100" onClick={() => console.log(`Pagar ${plan.price}`)}>
+                                        <button
+                                            className="btn btn-primary w-100"
+                                            onClick={() => window.open("https://taeconta.com/property", "_blank")}
+                                        >
                                             PAGAR
                                         </button>
+
                                     )}
                                 </div>
                             </div>

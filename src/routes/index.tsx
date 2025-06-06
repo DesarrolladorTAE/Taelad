@@ -21,14 +21,27 @@ const DisWeb = React.lazy(() => import('../pages/landings/Index1/DisWeb'));
 const ImaCor = React.lazy(() => import('../pages/landings/Index1/ImaCor'));
 const MarDig = React.lazy(() => import('../pages/landings/Index1/MarDig'));
 
+const Nosotros = React.lazy(() => import('../pages/TaeFooter/Nosotros'));
+const AvisoPrivacidad = React.lazy(() => import('../pages/TaeFooter/Aviso'));
+const TerminosCondiciones = React.lazy(() => import('../pages/TaeFooter/TerCon'));
+// const QuienesSomos = React.lazy(() => import('../pages/QuienesSomos'));
+// Y si quieres los de tienda:
+// const Tienda = React.lazy(() => import('../pages/Tienda'));
+// const MiCuenta = React.lazy(() => import('../pages/MiCuenta'));
+// const Carrito = React.lazy(() => import('../pages/Carrito'));
+
 //auth
 // const Login = React.lazy(() => import('../pages/auth/Login'))
 // const SignUp = React.lazy(() => import('../pages/auth/Signin'))
 
 const loading = () => <div className=""></div>;
 
+// type LoadingComponentProps = {
+//     component: React.LazyExoticComponent<() => JSX.Element>;
+// };
+
 type LoadingComponentProps = {
-    component: React.LazyExoticComponent<() => JSX.Element>;
+    component: React.LazyExoticComponent<React.ComponentType<any>>;
 };
 
 const LoadComponent = ({ component: Component }: LoadingComponentProps) => {
@@ -94,6 +107,15 @@ const AllRoutes = () => {
                 { path: 'diseno', element: <LoadComponent component={DisWeb} /> }, // Testimonios
                 { path: 'imagen', element: <LoadComponent component={ImaCor} /> }, // Precios
                 { path: 'marketing', element: <LoadComponent component={MarDig} /> }, // Contáctanos
+                 // === Agrega aquí las rutas del footer ===
+                { path: 'nosotros', element: <LoadComponent component={Nosotros} /> },
+                { path: 'aviso-privacidad', element: <LoadComponent component={AvisoPrivacidad} /> },
+                { path: 'terminos-condiciones', element: <LoadComponent component={TerminosCondiciones} /> },
+                // { path: 'quienes-somos', element: <LoadComponent component={QuienesSomos} /> },
+                // Tienda:
+                // { path: 'tienda', element: <LoadComponent component={Tienda} /> },
+                // { path: 'mi-cuenta', element: <LoadComponent component={MiCuenta} /> },
+                // { path: 'carrito', element: <LoadComponent component={Carrito} /> },
             ]
         }
     ])

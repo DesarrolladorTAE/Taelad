@@ -17,6 +17,8 @@ import Counter from "../../../components/Counter";
 import DWHero from "../../../components/DisWeb/DWHero";
 import PaqDW from "../../../components/DisWeb/PaqDW";
 import TaeFooter from "../../../components/TaeFooter";
+import PaqMan from "../../../components/DisWeb/PaqMan";
+import PaqSEO from "../../../components/DisWeb/PaqSEO";
 
 const index = () => {
   return (
@@ -31,9 +33,9 @@ const index = () => {
       </div>
       <div id="features">
       {/* features1 */}
-      {/* <Features1 /> */}
+      <PaqMan />
       {/* fetures2 */}
-      {/* <Features2 /> */}
+      <PaqSEO />
       {/* counter */}
       {/* <Counter /> */}
       </div>

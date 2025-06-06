@@ -1,42 +1,64 @@
 import helloIcon from "../../assets/images/hello-icon.png";
-import { Link } from "react-router-dom";
 import { Container, Row, Col, Form, Card } from "react-bootstrap";
-import React, { useState, ChangeEvent, FormEvent } from "react";
+import React from "react";
+import { useForm } from "react-hook-form";
+import axios from "axios";
+
+type ContactForm = {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    subject: string;
+    message: string;
+};
 
 const Contact = () => {
+    const {
+        register,
+        handleSubmit,
+        reset,
+        formState: { errors }
+    } = useForm<ContactForm>();
 
-    const [formData, setFormData] = useState({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        subject: "",
-        message: ""
-    });
-
-
-    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        setFormData({
-            ...formData,
-            [e.target.id]: e.target.value
-        });
-    };
-
-    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        console.log("Datos enviados:", formData);
-
+    const onSubmit = (data: ContactForm) => {
+        console.log(data); // listo para backend
         alert("✅ Mensaje enviado con éxito");
-
-        setFormData({
-            firstName: "",
-            lastName: "",
-            email: "",
-            phone: "",
-            subject: "",
-            message: ""
-        });
+        enviarCorro(data)
     };
+
+    const enviarCorro = (data: ContactForm) => {
+        // Aquí defines los valores fijos
+        const correoProp = "contacto@tecnologiasadministrativas.com";
+        const pagina = "Landfing TAE";
+        const nombreProp = "Raul Alvarez";
+
+        // Mapeas al formato esperado
+        const payload = {
+            nombre: data.firstName,
+            correo: data.email,
+            mensaje: data.message,
+            nombreProp: nombreProp,
+            correoProp: correoProp,
+            pagina: pagina,
+            telefono: data.phone ? data.phone : null
+        };
+
+        // axios.post(
+        //     'http://taeconta.com/api/public/api/correosTae',
+        //     payload
+        // )
+        axios.post(
+            'https://taeconta.com/api/public/api/correos/publicos', // <-- aquí la URL correcta
+            payload
+        )
+            .then((data) => {
+                console.log('Respuesta de correo: ', data)
+                reset();
+            }).catch((e) => {
+                console.log('Error: ', e)
+            });
+    }
 
 
     return (
@@ -53,18 +75,16 @@ const Contact = () => {
                         </p>
                     </Col>
                 </Row>
-
                 <Row className="align-items-center">
                     <Col lg={4}>
                         <div className="d-flex align-items-center mb-5">
                             <div className="flex-shrink-0">
-                                <img src={helloIcon} alt="..." height="80" className="" />
+                                <img src={helloIcon} alt="..." height="80" />
                             </div>
                             <div className="flex-grow-1 ms-3">
                                 <h2 className="mb-0">Say Hello!</h2>
                             </div>
                         </div>
-
                         <div className="mb-4">
                             <div className="d-flex align-items-center mb-3">
                                 <div className="flex-shrink-0">
@@ -78,150 +98,122 @@ const Contact = () => {
                             </div>
                             <p className="mb-1">
                                 <i className="mdi mdi-arrow-right-thin text-muted me-1"></i>
-                                <a href="mailto:josiasdavidgilnunez@gmail.com" className="text-secondary">
-                                    josiasdavidgilnunez@gmail.com
+                                <a href="mailto:contacto@tecnologiasadministrativas.com" className="text-secondary">
+                                    contacto@tecnologiasadministrativas.com
                                 </a>
                             </p>
-                            {/* <p className="">
-                                <i className="mdi mdi-arrow-right-thin text-muted me-1"></i>
-                                <Link to="#" className="text-secondary">
-                                    BrandonDBrown@jourrapide.com
-                                </Link>
-                            </p> */}
                         </div>
-                        {/* <div className="mb-4">
-                            <div className="d-flex align-items-center mb-3">
-                                <div className="flex-shrink-0">
-                                    <div className="contact-icon bg-soft-primary text-primary">
-                                        <i className="mdi mdi-phone"></i>
-                                    </div>
-                                </div>
-                                <div className="flex-grow-1 ms-3">
-                                    <h5 className="mb-0 fs-18">Phone</h5>
-                                </div>
-                            </div>
-                            <p className="mb-1">
-                                <i className="mdi mdi-arrow-right-thin text-muted me-1"></i>
-                                <Link to="#" className="text-secondary">
-                                    (+01) 1234 5678 00
-                                </Link>
-                            </p>
-                            <p className="">
-                                <i className="mdi mdi-arrow-right-thin text-muted me-1"></i>
-                                <Link to="#" className="text-secondary">
-                                    (+01) 1234 5678 90
-                                </Link>
-                            </p>
-                        </div> */}
-                        {/* <div className="">
-                            <div className="d-flex align-items-center mb-3">
-                                <div className="flex-shrink-0">
-                                    <div className="contact-icon bg-soft-primary text-primary">
-                                        <i className="mdi mdi-google-maps"></i>
-                                    </div>
-                                </div>
-                                <div className="flex-grow-1 ms-3">
-                                    <h5 className="mb-0 fs-18">Address</h5>
-                                </div>
-                            </div>
-                            <h5 className="fs-16 mb-2 text-secondary">
-                                <i className="mdi mdi-arrow-right-thin text-muted me-1"></i> New
-                                York Office
-                            </h5>
-                            <p className="text-muted lh-base">
-                                331 Maple Street, Monroe Avenue, CA 90017
-                            </p>
-                            <h5 className="fs-16 mb-2 text-secondary">
-                                <i className="mdi mdi-arrow-right-thin text-muted me-1"></i>{" "}
-                                Anguilla Office
-                            </h5>
-                            <p className="text-muted lh-base mb-0">
-                                2118 Bird Spring, Creek Road, TX 77388
-                            </p>
-                        </div> */}
                     </Col>
                     <Col lg={7} className="offset-lg-1">
                         <Card className="contact-form rounded-lg mt-4 mt-lg-0">
                             <Card.Body className="p-5">
-                                <Form onSubmit={handleSubmit}>
+                                <Form onSubmit={handleSubmit(onSubmit)}>
                                     <Row>
                                         <Col md={6}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="formFirstName">First Name</Form.Label>
+                                                <Form.Label htmlFor="firstName">First Name</Form.Label>
                                                 <Form.Control
                                                     type="text"
                                                     id="firstName"
-                                                    value={formData.firstName}
-                                                    onChange={handleChange}
                                                     placeholder="Your first name..."
-                                                    required
+                                                    isInvalid={!!errors.firstName}
+                                                    {...register("firstName", { required: true })}
                                                 />
+                                                <Form.Control.Feedback type="invalid">
+                                                    {errors.firstName && "First name is required"}
+                                                </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col md={6}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="formLastName">Last Name</Form.Label>
+                                                <Form.Label htmlFor="lastName">Last Name</Form.Label>
                                                 <Form.Control
                                                     type="text"
                                                     id="lastName"
-                                                    value={formData.lastName}
-                                                    onChange={handleChange}
                                                     placeholder="Last name..."
-                                                    required
+                                                    isInvalid={!!errors.lastName}
+                                                    {...register("lastName", { required: true })}
                                                 />
+                                                <Form.Control.Feedback type="invalid">
+                                                    {errors.lastName && "Last name is required"}
+                                                </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col md={6}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="formEmail">Email Address</Form.Label>
+                                                <Form.Label htmlFor="email">Email Address</Form.Label>
                                                 <Form.Control
                                                     type="email"
                                                     id="email"
-                                                    value={formData.email}
-                                                    onChange={handleChange}
                                                     placeholder="Your email..."
-                                                    required
+                                                    isInvalid={!!errors.email}
+                                                    {...register("email", {
+                                                        required: true,
+                                                        pattern: {
+                                                            value: /^\S+@\S+\.\S+$/,
+                                                            message: "Invalid email"
+                                                        }
+                                                    })}
                                                 />
+                                                <Form.Control.Feedback type="invalid">
+                                                    {errors.email?.type === "required"
+                                                        ? "Email is required"
+                                                        : errors.email?.message as string}
+                                                </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col md={6}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="formPhone">Phone Number</Form.Label>
+                                                <Form.Label htmlFor="phone">Phone Number</Form.Label>
                                                 <Form.Control
                                                     type="tel"
                                                     id="phone"
-                                                    value={formData.phone}
-                                                    onChange={handleChange}
                                                     placeholder="Phone number..."
-                                                    required
+                                                    isInvalid={!!errors.phone}
+                                                    {...register("phone", {
+                                                        required: true,
+                                                        pattern: {
+                                                            value: /^[0-9\s\-()+]{8,20}$/,
+                                                            message: "Invalid phone number"
+                                                        }
+                                                    })}
                                                 />
+                                                <Form.Control.Feedback type="invalid">
+                                                    {errors.phone?.type === "required"
+                                                        ? "Phone is required"
+                                                        : errors.phone?.message as string}
+                                                </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col md={6} lg={12}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="formSubject">Subject</Form.Label>
+                                                <Form.Label htmlFor="subject">Subject</Form.Label>
                                                 <Form.Control
                                                     type="text"
                                                     id="subject"
-                                                    value={formData.subject}
-                                                    onChange={handleChange}
                                                     placeholder="Type subject..."
-                                                    required
+                                                    isInvalid={!!errors.subject}
+                                                    {...register("subject", { required: true })}
                                                 />
+                                                <Form.Control.Feedback type="invalid">
+                                                    {errors.subject && "Subject is required"}
+                                                </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col>
                                             <div className="mb-4">
-                                                <Form.Label htmlFor="formMessages">Messages</Form.Label>
+                                                <Form.Label htmlFor="message">Messages</Form.Label>
                                                 <Form.Control
                                                     as="textarea"
                                                     style={{ height: "100px" }}
                                                     id="message"
-                                                    value={formData.message}
-                                                    onChange={handleChange}
                                                     placeholder="Type messages..."
-                                                    required
+                                                    isInvalid={!!errors.message}
+                                                    {...register("message", { required: true })}
                                                 />
+                                                <Form.Control.Feedback type="invalid">
+                                                    {errors.message && "Message is required"}
+                                                </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                     </Row>
