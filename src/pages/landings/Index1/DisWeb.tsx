@@ -19,6 +19,7 @@ import PaqDW from "../../../components/DisWeb/PaqDW";
 import TaeFooter from "../../../components/TaeFooter";
 import PaqMan from "../../../components/DisWeb/PaqMan";
 import PaqSEO from "../../../components/DisWeb/PaqSEO";
+import PaqWP from "../../../components/DisWeb/PaqWP";
 
 const index = () => {
   return (
@@ -35,9 +36,9 @@ const index = () => {
       {/* features1 */}
       <PaqMan />
       {/* fetures2 */}
-      <PaqSEO />
+      <PaqWP />
       {/* counter */}
-      {/* <Counter /> */}
+      <PaqSEO />
       </div>
       <div id="screenshot">
       {/* slider */}

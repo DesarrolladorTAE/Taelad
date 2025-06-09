@@ -21,7 +21,7 @@ const Bene = () => {
                     <Col lg={6}>
                         <div className="mb-4 ratio ratio-16x9">
                             <iframe
-                                src="https://www.youtube-nocookie.com/embed/xWDl0DbmgI4"
+                                src="https://www.youtube-nocookie.com/embed/E_RYiUJOcas"
                                 title="Video explicativo 1"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
@@ -29,7 +29,7 @@ const Bene = () => {
                         </div>
                         <div className="ratio ratio-16x9">
                             <iframe
-                                src="https://www.youtube-nocookie.com/embed/AZ3E-hXMXdI"
+                                src="https://www.youtube-nocookie.com/embed/dljP4kXaEEw"
                                 title="Video explicativo 2"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen

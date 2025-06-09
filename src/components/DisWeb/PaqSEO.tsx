@@ -3,82 +3,109 @@ import { Container, Row, Col } from "react-bootstrap";
 
 const paquetesSEO = [
     {
-        nombre: "SEO INICIAL",
-        precio: "$3,500",
+        nombre: "Paquete Básico",
+        precio: "$2,500",
         moneda: "MXN",
+        subtitulo: "Ideal para sitios nuevos o con baja competencia",
         beneficios: [
-            "1 hora de consultoría SEO por video llamada",
-            "Estudio de Keywords o palabras clave",
-            "Títulos y descripciones SEO de hasta 10 urls",
-            "Indexación en Google (Creación de sitemaps)",
+            "Auditoría SEO inicial (análisis técnico y contenido)",
+            "Optimización de títulos, descripciones y etiquetas meta",
+            "Corrección de URL amigables",
+            "Inserción de palabras clave estratégicas (hasta 5 keywords)",
+            "Revisión de velocidad de carga",
+            "Mapa del sitio y configuración de Google Search Console",
+            "1 reporte de optimización"
         ],
-        link: "#",
     },
     {
-        nombre: "ALTA Y OPTIMIZACIÓN",
-        precio: "$4,000",
+        nombre: "Paquete Intermedio",
+        precio: "$5,800",
         moneda: "MXN",
+        subtitulo: "Para sitios en competencia media",
         beneficios: [
-            "Alta del sitio en Search Console",
-            "Envío de Sitemap",
-            "Indexación del sitio y páginas",
-            "Alta de keywords",
-            "Retirar contenido de Google",
+            "Todo lo del paquete básico",
+            "Estudio de palabras clave (hasta 15 keywords)",
+            "Optimización de imágenes (tamaños, etiquetas ALT)",
+            "Revisión y mejora de contenido en hasta 5 páginas del sitio",
+            "Configuración de estructura de enlaces internos",
+            "Corrección de errores técnicos (redirecciones, enlaces rotos, encabezados H1/H2)",
+            "Reporte SEO + recomendaciones de contenido mensual"
         ],
-        link: "#",
     },
     {
-        nombre: "OPTIMIZACIÓN SEO SITIO WEB",
-        precio: "$8,500",
+        nombre: "Paquete Avanzado",
+        precio: "$10,500",
         moneda: "MXN",
+        subtitulo: "Para sitios con competencia alta o regional",
         beneficios: [
-            "2 horas de consultoría SEO por video llamada",
-            "Revisión de Google Analytics y Objetivos",
-            "Optimización de Títulos y Descripciones SEO de hasta 30 urls",
-            "Estudio de Keywords o palabras clave",
-            "Propuesta de site Architecture",
-            "Indexación en Google (Creación de sitemaps)",
+            "Todo lo del paquete intermedio",
+            "Optimización completa de hasta 15 páginas",
+            "Revisión de SEO local (Google Maps + palabras clave geolocalizadas)",
+            "Estrategia de contenido basada en preguntas frecuentes (SEO semántico)",
+            "Revisión de velocidad avanzada y experiencia móvil",
+            "Implementación de rich snippets (fragmentos destacados)",
+            "Reporte detallado + sesión de asesoría estratégica"
         ],
-        link: "#",
     },
     {
-        nombre: "ESTRATEGIA SEO PREMIUM",
-        precio: "$12,000",
-        moneda: "MXN",
+        nombre: "Paquete a la medida",
+        precio: "Cotización personalizada",
+        moneda: "",
+        subtitulo: "¿Tu negocio necesita algo más específico? Propuesta personalizada.",
         beneficios: [
-            "3 horas de consultoría SEO por video llamada",
-            "2 keywords a posicionar en Google",
-            "Garantía de resultados en 3 meses",
-            "Estudio de Keywords o palabras clave",
-            "Optimización de Títulos y Descripciones SEO de hasta 40 urls",
-            "Site Architecture, landings pages, categorías de blog",
-            "Creación de contenido 2 artículos de blog al mes o 2 landing pages con kw's",
+            "Propuesta según tamaño de tu sitio",
+            "Nicho de mercado y volumen de competencia",
+            "Necesidades de SEO técnico, local o internacional",
+            "Incluye diagnóstico sin costo y asesoría previa"
         ],
-        link: "#",
     },
 ];
+
+const waNumber = "5217442188925";
+const getWaLink = (nombre: string) =>
+    `https://wa.me/${waNumber}?text=${encodeURIComponent(`Hola, quiero contratar el ${nombre} para optimización SEO.`)}`;
 
 const SeoPackages = () => (
     <section style={{ background: "#fff", padding: "48px 0" }}>
         <Container>
             <Row className="justify-content-center mb-5">
                 <Col lg={10} className="text-center">
-                    <h2 className="fw-bold mb-2 text-primary">Paquetes de optimización SEO</h2>
+                    <h2 className="fw-bold mb-2 text-primary">🔍 Paquetes de Optimización SEO</h2>
+                    <p style={{ color: "#2466c9", fontWeight: 500 }}>
+                        Optimiza tu sitio web, mejora tu posicionamiento en Google y atrae más clientes. <br />
+                        Elige el plan que mejor se adapte a tu negocio.
+                    </p>
                 </Col>
             </Row>
             <Row className="justify-content-center g-4">
                 {paquetesSEO.map((paq, idx) => (
-                    <Col md={6} lg={4} key={idx}>
+                    <Col md={6} lg={3} key={idx}>
                         <div className="shadow rounded-3 p-0 h-100" style={{ background: "#fff" }}>
-                            <div style={{ background: "#2466c9", borderTopLeftRadius: "12px", borderTopRightRadius: "12px" }}>
+                            <div style={{
+                                background: "#2466c9",
+                                borderTopLeftRadius: "12px",
+                                borderTopRightRadius: "12px"
+                            }}>
                                 <h4 className="text-center text-white py-3 fw-bold m-0">{paq.nombre}</h4>
                             </div>
                             <div className="text-center pt-4 pb-2">
-                                <span style={{ fontSize: 18, fontWeight: "bold" }}>$</span>
-                                <span style={{ fontSize: 42, fontWeight: 700, letterSpacing: "-2px" }}>
-                                    {paq.precio.replace(/[^0-9]/g, "")}
-                                </span>
-                                <span style={{ fontSize: 20, fontWeight: "bold" }}>MXN</span>
+                                {paq.precio !== "Cotización personalizada" ? (
+                                    <>
+                                        <span style={{ fontSize: 18, fontWeight: "bold" }}>$</span>
+                                        <span style={{ fontSize: 36, fontWeight: 700, letterSpacing: "-2px" }}>
+                                            {Number(paq.precio.replace(/[^0-9]/g, "")).toLocaleString("es-MX")}
+                                        </span>
+                                        <span style={{ fontSize: 18, fontWeight: "bold" }}>MXN</span>
+                                    </>
+                                ) : (
+                                    <span style={{ fontSize: 24, fontWeight: 700 }}>
+                                        {paq.precio}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="text-center text-secondary mb-2" style={{ minHeight: 48 }}>
+                                <small>{paq.subtitulo}</small>
                             </div>
                             <ul className="list-unstyled px-4 pb-2 pt-1">
                                 {paq.beneficios.map((b, i) => (
@@ -95,7 +122,7 @@ const SeoPackages = () => (
                             </ul>
                             <div className="text-center py-3">
                                 <a
-                                    href={`https://wa.me/5217442188925?text=Hola%2C%20quiero%20contratar%20el%20paquete%20SEO%20"${encodeURIComponent(paq.nombre)}"`}
+                                    href={getWaLink(paq.nombre)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="btn"
@@ -109,7 +136,9 @@ const SeoPackages = () => (
                                         padding: "12px 32px",
                                     }}
                                 >
-                                    Contratar Servicio
+                                    {paq.nombre === "Paquete a la medida"
+                                        ? "Solicitar Propuesta"
+                                        : "Contratar Servicio"}
                                 </a>
                             </div>
                         </div>
