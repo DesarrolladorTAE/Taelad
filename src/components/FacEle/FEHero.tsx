@@ -1,9 +1,8 @@
 import { Link } from "react-router-dom";
 import { Container, Row, Col } from "react-bootstrap";
 
-//image
-import hero2Img from "../../assets/images/heros/hero-2-img.png";
-import TaecontaCelu from "../../assets/images/FE/TaecontaCelu.png";
+// Images
+import hero2Img from "../../assets/images/Tae/TAECONTA-HORIZONTAL-600x227.webp"; // <-- TU LOGO para el círculo
 import TaeCelu from "../../assets/images/FE/TAECelu.png";
 import Diamond from "../../assets/images/FE/Diamond.png";
 import Dragon from "../../assets/images/FE/Dragon.png";
@@ -11,31 +10,56 @@ import Elad from "../../assets/images/FE/Elad.png";
 import Washer from "../../assets/images/FE/Washer.png";
 import TMC from "../../assets/images/FE/tmc_web.png";
 
+// Cambia la ruta abajo por la que quieras de fondo:
+const backgroundImg = require("../../assets/images/FE/6070859.jpg"); // O pon la ruta que necesites
+
 const FEHero = () => {
     return (
-        <section className="hero-2">
-            <div className="bg-overlay-img"></div>
+        <section
+            className="hero-2 position-relative"
+            style={{
+                backgroundImage: `url(${backgroundImg})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                minHeight: 520,
+                display: "flex",
+                alignItems: "center"
+            }}
+        >
+            <div className="bg-overlay-img" />
             <Container>
                 <Row className="align-items-center justify-content-center hero-content">
                     <Col lg={6}>
-                        <div className="avatar avatar-xl rounded-circle bg-soft-primary text-primary shadow-sm mb-4">
-                            <i className="mdi mdi-currency-usd mb-0 h2"></i>
+                        <div
+                            className="avatar avatar-xl rounded-circle bg-soft-primary text-primary shadow-sm mb-4 d-flex justify-content-center align-items-center"
+                            style={{
+                                width: 160,
+                                height: 160,
+                                margin: "0 auto",
+                                background: "rgba(255,255,255,0.8)",
+                                boxShadow: "0 8px 32px 0 rgba(31,97,235,0.12)"
+                            }}
+                        >
+                            <img
+                                src={hero2Img}
+                                alt="Logo"
+                                style={{
+                                    width: 130,
+                                    height: 130,
+                                    objectFit: "contain"
+                                }}
+                            />
                         </div>
+
                         <h1 className="hero-title fw-bold mb-4 display-5">
-                            Facturación{" "}
+                            <span className="text-white">Facturación </span>
                             <span className="text-primary">Electrónica</span>
                         </h1>
-                        <p className="opacity-75 mb-4 pb-3 fs-17">
+                        <p className="opacity-75 mb-4 pb-3 fs-17 text-white">
                             Algunos de nuestros clientes
                         </p>
-                        {/* <Link to="#" className="btn btn-lg btn-gradient-primary me-1">
-                            Get Started Today
-                        </Link>
-                        <Link to="#" className="btn btn-lg btn-outline-dark">
-                            Download App
-                        </Link> */}
-                        {/* Imagen o insignia abajo */}
-                        {/* Grupo de logos */}
+
                         <div style={{
                             display: "flex",
                             justifyContent: "center",
@@ -51,16 +75,14 @@ const FEHero = () => {
                             <img src={Elad} alt="Marca 5" style={{ maxWidth: 100, maxHeight: 80, objectFit: "contain" }} />
                         </div>
                     </Col>
-
                     <Col md={8} lg={5} className="offset-lg-1">
                         <div className="hero-2-img mt-5 mt-lg-0">
                             <img
                                 src={TaeCelu}
                                 alt=""
                                 className="img-fluid rounded-lg"
-                                style={{ maxWidth: "370px", width: "100%", boxShadow: "0 10px 32px 0 rgba(31,97,235,0.10)" }}
+                                style={{ maxWidth: "500px", width: "100%", boxShadow: "0 10px 32px 0 rgba(31,97,235,0.10)" }}
                             />
-
                         </div>
                     </Col>
                 </Row>

@@ -4,7 +4,7 @@ import * as React from "react";
 import { FaCogs } from "react-icons/fa";
 
 // Imágenes
-import heroBottomShape from "../../assets/images/hero-bottom-shape.png";
+import heroBottomShape from "../../assets/images/DW/Fondo.png";
 import DW1 from "../../assets/images/DW/DW1.png";
 import DW2 from "../../assets/images/DW/DW2.png";
 import DW3 from "../../assets/images/DW/DW3.png";
@@ -13,21 +13,39 @@ import DW5 from "../../assets/images/DW/DW5.png";
 import DW6 from "../../assets/images/DW/DW6.png";
 import DW7 from "../../assets/images/DW/DW7.png";
 import DW8 from "../../assets/images/DW/DW8.png";
+import DW9 from "../../assets/images/DW/DW9.png";
 
-const DWHero = () => {
-  const logos = [DW1, DW2, DW3, DW4, DW5, DW6, DW7, DW8];
+// RECIBE UN PROPS LLAMADO background (opcional)
+const DWHero = ({ background }: { background?: string }) => {
+  const logos = [DW1, DW2, DW3, DW4, DW5, DW6, DW7, DW8, DW9];
 
   return (
     <>
-      {/* Hero principal */}
-      <section className="hero-5 bg-light position-relative pb-5">
+      <section
+        className="hero-5 position-relative pb-5"
+        style={
+          background
+            ? {
+              background: background.startsWith("url(")
+                ? background
+                : `url(${background})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              minHeight: 520,
+            }
+            : { background: "#f8fafc", minHeight: 520 }
+        }
+      >
         <Container className="position-relative" style={{ zIndex: 2 }}>
           <Row className="justify-content-center text-center hero-content">
             <Col lg={8}>
               <h1 className="hero-title fw-bold mb-4 display-4">
-                Diseño <span className="text-primary">Web</span>
+                <span className="text-white">Desarrollo </span>
+                <span className="text-primary">Web</span>
               </h1>
-              <p className="opacity-75 mb-4 pb-3 fs-17">
+
+              <p className="opacity-75 mb-4 pb-3 fs-17 text-white" style={{ color: "#fff" }}>
                 Gran parte de nuestros sitios web y plataformas entregadas,
                 cuentan con las siguientes tecnologías, lo cual nos permite
                 crear interfaces web seguras y estables para el usuario.
@@ -47,17 +65,6 @@ const DWHero = () => {
               </Col>
             ))}
           </Row>
-
-          {/* <Row className="justify-content-center text-center">
-            <Col lg={10}>
-              <div className="hero-5-img-content mt-4">
-                {(FaCogs as any)({
-                  className: "text-primary",
-                  style: { fontSize: "8rem" },
-                })}
-              </div>
-            </Col>
-          </Row> */}
         </Container>
 
         <div
@@ -68,7 +75,6 @@ const DWHero = () => {
         </div>
       </section>
 
-      {/* Call to Action */}
       <div className="bg-white py-4">
         <Container>
           <Row className="mt-2">

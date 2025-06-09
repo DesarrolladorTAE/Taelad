@@ -41,7 +41,7 @@ const Features2 = () => {
               </div>
             </div>
 
-            <div className="d-flex mb-3">
+            {/* <div className="d-flex mb-3">
               <div className="flex-shrink-0">
                 <span
                   className="avatar avatar-lg bg-white text-primary rounded-circle shadow-primary d-flex align-items-center justify-content-center"
@@ -55,7 +55,7 @@ const Features2 = () => {
                   <span className="text-dark fw-bold">Generación e importación de la DIOT</span> al portal del SAT de forma sencilla.
                 </p>
               </div>
-            </div>
+            </div> */}
 
             <div className="d-flex mb-3">
               <div className="flex-shrink-0">

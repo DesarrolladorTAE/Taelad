@@ -5,41 +5,41 @@ const waNumber = "5217442188925";
 
 const paquetes = [
   {
-    nombre: "PAQUETE BASICO",
+    nombre: "PAQUETE BÁSICO",
     precio: "$1,500",
     beneficios: [
-      "Diseño de hasta 3 propuestas",
-      "3 Modificaciones",
-      "Se entrega en formato JPG y PNG",
+      "Diseño de 2 propuestas de logotipo",
+      "Entrega en JPG y PNG (alta calidad y fondo transparente)",
+      "No incluye manual de marca ni rediseños posteriores"
     ],
   },
   {
-    nombre: "PAQUETE REGULAR",
+    nombre: "PAQUETE ESTÁNDAR",
     precio: "$3,000",
     badge: "Más vendido",
     beneficios: [
-      "Diseño de hasta 3 propuestas",
-      "5 Modificaciones",
-      "Sugerencias de diseño",
-      "Manual de identidad básico (paleta de colores, código de colores, archivos de formato JPG y PNG y archivo editables).",
+      "Diseño de 3 propuestas de logotipo",
+      "Entrega en JPG, PNG y PDF",
+      "Incluye manual básico de uso del logo (colores, tipografía, versiones)",
+      "No incluye aplicaciones de marca"
     ],
   },
   {
-    nombre: "PAQUETE AVANZADO",
+    nombre: "PAQUETE PROFESIONAL",
     precio: "$5,000",
     beneficios: [
-      "Diseño de 3 propuestas",
-      "Cambios",
-      "Manual de Identidad (paleta de colores, código de colores, archivos de formato JPG y PNG, archivo editables e incluye fotomontajes)",
-      "Versión monocromática (1 sólo color)",
-      "Estilos Tipográficos",
-      "Colores Web",
-      "Colores Impresión",
-      "Archivo CDR",
-      "Imágenes en distintos formatos para su uso.",
+      "Diseño de 5 propuestas de logotipo",
+      "Entrega en JPG, PNG, PDF y SVG (vector editable)",
+      "Incluye manual de identidad corporativa completo:",
+      "• Paleta de colores",
+      "• Tipografías",
+      "• Usos correctos e incorrectos",
+      "• Aplicaciones básicas",
+      "Diseño de tarjeta de presentación (frente y reverso)"
     ],
   },
 ];
+
 
 const getWaLink = (nombrePaquete: string): string => {
   const mensaje = `Hola, quiero adquirir el ${nombrePaquete} de diseño de logo`;

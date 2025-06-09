@@ -32,7 +32,7 @@ const TaeFooter = () => {
                             <li><Link to="/nosotros" className="text-white-50">Nosotros</Link></li>
                             <li><Link to="/aviso-privacidad" className="text-white-50">Aviso de privacidad</Link></li>
                             <li><Link to="/terminos-condiciones" className="text-white-50">Términos y Condiciones</Link></li>
-                            <li><Link to="/quienes-somos" className="text-white-50">¿Quiénes somos?</Link></li>
+                            {/* <li><Link to="/quienes-somos" className="text-white-50">¿Quiénes somos?</Link></li> */}
                         </ul>
 
                     </Col>

@@ -57,7 +57,7 @@ const index = () => {
       {/* footer */}
       <TaeFooter />
       {/* back to top button */}
-      {/* <BackToTop /> */}
+      <BackToTop />
       {/* login form */}
       {/* <Login /> */}
       {/* signin form */}

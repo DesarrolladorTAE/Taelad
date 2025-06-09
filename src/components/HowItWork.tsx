@@ -26,7 +26,7 @@ const HowItWork = () => {
               <div className="work-icon bg-soft-primary mb-4">
                 <i className="mdi mdi-web"></i>
               </div>
-              <h5 className="fw-semibold">1. Diseño Web Personalizado</h5>
+              <h5 className="fw-semibold">1. Desarrollo Web Personalizado</h5>
               <p className="text-muted">
                 Creamos soluciones web a medida, colocando tu empresa en internet con sitios únicos y funcionales.
               </p>
@@ -50,7 +50,7 @@ const HowItWork = () => {
               <div className="work-icon bg-soft-warning mb-4">
                 <i className="mdi mdi-palette"></i>
               </div>
-              <h5 className="fw-semibold">3. Identidad Corporativa</h5>
+              <h5 className="fw-semibold">3. Diseño Gráfico</h5>
               <p className="text-muted">
                 Diseñamos logotipos auténticos y profesionales, basados en estándares de calidad, para que puedas registrarlos como propiedad de tu marca.
               </p>

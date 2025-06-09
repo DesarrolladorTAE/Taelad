@@ -5,6 +5,9 @@ import "bootstrap/dist/js/bootstrap.bundle.min";
 import "./assets/css/materialdesignicons.min.css";
 import "./assets/scss/style.scss";
 
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+
 
 import AOS from "aos";
 

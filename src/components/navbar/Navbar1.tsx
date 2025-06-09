@@ -32,8 +32,8 @@ const sectionData = [
     { path: "/landing", title: "Hogar" },
     { path: "/facturacion", title: "Facturación Electrónica" },
     { path: "/contabilidad", title: "Contabilidad Electrónica" },
-    { path: "/diseno", title: "Diseño Web" },
-    { path: "/imagen", title: "Imagen Corporativa" },
+    { path: "/desarrollo", title: "Desarrollo Web" },
+    { path: "/diseno", title: "Diseño Gráfico" },
     { path: "/marketing", title: "Marketing Digital" },
 ];
 

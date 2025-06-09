@@ -12,7 +12,7 @@ const Hero1 = () => {
         <Row className="align-items-center hero-content">
           <Col lg={6}>
             <h1 className="hero-title fw-bold mb-4 pb-3 text-white">
-              Diseño web, Tiendas en linea y Marketing digital
+              Desarrollo web, Tiendas en linea, Marketing digital, Sistema contable y de facturación
             </h1>
             <p className="text-white opacity-75 mb-4 pb-3 fs-17">
               Implementamos La Tecnología Para Hacer El Trabajo Diario Más Fácil, Creamos Sitios Web Únicos

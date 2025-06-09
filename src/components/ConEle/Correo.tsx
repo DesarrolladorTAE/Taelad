@@ -30,7 +30,7 @@ const Contact = () => {
     const enviarCorro = (data: ContactForm) => {
         // Aquí defines los valores fijos
         const correoProp = "contacto@tecnologiasadministrativas.com";
-        const pagina = "Landfing TAE";
+        const pagina = "Landing TAE";
         const nombreProp = "Raul Alvarez";
 
         // Mapeas al formato esperado
@@ -44,12 +44,8 @@ const Contact = () => {
             telefono: data.phone ? data.phone : null
         };
 
-        // axios.post(
-        //     'http://taeconta.com/api/public/api/correosTae',
-        //     payload
-        // )
         axios.post(
-            'https://taeconta.com/api/public/api/correos/publicos', // <-- aquí la URL correcta
+            'https://taeconta.com/api/public/api/correos/publicos',
             payload
         )
             .then((data) => {
@@ -67,11 +63,11 @@ const Contact = () => {
                 <Row className="justify-content-center mb-5">
                     <Col md={8} lg={6} className="text-center">
                         <h6 className="subtitle">
-                            Our <span className="fw-bold">Contact Us</span>
+                            Nuestro <span className="fw-bold">Contacto</span>
                         </h6>
-                        <h2 className="title">Get in Touch</h2>
+                        <h2 className="title">Ponte en contacto</h2>
                         <p className="text-muted">
-                            Mediante correo
+                            Mediante correo electrónico
                         </p>
                     </Col>
                 </Row>
@@ -82,7 +78,7 @@ const Contact = () => {
                                 <img src={helloIcon} alt="..." height="80" />
                             </div>
                             <div className="flex-grow-1 ms-3">
-                                <h2 className="mb-0">Say Hello!</h2>
+                                <h2 className="mb-0">¡Di Hola!</h2>
                             </div>
                         </div>
                         <div className="mb-4">
@@ -93,7 +89,7 @@ const Contact = () => {
                                     </div>
                                 </div>
                                 <div className="flex-grow-1 ms-3">
-                                    <h5 className="mb-0 fs-18">Email</h5>
+                                    <h5 className="mb-0 fs-18">Correo electrónico</h5>
                                 </div>
                             </div>
                             <p className="mb-1">
@@ -111,114 +107,114 @@ const Contact = () => {
                                     <Row>
                                         <Col md={6}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="firstName">First Name</Form.Label>
+                                                <Form.Label htmlFor="firstName">Nombre</Form.Label>
                                                 <Form.Control
                                                     type="text"
                                                     id="firstName"
-                                                    placeholder="Your first name..."
+                                                    placeholder="Tu nombre..."
                                                     isInvalid={!!errors.firstName}
                                                     {...register("firstName", { required: true })}
                                                 />
                                                 <Form.Control.Feedback type="invalid">
-                                                    {errors.firstName && "First name is required"}
+                                                    {errors.firstName && "El nombre es obligatorio"}
                                                 </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col md={6}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="lastName">Last Name</Form.Label>
+                                                <Form.Label htmlFor="lastName">Apellido</Form.Label>
                                                 <Form.Control
                                                     type="text"
                                                     id="lastName"
-                                                    placeholder="Last name..."
+                                                    placeholder="Tu apellido..."
                                                     isInvalid={!!errors.lastName}
                                                     {...register("lastName", { required: true })}
                                                 />
                                                 <Form.Control.Feedback type="invalid">
-                                                    {errors.lastName && "Last name is required"}
+                                                    {errors.lastName && "El apellido es obligatorio"}
                                                 </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col md={6}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="email">Email Address</Form.Label>
+                                                <Form.Label htmlFor="email">Correo electrónico</Form.Label>
                                                 <Form.Control
                                                     type="email"
                                                     id="email"
-                                                    placeholder="Your email..."
+                                                    placeholder="Tu correo electrónico..."
                                                     isInvalid={!!errors.email}
                                                     {...register("email", {
                                                         required: true,
                                                         pattern: {
                                                             value: /^\S+@\S+\.\S+$/,
-                                                            message: "Invalid email"
+                                                            message: "Correo inválido"
                                                         }
                                                     })}
                                                 />
                                                 <Form.Control.Feedback type="invalid">
                                                     {errors.email?.type === "required"
-                                                        ? "Email is required"
+                                                        ? "El correo es obligatorio"
                                                         : errors.email?.message as string}
                                                 </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col md={6}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="phone">Phone Number</Form.Label>
+                                                <Form.Label htmlFor="phone">Teléfono</Form.Label>
                                                 <Form.Control
                                                     type="tel"
                                                     id="phone"
-                                                    placeholder="Phone number..."
+                                                    placeholder="Número de teléfono..."
                                                     isInvalid={!!errors.phone}
                                                     {...register("phone", {
                                                         required: true,
                                                         pattern: {
                                                             value: /^[0-9\s\-()+]{8,20}$/,
-                                                            message: "Invalid phone number"
+                                                            message: "Teléfono inválido"
                                                         }
                                                     })}
                                                 />
                                                 <Form.Control.Feedback type="invalid">
                                                     {errors.phone?.type === "required"
-                                                        ? "Phone is required"
+                                                        ? "El teléfono es obligatorio"
                                                         : errors.phone?.message as string}
                                                 </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col md={6} lg={12}>
                                             <div className="mb-3">
-                                                <Form.Label htmlFor="subject">Subject</Form.Label>
+                                                <Form.Label htmlFor="subject">Asunto</Form.Label>
                                                 <Form.Control
                                                     type="text"
                                                     id="subject"
-                                                    placeholder="Type subject..."
+                                                    placeholder="Escribe el asunto..."
                                                     isInvalid={!!errors.subject}
                                                     {...register("subject", { required: true })}
                                                 />
                                                 <Form.Control.Feedback type="invalid">
-                                                    {errors.subject && "Subject is required"}
+                                                    {errors.subject && "El asunto es obligatorio"}
                                                 </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                         <Col>
                                             <div className="mb-4">
-                                                <Form.Label htmlFor="message">Messages</Form.Label>
+                                                <Form.Label htmlFor="message">Mensaje</Form.Label>
                                                 <Form.Control
                                                     as="textarea"
                                                     style={{ height: "100px" }}
                                                     id="message"
-                                                    placeholder="Type messages..."
+                                                    placeholder="Escribe tu mensaje..."
                                                     isInvalid={!!errors.message}
                                                     {...register("message", { required: true })}
                                                 />
                                                 <Form.Control.Feedback type="invalid">
-                                                    {errors.message && "Message is required"}
+                                                    {errors.message && "El mensaje es obligatorio"}
                                                 </Form.Control.Feedback>
                                             </div>
                                         </Col>
                                     </Row>
                                     <button type="submit" className="btn btn-gradient-danger">
-                                        Send Messages <i className="mdi mdi-send ms-1"></i>
+                                        Enviar mensaje <i className="mdi mdi-send ms-1"></i>
                                     </button>
                                 </Form>
                             </Card.Body>

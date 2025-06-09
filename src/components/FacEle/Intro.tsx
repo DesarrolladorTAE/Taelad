@@ -39,7 +39,7 @@ const Features1 = () => {
             <Container>
                 <Row className="justify-content-center mb-5">
                     <Col md={8} lg={6} className="text-center">
-                        <h2 className="title">Accede a nuestro sistema</h2>
+                        <h2 className="title">Accede a nuestro sistema Taeconta</h2>
                     </Col>
                 </Row>
 

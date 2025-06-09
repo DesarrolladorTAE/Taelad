@@ -5,65 +5,61 @@ const waNumber = "5217442188925";
 
 const planes = [
     {
-        nombre: "PLAN MENSUAL",
-        precio: "$300-400",
-        extras: "MXN",
+        nombre: "Paquete Mensual",
+        precio: "$1,500",
+        extras: "MXN/mes",
         beneficios: [
-            "Asesoramiento técnico web",
-            "Copias de seguridad (Backups)",
-            "Protección y seguridad web",
-            "Monitorización",
-            "1 Cambio general",
-        ],
+            "2 actualizaciones de contenido al mes (textos, imágenes o banners)",
+            "Revisión de enlaces rotos y formularios",
+            "Optimización de velocidad y carga básica",
+            "Copia de seguridad mensual",
+            "Soporte técnico básico (WhatsApp/correo)",
+            "Reporte mensual de mantenimiento"
+        ]
     },
     {
-        nombre: "PLAN TRIMESTRAL",
-        precio: "$900-1200",
-        extras: "MXN",
+        nombre: "Paquete Trimestral",
+        precio: "$3,900",
+        extras: "MXN/3 meses",
         beneficios: [
-            "Asesoramiento técnico web",
-            "Copias de seguridad (Backups)",
-            "Protección y seguridad web",
-            "Monitorización",
-            "Mejora de carga y velocidad",
-            "Actualización contenido web",
-            "4 Cambios generales",
-        ],
+            "6 actualizaciones durante el trimestre",
+            "Revisión general de código y estructura",
+            "Optimización de imágenes y velocidad",
+            "Copia de seguridad mensual",
+            "Soporte técnico medio (WhatsApp/correo)",
+            "Reporte trimestral detallado",
+            "Revisión de compatibilidad móvil"
+        ]
     },
     {
-        nombre: "PLAN ANUAL",
-        precio: "$3000-5000",
-        extras: "MXN",
+        nombre: "Paquete Anual",
+        precio: "$13,800",
+        extras: "MXN/año",
         beneficios: [
-            "Asesoramiento técnico web",
-            "Copias de seguridad (Backups)",
-            "Protección y seguridad web",
-            "Monitorización",
-            "Mejora de carga y velocidad",
-            "Actualización contenido web",
-            "7 Cambios generales",
-            "Rediseño gratis de pagina principal del sitio",
-        ],
+            "Hasta 24 actualizaciones durante el año",
+            "Soporte prioritario",
+            "Mantenimiento de base de datos",
+            "Monitoreo de seguridad mensual",
+            "Revisión de SEO técnico básico",
+            "Copia de seguridad mensual",
+            "Reporte trimestral + asesoría estratégica anual"
+        ]
     },
     {
-        nombre: "PLAN PERSONALIZADO",
+        nombre: "Paquete Personalizado",
         precio: "Cotizar",
         fondo: "#2466c9",
         color: "white",
         buttonBackground: "#fff",
         buttonTextColor: "#2466c9",
         beneficios: [
-            "Asesoramiento técnico web",
-            "Copias de seguridad (Backups)",
-            "Protección y seguridad web",
-            "Monitorización",
-            "Mejora de carga y velocidad",
-            "Actualización contenido web",
-            "7 Cambios generales",
-            "Rediseño gratis de pagina principal del sitio",
-            "Añade más elementos a la lista...",
-        ],
-    },
+            "Plan adaptado a tu empresa",
+            "Cantidad de actualizaciones requeridas",
+            "Tipo de contenido y complejidad técnica",
+            "Integraciones con otros sistemas",
+            "Necesidades de seguridad o escalabilidad"
+        ]
+    }
 ];
 
 const getWaLink = (nombre: string) => {
@@ -136,13 +132,27 @@ const PlanesMantenimiento = () => (
                                         borderRadius: "8px",
                                     }}
                                 >
-                                    {plan.nombre === "PLAN PERSONALIZADO" ? "Cotizar Plan Personalizado" : "Contratar Servicio"}
+                                    {plan.nombre === "Paquete Personalizado"
+                                        ? "Cotizar Plan Personalizado"
+                                        : "Contratar Servicio"}
                                 </a>
                             </div>
                         </div>
                     </Col>
                 ))}
             </Row>
+
+            {/* Bloque de ventajas */}
+            <div className="text-center mt-5">
+                <h4 className="fw-bold mb-3 text-primary">¿Por qué contratar mantenimiento con nosotros?</h4>
+                <ul className="list-unstyled d-inline-block text-start" style={{ maxWidth: 500 }}>
+                    <li>✔️ Especialistas en desarrollo web con código nativo</li>
+                    <li>✔️ Soporte rápido y cercano</li>
+                    <li>✔️ Prevención de fallos, pérdidas o vulnerabilidades</li>
+                    <li>✔️ Mejor experiencia para tus usuarios</li>
+                    <li>✔️ Tu sitio siempre actualizado y en línea</li>
+                </ul>
+            </div>
             <div className="text-center mt-4">
                 <a
                     href="/Políticas-de-Mantenimiento-TAE-1.pdf"
@@ -153,7 +163,6 @@ const PlanesMantenimiento = () => (
                 >
                     Ver Políticas de Mantenimiento
                 </a>
-
             </div>
         </Container>
     </section>

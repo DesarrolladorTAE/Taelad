@@ -104,8 +104,8 @@ const AllRoutes = () => {
                 { path: 'landing', element: <LoadComponent component={Index1} /> }, // Hogar
                 { path: 'facturacion', element: <LoadComponent component={FacEle} /> }, // Facturación Electrónica
                 { path: 'contabilidad', element: <LoadComponent component={ConEle} /> }, // Contabilidad Electrónica
-                { path: 'diseno', element: <LoadComponent component={DisWeb} /> }, // Testimonios
-                { path: 'imagen', element: <LoadComponent component={ImaCor} /> }, // Precios
+                { path: 'desarrollo', element: <LoadComponent component={DisWeb} /> }, // Testimonios
+                { path: 'diseno', element: <LoadComponent component={ImaCor} /> }, // Precios
                 { path: 'marketing', element: <LoadComponent component={MarDig} /> }, // Contáctanos
                  // === Agrega aquí las rutas del footer ===
                 { path: 'nosotros', element: <LoadComponent component={Nosotros} /> },

@@ -28,11 +28,11 @@ const features = [
         title: "Cloud System",
         description: "Resguarda tu importación de manera segura y automática",
     },
-    {
-        icon: FaUniversity,
-        title: "DIOT",
-        description: "Genera e importa la DIOT al portal del SAT",
-    },
+    // {
+    //     icon: FaUniversity,
+    //     title: "DIOT",
+    //     description: "Genera e importa la DIOT al portal del SAT",
+    // },
     {
         icon: MdOutlineFactCheck,
         title: "Facturación y Nóminas",
@@ -44,11 +44,11 @@ const features = [
         title: "Cálculo de Impuestos",
         description: "Cálculo de impuestos en tiempo real",
     },
-    {
-        icon: FaSyncAlt,
-        title: "Conciliación Automática",
-        description: "Conciliación Automáticas",
-    },
+    // {
+    //     icon: FaSyncAlt,
+    //     title: "Conciliación Automática",
+    //     description: "Conciliación Automáticas",
+    // },
     {
         icon: FaFileInvoiceDollar,
         title: "Pólizas Automáticas",
