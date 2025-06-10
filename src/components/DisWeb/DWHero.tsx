@@ -57,8 +57,8 @@ const DWHero = () => {
                                     src={logo}
                                     alt={`Logo ${index + 1}`}
                                     style={{
-                                        maxWidth: "60px",
-                                        maxHeight: "60px",
+                                        maxWidth: "80px",
+                                        maxHeight: "80px",
                                         objectFit: "contain"
                                     }}
                                 />

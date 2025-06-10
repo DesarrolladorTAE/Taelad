@@ -49,8 +49,8 @@ const TerminosCondiciones: React.FC = () => (
                         </h2> */}
                         <div style={{ whiteSpace: "pre-line", fontSize: "1.08rem" }}>
                             {`INFORMACIÓN GENERAL
-📄 *Términos y Condiciones de Uso
-Tecnologías Administrativas ELAD®*
+📄 Términos y Condiciones de Uso
+Tecnologías Administrativas ELAD®
 
 Última actualización: 9 de junio de 2025
 

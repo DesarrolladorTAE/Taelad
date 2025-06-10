@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { Container, Row, Col } from "react-bootstrap";
 
 // Images
-import hero2Img from "../../assets/images/Tae/TAECONTA-HORIZONTAL-600x227.webp"; // <-- TU LOGO para el círculo
-import TaeCelu from "../../assets/images/FE/TAECelu.png";
+import hero2Img from "../../assets/images/Tae/TAECONTABLANCO.png"; // <-- TU LOGO para el círculo
+// import TaeCelu from "../../assets/images/FE/TAECelu.png";
 import Diamond from "../../assets/images/FE/Diamond.png";
 import Dragon from "../../assets/images/FE/Dragon.png";
 import Elad from "../../assets/images/FE/Elad.png";
@@ -14,6 +14,8 @@ import TMC from "../../assets/images/FE/tmc_web.png";
 const backgroundImg = require("../../assets/images/FE/6070859.jpg"); // O pon la ruta que necesites
 
 const FEHero = () => {
+    const videoSrc = require("../../assets/videos/VideoTaeconta.mp4");
+
     return (
         <section
             className="hero-2 position-relative"
@@ -30,7 +32,8 @@ const FEHero = () => {
             <div className="bg-overlay-img" />
             <Container>
                 <Row className="align-items-center justify-content-center hero-content">
-                    <Col lg={6}>
+                    {/* <Col lg={6}> */}
+                    <Col lg={6} md={6}>
                         <div
                             className="avatar avatar-xl rounded-circle bg-soft-primary text-primary shadow-sm mb-4 d-flex justify-content-center align-items-center"
                             style={{
@@ -75,15 +78,25 @@ const FEHero = () => {
                             <img src={Elad} alt="Marca 5" style={{ maxWidth: 100, maxHeight: 80, objectFit: "contain" }} />
                         </div>
                     </Col>
-                    <Col md={8} lg={5} className="offset-lg-1">
-                        <div className="hero-2-img mt-5 mt-lg-0">
-                            <img
-                                src={TaeCelu}
-                                alt=""
-                                className="img-fluid rounded-lg"
-                                style={{ maxWidth: "500px", width: "100%", boxShadow: "0 10px 32px 0 rgba(31,97,235,0.10)" }}
+                    {/* <Col md={8} lg={5} className="offset-lg-1"> */}
+                    <Col lg={6} md={6}>
+                        <div className="hero-2-img mt-5 mt-lg-0 d-flex justify-content-center align-items-center">
+                            <video
+                                src={videoSrc}
+                                controls
+                                autoPlay
+                                muted
+                                loop
+                                style={{
+                                    maxWidth: "600px",
+                                    width: "100%",
+                                    borderRadius: "16px",
+                                    boxShadow: "0 10px 32px 0 rgba(31,97,235,0.10)",
+                                    background: "#eee"
+                                }}
                             />
                         </div>
+
                     </Col>
                 </Row>
             </Container>

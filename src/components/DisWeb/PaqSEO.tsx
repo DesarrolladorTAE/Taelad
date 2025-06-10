@@ -80,7 +80,8 @@ const SeoPackages = () => (
             <Row className="justify-content-center g-4">
                 {paquetesSEO.map((paq, idx) => (
                     <Col md={6} lg={3} key={idx}>
-                        <div className="shadow rounded-3 p-0 h-100" style={{ background: "#fff" }}>
+                        {/* 1. Agrega d-flex flex-column y h-100 */}
+                        <div className="shadow rounded-3 p-0 h-100 d-flex flex-column" style={{ background: "#fff" }}>
                             <div style={{
                                 background: "#2466c9",
                                 borderTopLeftRadius: "12px",
@@ -120,7 +121,8 @@ const SeoPackages = () => (
                                     </li>
                                 ))}
                             </ul>
-                            <div className="text-center py-3">
+                            {/* 2. El botón va en mt-auto */}
+                            <div className="text-center py-3 mt-auto">
                                 <a
                                     href={getWaLink(paq.nombre)}
                                     target="_blank"
@@ -145,6 +147,7 @@ const SeoPackages = () => (
                     </Col>
                 ))}
             </Row>
+
         </Container>
     </section>
 );

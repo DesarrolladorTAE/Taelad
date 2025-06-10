@@ -68,7 +68,7 @@ const Pricing = () => (
             <Row className="justify-content-center g-4">
                 {paquetes.map((paq, idx) => (
                     <Col md={6} lg={4} key={idx}>
-                        <div className="shadow rounded-3 p-0 h-100 position-relative" style={{ minHeight: 620, background: "#fff" }}>
+                        <div className="shadow rounded-3 p-0 h-100 position-relative d-flex flex-column" style={{ minHeight: 620, background: "#fff" }}>
                             {/* Header */}
                             <div style={{ background: "#2466c9", borderTopLeftRadius: "12px", borderTopRightRadius: "12px" }}>
                                 <h4 className="text-center text-white py-3 fw-bold m-0">{paq.nombre}</h4>
@@ -121,7 +121,7 @@ const Pricing = () => (
                                 )}
                             </ul>
                             {/* Botón WhatsApp */}
-                            <div className="text-center py-3">
+                            <div className="text-center py-3 mt-auto">
                                 <a
                                     href={getWaLink(paq.nombre)}
                                     target="_blank"

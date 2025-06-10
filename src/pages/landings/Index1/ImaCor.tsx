@@ -18,6 +18,7 @@ import ICHero from "../../../components/ImaCor/ICHero";
 import Como from "../../../components/ImaCor/Como";
 import PaqLogo from "../../../components/ImaCor/PaqLogo";
 import TaeFooter from "../../../components/TaeFooter";
+import Logos from "../../../components/ImaCor/Logos";
 
 const index = () => {
   return (
@@ -26,31 +27,32 @@ const index = () => {
       <Navbar1 classname="navbar-light" isLogoDark={false} />
       {/* header and hero */}
       <div id="home">
-      <ICHero />
-      {/* how it work */}
-      <Como />
+        <ICHero />
+        {/* how it work */}
+        <Como />
       </div>
       <div id="features">
-      {/* features1 */}
-      <PaqLogo />
-      {/* fetures2 */}
-      {/* <Features2 /> */}
-      {/* counter */}
-      {/* <Counter /> */}
+        {/* features1 */}
+        <Logos />
+        <PaqLogo />
+        {/* fetures2 */}
+        {/* <Features2 /> */}
+        {/* counter */}
+        {/* <Counter /> */}
       </div>
       <div id="screenshot">
-      {/* slider */}
-      {/* <Slider /> */}
+        {/* slider */}
+        {/* <Slider /> */}
       </div>
       {/* testimonial */}
       {/* <Testimonial /> */}
       <div id="pricing">
-      {/* pricing */}
-      {/* <Pricing /> */}
-      {/* faqs */}
-      {/* <Faqs /> */}
-      {/* cta */}
-      {/* <Cta /> */}
+        {/* pricing */}
+        {/* <Pricing /> */}
+        {/* faqs */}
+        {/* <Faqs /> */}
+        {/* cta */}
+        {/* <Cta /> */}
       </div>
       {/* contact */}
       {/* <Contact /> */}

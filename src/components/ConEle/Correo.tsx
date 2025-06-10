@@ -22,37 +22,39 @@ const Contact = () => {
     } = useForm<ContactForm>();
 
     const onSubmit = (data: ContactForm) => {
-        console.log(data); // listo para backend
-        alert("✅ Mensaje enviado con éxito");
-        enviarCorro(data)
+        console.log(data);
+        enviarCorro(data); // Primero enviar
+        // El alert de éxito debería estar en el .then() de enviarCorro
     };
 
     const enviarCorro = (data: ContactForm) => {
-        // Aquí defines los valores fijos
-        const correoProp = "contacto@tecnologiasadministrativas.com";
-        const pagina = "Landing TAE";
-        const nombreProp = "Raul Alvarez";
+        const formData = new FormData();
 
-        // Mapeas al formato esperado
-        const payload = {
-            nombre: data.firstName,
-            correo: data.email,
-            mensaje: data.message,
-            nombreProp: nombreProp,
-            correoProp: correoProp,
-            pagina: pagina,
-            telefono: data.phone ? data.phone : null
-        };
+        // Agregar todos los campos al FormData
+        formData.append('nombre', `${data.firstName} ${data.lastName}`.trim());
+        formData.append('correo', data.email);
+        formData.append('mensaje', `Asunto: ${data.subject}\n\n${data.message}`);
+        formData.append('nombreProp', "Raul Álvarez");
+        formData.append('correoProp', "contacto@tecnologiasadministrativas.com");
+        formData.append('pagina', "Landing TAE");
 
-        axios.post(
-            'https://taeconta.com/api/public/api/correos/publicos',
-            payload
-        )
-            .then((data) => {
-                console.log('Respuesta de correo: ', data)
+        if (data.phone) {
+            formData.append('telefono', data.phone);
+        }
+
+        axios.post('https://taeconta.com/api/public/api/correos/publicos', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        })
+            .then((response) => {
+                console.log('Respuesta de correo: ', response);
+                alert("✅ Mensaje enviado con éxito");
                 reset();
-            }).catch((e) => {
-                console.log('Error: ', e)
+            })
+            .catch((error) => {
+                console.log('Error: ', error);
+                alert("❌ Error al enviar el mensaje");
             });
     }
 
