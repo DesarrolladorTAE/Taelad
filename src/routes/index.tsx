@@ -20,6 +20,7 @@ const ConEle = React.lazy(() => import('../pages/landings/Index1/ConEle'));
 const DisWeb = React.lazy(() => import('../pages/landings/Index1/DisWeb'));
 const ImaCor = React.lazy(() => import('../pages/landings/Index1/ImaCor'));
 const MarDig = React.lazy(() => import('../pages/landings/Index1/MarDig'));
+const TarjetaJennys = React.lazy(() => import('../tarjetas/TarjetaJennys'));
 
 const Nosotros = React.lazy(() => import('../pages/TaeFooter/Nosotros'));
 const AvisoPrivacidad = React.lazy(() => import('../pages/TaeFooter/Aviso'));
@@ -111,6 +112,8 @@ const AllRoutes = () => {
                 { path: 'nosotros', element: <LoadComponent component={Nosotros} /> },
                 { path: 'aviso-privacidad', element: <LoadComponent component={AvisoPrivacidad} /> },
                 { path: 'terminos-condiciones', element: <LoadComponent component={TerminosCondiciones} /> },
+                //Tarjetas de presentación
+                { path: 'jennysbananasandfruits', element: <LoadComponent component={TarjetaJennys} /> },
                 // { path: 'quienes-somos', element: <LoadComponent component={QuienesSomos} /> },
                 // Tienda:
                 // { path: 'tienda', element: <LoadComponent component={Tienda} /> },
