@@ -78,7 +78,12 @@ const TarjetaJennys: React.FC = () => {
           </Typography>
 
           <Stack spacing={1} mb={2}>
-            <Button variant="contained" color="warning" fullWidth>
+            <Button
+              variant="contained"
+              color="warning"
+              href="tel:+529621529658"
+              fullWidth
+            >
               Contacto
             </Button>
             <Button
@@ -124,7 +129,7 @@ const TarjetaJennys: React.FC = () => {
               }}
               fullWidth
               startIcon={<LocationOn />}
-              href="https://www.google.com/maps/place/Suchiate,+Chiapas,+México"
+              href="https://maps.app.goo.gl/C4tPoXzafqGnP3rW6"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -199,7 +204,7 @@ const TarjetaJennys: React.FC = () => {
             </IconButton>
             <IconButton
               component="a"
-              href="https://www.facebook.com/Jenny's%20bananas%20and%20fruit's"
+              href="https://www.facebook.com/bananasSuchiate"
               target="_blank"
               rel="noreferrer"
               sx={{ color: "#fff" }}
@@ -208,7 +213,7 @@ const TarjetaJennys: React.FC = () => {
             </IconButton>
             <IconButton
               component="a"
-              href="https://www.youtube.com/@Jennysbananasnadfruits"
+              href="https://www.youtube.com/@jennysbananasandfruits1061"
               target="_blank"
               rel="noreferrer"
               sx={{ color: "#fff" }}
