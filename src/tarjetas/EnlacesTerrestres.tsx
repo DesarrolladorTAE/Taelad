@@ -13,12 +13,11 @@ import {
   Collapse,
 } from "@mui/material";
 import {
-  LocationOn,
   Email,
   WhatsApp,
   Facebook,
   Instagram,
-  MusicNote,
+  Twitter as X,
   YouTube,
   ExpandLess,
   ExpandMore,
@@ -27,20 +26,33 @@ import {
   RequestQuote,
   Call,
   StarBorder,
+  MusicNote,
 } from "@mui/icons-material";
+
+import { SvgIcon, SvgIconProps } from "@mui/material";
+// import { FaTiktok } from "react-icons/fa6"; // <- fa6, no fa
+
+
+
 
 const EnlacesTerrestres: React.FC = () => {
   const [open, setOpen] = useState(false);
 
-  const whatsappLink =
-    "https://wa.me/5210000000000?text=Hola,%20quiero%20pedir%20un%20taxi";
-  const emailLink = "mailto:baseuribe@hotmail.com";
   const logoUrl = "/Tarjetas/Banners/juliotaxi.png";
 
   const buttonStyle = {
     width: { xs: "100%", sm: "80%", md: "60%", lg: "50%" },
     mx: "auto",
   };
+  const mensaje = encodeURIComponent("Hola, necesito una factura 📄");
+  const facturarLink = `https://api.whatsapp.com/send?phone=525614219586&text=${mensaje}`;
+
+  const TwitterXIcon = (props: SvgIconProps) => (
+    <SvgIcon {...props}>
+      <path d="M21.35 3H17.7l-4.6 6.33L8.13 3H2.5l7.07 10.27L2.65 21h3.65l4.9-6.75L15.8 21h5.65l-7.4-10.67L21.35 3z" />
+    </SvgIcon>
+  );
+
 
   return (
     <Box
@@ -80,7 +92,7 @@ const EnlacesTerrestres: React.FC = () => {
               height: 180,
               mx: "auto",
               mb: 2,
-              variant: "square", // opcional
+              variant: "square",
             }}
           />
 
@@ -88,11 +100,11 @@ const EnlacesTerrestres: React.FC = () => {
             CONOTAXI
           </Typography>
 
-          {/* Botones centrados */}
           <Stack spacing={1.5} mb={2} alignItems="center" width="100%">
             <Button
               variant="contained"
               startIcon={<Call />}
+              href="tel:5620670367"
               sx={{
                 ...buttonStyle,
                 bgcolor: "#000",
@@ -107,7 +119,7 @@ const EnlacesTerrestres: React.FC = () => {
             <Button
               variant="contained"
               startIcon={<Email />}
-              href={emailLink}
+              href="mailto:conotaxitx@gmail.com"
               sx={{
                 ...buttonStyle,
                 bgcolor: "#000",
@@ -123,7 +135,7 @@ const EnlacesTerrestres: React.FC = () => {
             <Button
               variant="contained"
               startIcon={<WhatsApp />}
-              href={whatsappLink}
+              href="https://wa.me/5620670367?text=Hola,%20necesito%20un%20taxi%20por%20favor%20🙏"
               target="_blank"
               rel="noopener noreferrer"
               sx={{
@@ -139,7 +151,7 @@ const EnlacesTerrestres: React.FC = () => {
             <Button
               variant="outlined"
               startIcon={<AttachMoney />}
-              href="https://link.clip.mx/Taxienlaces/pagar"
+              href="https://clip.mx/@Taxienlaces"
               target="_blank"
               sx={{
                 ...buttonStyle,
@@ -156,6 +168,8 @@ const EnlacesTerrestres: React.FC = () => {
             <Button
               variant="outlined"
               startIcon={<RequestQuote />}
+              href={facturarLink}
+              target="_blank"
               sx={{
                 ...buttonStyle,
                 bgcolor: "#000",
@@ -194,9 +208,10 @@ const EnlacesTerrestres: React.FC = () => {
                 {[
                   "Viajes foráneos",
                   "Viajes por hora",
-                  "Traslados ejecutivos",
-                  "Servicios programados",
-                  "Unidades con clima",
+                  "Reservaciones",
+                  "Traslado de mascotas",
+                  "Paquetería",
+                  "Chofer",
                 ].map((item) => (
                   <ListItemButton key={item} sx={{ pl: 4 }}>
                     <ListItemIcon sx={{ color: "white" }}>
@@ -208,6 +223,10 @@ const EnlacesTerrestres: React.FC = () => {
               </List>
             </Collapse>
           </List>
+
+          <Typography variant="body2" mt={2}>
+            ¡Contamos con facturación electrónica!
+          </Typography>
         </div>
 
         <Box mt={4}>
@@ -215,17 +234,41 @@ const EnlacesTerrestres: React.FC = () => {
             Síguenos en redes
           </Typography>
           <Stack direction="row" justifyContent="center" spacing={2}>
-            <IconButton href="#" target="_blank" sx={{ color: "#fff" }}>
-              <MusicNote />
-            </IconButton>
-            <IconButton href="#" target="_blank" sx={{ color: "#fff" }}>
-              <Instagram />
-            </IconButton>
-            <IconButton href="#" target="_blank" sx={{ color: "#fff" }}>
+            <IconButton
+              href="https://www.facebook.com/ConoTaxi"
+              target="_blank"
+              sx={{ color: "#fff" }}
+            >
               <Facebook />
             </IconButton>
-            <IconButton href="#" target="_blank" sx={{ color: "#fff" }}>
+            <IconButton
+              href="https://www.instagram.com/cono_taxi/"
+              target="_blank"
+              sx={{ color: "#fff" }}
+            >
+              <Instagram />
+            </IconButton>
+            <IconButton
+              href="https://x.com/ConsejoTx"
+              target="_blank"
+              sx={{ color: "#fff" }}
+            >
+              <TwitterXIcon />
+            </IconButton>
+
+            <IconButton
+              href="https://www.youtube.com/@hugoflores1601"
+              target="_blank"
+              sx={{ color: "#fff" }}
+            >
               <YouTube />
+            </IconButton>
+            <IconButton
+              href="https://www.tiktok.com/@conotaxi"
+              target="_blank"
+              sx={{ color: "#fff" }}
+            >
+              <MusicNote />
             </IconButton>
           </Stack>
         </Box>
