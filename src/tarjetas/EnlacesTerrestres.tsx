@@ -18,7 +18,6 @@ import {
   Facebook,
   Instagram,
   Twitter as X,
-  YouTube,
   ExpandLess,
   ExpandMore,
   LocalTaxi,
@@ -28,12 +27,6 @@ import {
   StarBorder,
   MusicNote,
 } from "@mui/icons-material";
-
-import { SvgIcon, SvgIconProps } from "@mui/material";
-// import { FaTiktok } from "react-icons/fa6"; // <- fa6, no fa
-
-
-
 
 const EnlacesTerrestres: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -46,13 +39,6 @@ const EnlacesTerrestres: React.FC = () => {
   };
   const mensaje = encodeURIComponent("Hola, necesito una factura 📄");
   const facturarLink = `https://api.whatsapp.com/send?phone=525614219586&text=${mensaje}`;
-
-  const TwitterXIcon = (props: SvgIconProps) => (
-    <SvgIcon {...props}>
-      <path d="M21.35 3H17.7l-4.6 6.33L8.13 3H2.5l7.07 10.27L2.65 21h3.65l4.9-6.75L15.8 21h5.65l-7.4-10.67L21.35 3z" />
-    </SvgIcon>
-  );
-
 
   return (
     <Box
@@ -97,14 +83,14 @@ const EnlacesTerrestres: React.FC = () => {
           />
 
           <Typography variant="h5" fontWeight="bold" mb={3}>
-            CONOTAXI
+            Enlaces Terrestres
           </Typography>
 
           <Stack spacing={1.5} mb={2} alignItems="center" width="100%">
             <Button
               variant="contained"
               startIcon={<Call />}
-              href="tel:5620670367"
+              href="tel:5614219586"
               sx={{
                 ...buttonStyle,
                 bgcolor: "#000",
@@ -119,7 +105,7 @@ const EnlacesTerrestres: React.FC = () => {
             <Button
               variant="contained"
               startIcon={<Email />}
-              href="mailto:conotaxitx@gmail.com"
+              href="mailto:baseuribe@hotmail.com"
               sx={{
                 ...buttonStyle,
                 bgcolor: "#000",
@@ -135,7 +121,7 @@ const EnlacesTerrestres: React.FC = () => {
             <Button
               variant="contained"
               startIcon={<WhatsApp />}
-              href="https://wa.me/5620670367?text=Hola,%20necesito%20un%20taxi%20por%20favor%20🙏"
+              href="https://wa.me/5614219586?text=Hola,%20necesito%20un%20taxi%20por%20favor%20🙏"
               target="_blank"
               rel="noopener noreferrer"
               sx={{
@@ -235,36 +221,22 @@ const EnlacesTerrestres: React.FC = () => {
           </Typography>
           <Stack direction="row" justifyContent="center" spacing={2}>
             <IconButton
-              href="https://www.facebook.com/ConoTaxi"
+              href="https://www.facebook.com/enlaces.terrestres.52/"
               target="_blank"
               sx={{ color: "#fff" }}
             >
               <Facebook />
             </IconButton>
             <IconButton
-              href="https://www.instagram.com/cono_taxi/"
+              href="https://www.instagram.com/terrestresenlaces/"
               target="_blank"
               sx={{ color: "#fff" }}
             >
               <Instagram />
             </IconButton>
-            <IconButton
-              href="https://x.com/ConsejoTx"
-              target="_blank"
-              sx={{ color: "#fff" }}
-            >
-              <TwitterXIcon />
-            </IconButton>
 
             <IconButton
-              href="https://www.youtube.com/@hugoflores1601"
-              target="_blank"
-              sx={{ color: "#fff" }}
-            >
-              <YouTube />
-            </IconButton>
-            <IconButton
-              href="https://www.tiktok.com/@conotaxi"
+              href="https://www.tiktok.com/@enlaces.terrestre2?_t=ZS-8xkanqN6Kqf&_r=1"
               target="_blank"
               sx={{ color: "#fff" }}
             >
