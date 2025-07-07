@@ -22,6 +22,7 @@ const ImaCor = React.lazy(() => import('../pages/landings/Index1/ImaCor'));
 const MarDig = React.lazy(() => import('../pages/landings/Index1/MarDig'));
 const TarjetaJennys = React.lazy(() => import('../tarjetas/TarjetaJennys'));
 const EnlacesTerrestres = React.lazy(() => import('../tarjetas/EnlacesTerrestres'));
+const balnearioSantaMaria = React.lazy(() => import('../tarjetas/balneario-rancho-santa-maria'));
 
 const Nosotros = React.lazy(() => import('../pages/TaeFooter/Nosotros'));
 const AvisoPrivacidad = React.lazy(() => import('../pages/TaeFooter/Aviso'));
@@ -116,6 +117,7 @@ const AllRoutes = () => {
                 //Tarjetas de presentación
                 { path: 'jennysbananasandfruits', element: <LoadComponent component={TarjetaJennys} /> },
                 { path: 'enlaces-terrestres', element: <LoadComponent component={EnlacesTerrestres} /> },
+                { path: 'balneario-rancho-santa-maria', element: <LoadComponent component={balnearioSantaMaria} /> },
 
                 // { path: 'quienes-somos', element: <LoadComponent component={QuienesSomos} /> },
                 // Tienda:
