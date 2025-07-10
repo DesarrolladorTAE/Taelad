@@ -30,7 +30,7 @@ const TarjetaJennys: React.FC = () => {
   const [open, setOpen] = useState(false);
   const whatsappLink =
     "https://wa.me/529621529658?text=Hola,%20quiero%20más%20información%20sobre%20tus%20productos";
-  const logoUrl = "/Tarjetas/Banners/jennysbananasandfruits.png";
+  const logoUrl = "/Tarjetas/Banners/jenny2.jpg";
 
   return (
     <Box
@@ -62,17 +62,23 @@ const TarjetaJennys: React.FC = () => {
         }}
       >
         <div>
-          <Avatar
+          <Box
+            component="img"
             src={logoUrl}
             alt="Jenny's Bananas and Fruits"
             sx={{
-              width: 100,
-              height: 100,
+              width: 250,
+              height: 250,
+              objectFit: "contain",
+              borderRadius: 2,
               mx: "auto",
               mb: 2,
+              backgroundColor: "#fff",
               border: "3px solid white",
+              p: 1,
             }}
           />
+
           <Typography variant="h5" fontWeight="bold" mb={2}>
             Jennys Bananas and Fruits
           </Typography>
