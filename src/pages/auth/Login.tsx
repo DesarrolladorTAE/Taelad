@@ -1,96 +1,286 @@
-import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import * as React from "react";
+import {
+  Box,
+  Button,
+  Checkbox,
+  Container,
+  CssBaseline,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Divider,
+  FormControlLabel,
+  Grid,
+  Link as MLink,
+  TextField,
+  Typography,
+  ThemeProvider,
+  createTheme,
+  InputAdornment,
+} from "@mui/material";
+import { Email, Lock, Close } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 
-
-//images
+// Si quieres seguir usando las imágenes de tus assets:
 import google from "../../assets/images/auth-icon/google.png";
 import twitter from "../../assets/images/auth-icon/twitter.png";
 import facebook from "../../assets/images/auth-icon/facebook.png";
-import { Form, Modal } from "react-bootstrap";
 
-const Login = () => {
-  const [show, setShow] = useState(false);
+// Paleta basada en tu logo
+const brandBlue   = "#1577CE";
+const brandOrange = "#C77B1C";
+const brandBlack  = "#0B0B0B";
+const brandWhite  = "#FFFFFF";
 
-  useEffect(() => {
-    const login = document.getElementById("login");
-    if (login) {
-      login?.addEventListener("click", () => setShow(true));
-    }
-  }, []);
+const theme = createTheme({
+  palette: {
+    primary:   { main: brandBlue },
+    secondary: { main: brandOrange },
+    text: { primary: brandBlack },
+    background: { default: brandWhite, paper: brandWhite },
+  },
+  shape: { borderRadius: 14 },
+  components: {
+    MuiDialog: {
+      styleOverrides: {
+        paper: { borderRadius: 20 },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: { textTransform: "none", fontWeight: 600 },
+      },
+    },
+  },
+});
+
+export default function Login() {
+  const navigate = useNavigate();
+  const [open, setOpen] = React.useState(true);
+
+  const [values, setValues] = React.useState({
+    email: "",
+    password: "",
+    remember: false,
+  });
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+
+  const onChange =
+    (field: keyof typeof values) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = e.target.type === "checkbox"
+        ? (e.target as HTMLInputElement).checked
+        : e.target.value;
+      setValues((s) => ({ ...s, [field]: v as any }));
+    };
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!values.email.trim()) e.email = "Correo obligatorio";
+    else if (!/^\S+@\S+\.\S+$/.test(values.email)) e.email = "Correo inválido";
+    if (!values.password) e.password = "Contraseña obligatoria";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    // Vuelve a la pantalla anterior o a la que prefieras:
+    setTimeout(() => navigate(-1), 0);
+    // o: navigate("/landing", { replace: true })
+  };
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+    // TODO: login contra tu API
+  };
 
   return (
-    <Modal show={show} onHide={() => setShow(false)} centered>
-      <Modal.Body className="p-4">
-        <div className="text-center mb-4">
-          <h4 className="mb-0">Welcome Back</h4>
-          <p className="text-muted fs-15">
-            Welcome back! Please enter your details.
-          </p>
-        </div>
-        <div className="mb-3">
-          <Form.Label htmlFor="emailAddress">Email Address</Form.Label>
-          <Form.Control
-            type="email"
-            id="emailAddress"
-            placeholder="Your email..."
-          />
-        </div>
-        <div className="mb-2">
-          <Form.Label htmlFor="inputPasseord">Password</Form.Label>
-          <Form.Control type="password" id="inputPasseord" />
-        </div>
-        <div className="d-flex justify-content-between align-items-center mb-4 pb-2">
-          <Form.Check>
-            <Form.Check.Input type="checkbox" value="" id="flexCheckDefault" />
-            <Form.Check.Label htmlFor="flexCheckDefault">
-              Remember for 30 days
-            </Form.Check.Label>
-          </Form.Check>
-          <Link to="#" className="text-secondary fs-13">
-            Forgot Password..?
-          </Link>
-        </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
 
-        <Link
-          to="#"
-          className="btn btn-gradient-primary w-100"
-          data-bs-dismiss="modal"
+      {/* Fondo detrás del modal (opcional) */}
+      <Container maxWidth={false} disableGutters sx={{ minHeight: "100vh" }} />
+
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            overflow: "visible",
+            boxShadow: "0 24px 60px rgba(0,0,0,.15)",
+            border: `1px solid rgba(0,0,0,.06)`,
+          },
+        }}
+        BackdropProps={{
+          sx: {
+            background:
+              "linear-gradient(115deg, rgba(21,119,206,.25), rgba(199,123,28,.25))",
+            backdropFilter: "blur(3px)",
+          },
+        }}
+      >
+        {/* Header con logo y botón cerrar */}
+        <DialogTitle
+          sx={{
+            p: 0,
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pt: 5,
+          }}
         >
-          Sign up
-        </Link>
-        <div className="text-center">
-          <div className="position-relative my-4">
-            <span className="bg-soft-secondary w-100 d-inline-block"></span>
-            <p className="text-muted fs-15 mb-0 mt-1 bg-white px-2 position-absolute top-50 start-50 translate-middle">
-              Or continue with
-            </p>
-          </div>
-          <ul className="list-inline mb-0">
-            <li className="list-inline-item">
-              <Link to="#" className="btn btn-danger">
-                <img
-                  src={google}
-                  alt="google"
-                  className="img-fluid"
-                  width="24"
-                />
-              </Link>
-            </li>
-            <li className="list-inline-item">
-              <Link to="#" className="btn btn-primary">
-                <img src={facebook} alt="" className="img-fluid" width="24" />
-              </Link>
-            </li>
-            <li className="list-inline-item">
-              <Link to="#" className="btn btn-info">
-                <img src={twitter} alt="" className="img-fluid" width="24" />
-              </Link>
-            </li>
-          </ul>
-        </div>
-      </Modal.Body>
-    </Modal>
-  );
-};
+          <Box
+            component="img"
+            src="/logo/tae.png"   // ← tu ruta de logo en assets públicos
+            alt="Logo TAE"
+            sx={{ width: 96, height: "auto" }}
+          />
+          <Button
+            onClick={handleClose}
+            aria-label="Cerrar"
+            sx={{
+              minWidth: 0,
+              p: 1,
+              position: "absolute",
+              right: 10,
+              top: 10,
+              color: brandBlack,
+              bgcolor: "rgba(0,0,0,.04)",
+              "&:hover": { bgcolor: "rgba(0,0,0,.08)" },
+              borderRadius: "50%",
+            }}
+          >
+            <Close fontSize="small" />
+          </Button>
+        </DialogTitle>
 
-export default Login;
+        <DialogContent sx={{ pt: 2, pb: 4 }}>
+          <Box textAlign="center" mb={1}>
+            <Typography variant="h5" fontWeight={700}>
+              Iniciar sesión
+            </Typography>
+            <Typography color="text.secondary">
+              Bienvenido de vuelta. Ingresa tus credenciales.
+            </Typography>
+          </Box>
+
+          <Box component="form" noValidate onSubmit={onSubmit} mt={3}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  type="email"
+                  label="Correo electrónico"
+                  value={values.email}
+                  onChange={onChange("email")}
+                  error={!!errors.email}
+                  helperText={errors.email}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Email />
+                      </InputAdornment>
+                    ),
+                  }}
+                  autoComplete="email"
+                  autoFocus
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  type="password"
+                  label="Contraseña"
+                  value={values.password}
+                  onChange={onChange("password")}
+                  error={!!errors.password}
+                  helperText={errors.password}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Lock />
+                      </InputAdornment>
+                    ),
+                  }}
+                  autoComplete="current-password"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  
+
+                  {/* Implementa esta ruta cuando la tengas */}
+                  <MLink
+                    component="button"
+                    type="button"
+                    onClick={() => navigate("/auth/forgot")}
+                    underline="hover"
+                    sx={{ fontSize: 13, color: "text.secondary" }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </MLink>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                {/* Botón principal con gradiente azul → naranja */}
+                <Button
+                  type="submit"
+                  fullWidth
+                  size="large"
+                  variant="contained"
+                  sx={{
+                    py: 1.4,
+                    backgroundImage: `linear-gradient(135deg, ${brandBlue}, ${brandOrange})`,
+                    boxShadow: "0 10px 24px rgba(21,119,206,.24)",
+                    "&:hover": {
+                      filter: "brightness(.96)",
+                      boxShadow: "0 10px 24px rgba(199,123,28,.24)",
+                      backgroundImage: `linear-gradient(135deg, ${brandBlue}, ${brandOrange})`,
+                    },
+                  }}
+                >
+                  Iniciar sesión
+                </Button>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider sx={{ my: 0.5 }} />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Button
+                  fullWidth
+                  size="large"
+                  variant="outlined"
+                  onClick={() => navigate("/auth/signup")}
+                  sx={{
+                    py: 1.3,
+                    borderColor: brandBlack,
+                    color: brandBlack,
+                    ":hover": { borderColor: brandBlack, bgcolor: "rgba(0,0,0,.04)" },
+                  }}
+                >
+                  ¿No tienes cuenta? Crear cuenta
+                </Button>
+              </Grid>
+
+
+            </Grid>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </ThemeProvider>
+  );
+}
