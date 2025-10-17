@@ -56,9 +56,9 @@ const index1 = () => {
       {/* back to top button */}
       <BackToTop />
       {/* login form */}
-      <Login />
+      {/* <Login /> */}
       {/* signin form */}
-      <Signin />
+      {/* <Signin /> */}
     </>
   );
 };

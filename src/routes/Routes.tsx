@@ -14,6 +14,7 @@ const ConEle = React.lazy(() => import("../pages/landings/Index1/ConEle"));
 const DisWeb = React.lazy(() => import("../pages/landings/Index1/DisWeb"));
 const ImaCor = React.lazy(() => import("../pages/landings/Index1/ImaCor"));
 const MarDig = React.lazy(() => import("../pages/landings/Index1/MarDig"));
+const panel = React.lazy(() => import("../pages/users/panel"));
 
 // Tarjetas
 const TarjetaJennys = React.lazy(() => import("../tarjetas/TarjetaJennys"));
@@ -72,6 +73,8 @@ export default function AllRoutes() {
         { path: "jennysbananasandfruits", element: <LoadComponent component={TarjetaJennys} /> },
         { path: "enlaces-terrestres", element: <LoadComponent component={EnlacesTerrestres} /> },
         { path: "balneario-rancho-santa-maria", element: <LoadComponent component={BalnearioSantaMaria} /> },
+
+        { path: "panel", element: <LoadComponent component={panel} /> },
 
         // Auth
         { path: "auth", element: <Navigate to="auth/login" replace /> }, // /auth → /auth/login
