@@ -144,7 +144,7 @@ export default function Login() {
 
   const handleClose = () => {
     setOpen(false);
-    setTimeout(() => navigate(-1), 0);
+    setTimeout(() => navigate("/"), 0);
   };
 
   const onSubmit = async (e: React.FormEvent) => {

@@ -29,14 +29,14 @@ import { authApi } from "../../services/api";
 import { setAuthToken } from "../../services/axiosClient";
 
 // Paleta basada en tu logo
-const brandBlue   = "#1577CE";
+const brandBlue = "#1577CE";
 const brandOrange = "#C77B1C";
-const brandBlack  = "#0B0B0B";
-const brandWhite  = "#FFFFFF";
+const brandBlack = "#0B0B0B";
+const brandWhite = "#FFFFFF";
 
 const theme = createTheme({
   palette: {
-    primary:   { main: brandBlue },
+    primary: { main: brandBlue },
     secondary: { main: brandOrange },
     text: { primary: brandBlack },
     background: { default: brandWhite, paper: brandWhite },
@@ -53,7 +53,13 @@ const theme = createTheme({
 });
 
 // Botón Google (UI)
-function GoogleButton({ onClick, disabled = false }: { onClick: () => void; disabled?: boolean }) {
+function GoogleButton({
+  onClick,
+  disabled = false,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <Button
       fullWidth
@@ -71,13 +77,34 @@ function GoogleButton({ onClick, disabled = false }: { onClick: () => void; disa
         gap: 1.2,
       }}
     >
-      <Box component="span" sx={{ display: "inline-flex", width: 20, height: 20 }} aria-hidden>
+      <Box
+        component="span"
+        sx={{ display: "inline-flex", width: 20, height: 20 }}
+        aria-hidden
+      >
         {/* Logo Google (SVG simple) */}
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 533.5 544.3">
-          <path fill="#4285f4" d="M533.5 278.4c0-17.4-1.6-34.1-4.6-50.4H272v95.3h147.8c-6.4 34.6-26 63.9-55.4 83.6v69.4h89.6c52.4-48.3 79.5-119.4 79.5-198z"/>
-          <path fill="#34a853" d="M272 544.3c72.2 0 132.9-23.9 177.2-64.9l-89.6-69.4c-24.9 16.7-56.7 26.5-87.6 26.5-67.3 0-124.4-45.4-144.9-106.3H36.1v66.6C79.8 487.5 170.9 544.3 272 544.3z"/>
-          <path fill="#fbbc05" d="M127.1 330.2c-10.4-31.1-10.4-64.6 0-95.7V167.9H36.1c-38.9 77.8-38.9 170.7 0 248.6l91-66.3z"/>
-          <path fill="#ea4335" d="M272 106.7c37.7-.6 74 12.9 101.6 38.2l75.9-75.9C405.1 24.3 343.5 0 272 0 170.9 0 79.8 56.8 36.1 160.2l91 66.3c20.5-61 77.6-106.3 144.9-106.3z"/>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 533.5 544.3"
+        >
+          <path
+            fill="#4285f4"
+            d="M533.5 278.4c0-17.4-1.6-34.1-4.6-50.4H272v95.3h147.8c-6.4 34.6-26 63.9-55.4 83.6v69.4h89.6c52.4-48.3 79.5-119.4 79.5-198z"
+          />
+          <path
+            fill="#34a853"
+            d="M272 544.3c72.2 0 132.9-23.9 177.2-64.9l-89.6-69.4c-24.9 16.7-56.7 26.5-87.6 26.5-67.3 0-124.4-45.4-144.9-106.3H36.1v66.6C79.8 487.5 170.9 544.3 272 544.3z"
+          />
+          <path
+            fill="#fbbc05"
+            d="M127.1 330.2c-10.4-31.1-10.4-64.6 0-95.7V167.9H36.1c-38.9 77.8-38.9 170.7 0 248.6l91-66.3z"
+          />
+          <path
+            fill="#ea4335"
+            d="M272 106.7c37.7-.6 74 12.9 101.6 38.2l75.9-75.9C405.1 24.3 343.5 0 272 0 170.9 0 79.8 56.8 36.1 160.2l91 66.3c20.5-61 77.6-106.3 144.9-106.3z"
+          />
         </svg>
       </Box>
       Continuar con Google
@@ -109,7 +136,11 @@ export default function Signin() {
   const [countdown, setCountdown] = React.useState(60); // seg para reenviar
 
   // Feedback
-  const [snack, setSnack] = React.useState<{ open: boolean; msg: string; type: "success" | "error" | "info" }>({
+  const [snack, setSnack] = React.useState<{
+    open: boolean;
+    msg: string;
+    type: "success" | "error" | "info";
+  }>({
     open: false,
     msg: "",
     type: "success",
@@ -134,24 +165,29 @@ export default function Signin() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!values.firstName.trim()) e.firstName = "Nombre obligatorio";
-    if (!values.lastName.trim())  e.lastName  = "Apellido obligatorio";
-    if (!values.email.trim())     e.email     = "Correo obligatorio";
+    if (!values.lastName.trim()) e.lastName = "Apellido obligatorio";
+    if (!values.email.trim()) e.email = "Correo obligatorio";
     else if (!/^\S+@\S+\.\S+$/.test(values.email)) e.email = "Correo inválido";
-    if (values.phone.length !== 10) e.phone   = "El teléfono debe tener 10 dígitos";
-    if (!values.password)          e.password = "Contraseña obligatoria";
-    if (!values.accept)            e.accept   = "Debes aceptar términos";
+    if (values.phone.length !== 10)
+      e.phone = "El teléfono debe tener 10 dígitos";
+    if (!values.password) e.password = "Contraseña obligatoria";
+    if (!values.accept) e.accept = "Debes aceptar términos";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleClose = () => {
     setOpen(false);
-    setTimeout(() => navigate(-1), 0);
+    setTimeout(() => navigate("/"), 0);
   };
 
   const handleGoogleClick = () => {
     // TODO: Integra tu flujo OAuth Google (redirect/popup).
-    setSnack({ open: true, msg: "Integración con Google pendiente ✨", type: "info" });
+    setSnack({
+      open: true,
+      msg: "Integración con Google pendiente ✨",
+      type: "info",
+    });
   };
 
   // 1) Solicita código y abre modal
@@ -159,7 +195,11 @@ export default function Signin() {
     try {
       setSendingCode(true);
       const { data } = await authApi.requestCode(values.phone);
-      setSnack({ open: true, msg: data?.message || "Código enviado por WhatsApp.", type: "success" });
+      setSnack({
+        open: true,
+        msg: data?.message || "Código enviado por WhatsApp.",
+        type: "success",
+      });
       setOtpOpen(true);
       setOtp("");
       setOtpError("");
@@ -203,12 +243,20 @@ export default function Signin() {
       };
 
       const { data } = await authApi.register(payload);
-      const token = data?.data?.token;
-      if (token) setAuthToken(token);
+      const res = data?.data;
+
+      if (res?.token && res?.user) {
+        setAuthToken(res.token);
+        localStorage.setItem("token", res.token);
+        localStorage.setItem("auth_user", JSON.stringify(res.user));
+
+        // 🔔 notifica al resto de la app (SideNav, etc.)
+        window.dispatchEvent(new Event("auth-updated"));
+      }
 
       setSnack({ open: true, msg: "Registro exitoso 🎉", type: "success" });
       setOtpOpen(false);
-      navigate("/panel"); // ajusta la ruta según tu app
+      navigate("/panel");
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
@@ -264,7 +312,12 @@ export default function Signin() {
             pt: 5,
           }}
         >
-          <Box component="img" src="/logo/tae.png" alt="Logo TAE" sx={{ width: 96, height: "auto" }} />
+          <Box
+            component="img"
+            src="/logo/tae.png"
+            alt="Logo TAE"
+            sx={{ width: 96, height: "auto" }}
+          />
           <IconButton
             onClick={handleClose}
             aria-label="Cerrar"
@@ -284,8 +337,12 @@ export default function Signin() {
 
         <DialogContent sx={{ pt: 2, pb: 4 }}>
           <Box textAlign="center" mb={1}>
-            <Typography variant="h5" fontWeight={700}>Crear cuenta</Typography>
-            <Typography color="text.secondary">Regístrate para empezar con TAE</Typography>
+            <Typography variant="h5" fontWeight={700}>
+              Crear cuenta
+            </Typography>
+            <Typography color="text.secondary">
+              Regístrate para empezar con TAE
+            </Typography>
           </Box>
 
           <Box component="form" noValidate onSubmit={onSubmit} mt={3}>
@@ -298,7 +355,13 @@ export default function Signin() {
                   onChange={onChange("firstName")}
                   error={!!errors.firstName}
                   helperText={errors.firstName}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Person /></InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Person />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
 
@@ -310,7 +373,13 @@ export default function Signin() {
                   onChange={onChange("lastName")}
                   error={!!errors.lastName}
                   helperText={errors.lastName}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Person /></InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Person />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
 
@@ -323,7 +392,13 @@ export default function Signin() {
                   onChange={onChange("email")}
                   error={!!errors.email}
                   helperText={errors.email}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Email /></InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Email />
+                      </InputAdornment>
+                    ),
+                  }}
                   autoComplete="email"
                 />
               </Grid>
@@ -337,7 +412,13 @@ export default function Signin() {
                   error={!!errors.phone}
                   helperText={errors.phone}
                   inputProps={{ inputMode: "numeric" }}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Phone /></InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Phone />
+                      </InputAdornment>
+                    ),
+                  }}
                   autoComplete="tel"
                 />
               </Grid>
@@ -351,7 +432,13 @@ export default function Signin() {
                   onChange={onChange("password")}
                   error={!!errors.password}
                   helperText={errors.password}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Lock /></InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Lock />
+                      </InputAdornment>
+                    ),
+                  }}
                   autoComplete="new-password"
                 />
               </Grid>
@@ -361,20 +448,30 @@ export default function Signin() {
                   control={
                     <Checkbox
                       checked={values.accept}
-                      onChange={(e) => setValues((s) => ({ ...s, accept: e.target.checked }))}
+                      onChange={(e) =>
+                        setValues((s) => ({ ...s, accept: e.target.checked }))
+                      }
                       color="primary"
                     />
                   }
                   label={
                     <Typography variant="body2">
                       Acepto los{" "}
-                      <MLink href="#" underline="hover">Términos</MLink> y la{" "}
-                      <MLink href="#" underline="hover">Política de privacidad</MLink>.
+                      <MLink href="#" underline="hover">
+                        Términos
+                      </MLink>{" "}
+                      y la{" "}
+                      <MLink href="#" underline="hover">
+                        Política de privacidad
+                      </MLink>
+                      .
                     </Typography>
                   }
                 />
                 {!!errors.accept && (
-                  <Typography color="error" variant="caption">{errors.accept}</Typography>
+                  <Typography color="error" variant="caption">
+                    {errors.accept}
+                  </Typography>
                 )}
               </Grid>
 
@@ -395,7 +492,11 @@ export default function Signin() {
                       backgroundImage: `linear-gradient(135deg, ${brandBlue}, ${brandOrange})`,
                     },
                   }}
-                  startIcon={sendingCode ? <CircularProgress size={18} sx={{ color: "#fff" }} /> : null}
+                  startIcon={
+                    sendingCode ? (
+                      <CircularProgress size={18} sx={{ color: "#fff" }} />
+                    ) : null
+                  }
                 >
                   {sendingCode ? "Enviando código..." : "Crear cuenta"}
                 </Button>
@@ -406,7 +507,10 @@ export default function Signin() {
               </Grid>
 
               <Grid item xs={12}>
-                <GoogleButton onClick={handleGoogleClick} disabled={sendingCode} />
+                <GoogleButton
+                  onClick={handleGoogleClick}
+                  disabled={sendingCode}
+                />
               </Grid>
 
               <Grid item xs={12}>
@@ -419,7 +523,10 @@ export default function Signin() {
                     py: 1.3,
                     borderColor: brandBlack,
                     color: brandBlack,
-                    ":hover": { borderColor: brandBlack, bgcolor: "rgba(0,0,0,.04)" },
+                    ":hover": {
+                      borderColor: brandBlack,
+                      bgcolor: "rgba(0,0,0,.04)",
+                    },
                   }}
                 >
                   ¿Ya tienes cuenta? Inicia sesión
@@ -450,7 +557,8 @@ export default function Signin() {
         </DialogTitle>
         <DialogContent sx={{ pt: 0 }}>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            Enviamos un código de 6 dígitos por WhatsApp al <b>{values.phone}</b>.
+            Enviamos un código de 6 dígitos por WhatsApp al{" "}
+            <b>{values.phone}</b>.
           </Typography>
           <TextField
             fullWidth
@@ -466,9 +574,16 @@ export default function Signin() {
             inputProps={{ inputMode: "numeric" }}
           />
 
-          <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            mt={2}
+          >
             <Typography variant="caption" color="text.secondary">
-              {countdown > 0 ? `Puedes reenviar en ${countdown}s` : "¿No recibiste el código?"}
+              {countdown > 0
+                ? `Puedes reenviar en ${countdown}s`
+                : "¿No recibiste el código?"}
             </Typography>
             <Button
               onClick={handleResend}
@@ -485,7 +600,11 @@ export default function Signin() {
             onClick={handleConfirmRegister}
             variant="contained"
             disabled={!otp || otp.length !== 6 || submitting}
-            startIcon={submitting ? <CircularProgress size={18} sx={{ color: "#fff" }} /> : null}
+            startIcon={
+              submitting ? (
+                <CircularProgress size={18} sx={{ color: "#fff" }} />
+              ) : null
+            }
           >
             {submitting ? "Verificando..." : "Confirmar"}
           </Button>
