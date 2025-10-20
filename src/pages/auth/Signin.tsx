@@ -8,10 +8,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-<<<<<<< HEAD
   DialogActions,
-=======
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
   FormControlLabel,
   Grid,
   Link as MLink,
@@ -21,7 +18,6 @@ import {
   createTheme,
   InputAdornment,
   Divider,
-<<<<<<< HEAD
   CircularProgress,
   Snackbar,
   Alert,
@@ -41,21 +37,6 @@ const brandWhite = "#FFFFFF";
 const theme = createTheme({
   palette: {
     primary: { main: brandBlue },
-=======
-} from "@mui/material";
-import { Email, Lock, Person, Phone, Close } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
-
-// Colores basados en tu logo
-const brandBlue   = "#1577CE";
-const brandOrange = "#C77B1C";
-const brandBlack  = "#0B0B0B";
-const brandWhite  = "#FFFFFF";
-
-const theme = createTheme({
-  palette: {
-    primary:   { main: brandBlue },
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
     secondary: { main: brandOrange },
     text: { primary: brandBlack },
     background: { default: brandWhite, paper: brandWhite },
@@ -63,28 +44,14 @@ const theme = createTheme({
   shape: { borderRadius: 14 },
   components: {
     MuiDialog: {
-<<<<<<< HEAD
       styleOverrides: { paper: { borderRadius: 20 } },
     },
     MuiButton: {
       styleOverrides: { root: { textTransform: "none", fontWeight: 600 } },
-=======
-      styleOverrides: {
-        paper: {
-          borderRadius: 20,
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: { textTransform: "none", fontWeight: 600 },
-      },
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
     },
   },
 });
 
-<<<<<<< HEAD
 // Botón Google (UI)
 function GoogleButton({
   onClick,
@@ -145,16 +112,11 @@ function GoogleButton({
   );
 }
 
-=======
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
 export default function Signin() {
   const navigate = useNavigate();
   const [open, setOpen] = React.useState(true);
 
-<<<<<<< HEAD
   // Form state
-=======
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
   const [values, setValues] = React.useState({
     firstName: "",
     lastName: "",
@@ -164,7 +126,6 @@ export default function Signin() {
     accept: false,
   });
   const [errors, setErrors] = React.useState<Record<string, string>>({});
-<<<<<<< HEAD
   const [submitting, setSubmitting] = React.useState(false);
 
   // OTP modal state
@@ -192,27 +153,18 @@ export default function Signin() {
     const t = setTimeout(() => setCountdown((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [otpOpen, countdown]);
-=======
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
 
   const onChange =
     (field: keyof typeof values) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       let v = e.target.value;
-<<<<<<< HEAD
       if (field === "phone") v = v.replace(/\D/g, "").slice(0, 10);
-=======
-      if (field === "phone") {
-        v = v.replace(/\D/g, "").slice(0, 10); // solo 10 dígitos
-      }
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
       setValues((s) => ({ ...s, [field]: v }));
     };
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!values.firstName.trim()) e.firstName = "Nombre obligatorio";
-<<<<<<< HEAD
     if (!values.lastName.trim()) e.lastName = "Apellido obligatorio";
     if (!values.email.trim()) e.email = "Correo obligatorio";
     else if (!/^\S+@\S+\.\S+$/.test(values.email)) e.email = "Correo inválido";
@@ -220,21 +172,12 @@ export default function Signin() {
       e.phone = "El teléfono debe tener 10 dígitos";
     if (!values.password) e.password = "Contraseña obligatoria";
     if (!values.accept) e.accept = "Debes aceptar términos";
-=======
-    if (!values.lastName.trim())  e.lastName  = "Apellido obligatorio";
-    if (!values.email.trim())     e.email     = "Correo obligatorio";
-    else if (!/^\S+@\S+\.\S+$/.test(values.email)) e.email = "Correo inválido";
-    if (values.phone.length !== 10) e.phone   = "El teléfono debe tener 10 dígitos";
-    if (!values.password)          e.password = "Contraseña obligatoria";
-    if (!values.accept)            e.accept   = "Debes aceptar términos";
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleClose = () => {
     setOpen(false);
-<<<<<<< HEAD
     setTimeout(() => navigate("/"), 0);
   };
 
@@ -328,32 +271,16 @@ export default function Signin() {
   const handleResend = async () => {
     if (countdown > 0) return;
     await requestOtp();
-=======
-    // vuelve a la vista anterior o cambia por navigate("/landing", { replace: true })
-    setTimeout(() => navigate(-1), 0);
-  };
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    // TODO: enviar datos a tu API
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
   };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
 
-<<<<<<< HEAD
       {/* Fondo opcional */}
       <Container maxWidth={false} disableGutters sx={{ minHeight: "100vh" }} />
 
       {/* ======= DIALOG REGISTRO ======= */}
-=======
-      {/* Un container para centrar el modal (opcional, solo para fondo) */}
-      <Container maxWidth={false} disableGutters sx={{ minHeight: "100vh" }} />
-
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
       <Dialog
         open={open}
         onClose={handleClose}
@@ -374,11 +301,7 @@ export default function Signin() {
           },
         }}
       >
-<<<<<<< HEAD
         {/* Header */}
-=======
-        {/* Header con logo y botón cerrar */}
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
         <DialogTitle
           sx={{
             p: 0,
@@ -391,7 +314,6 @@ export default function Signin() {
         >
           <Box
             component="img"
-<<<<<<< HEAD
             src="/logo/tae.png"
             alt="Logo TAE"
             sx={{ width: 96, height: "auto" }}
@@ -400,17 +322,6 @@ export default function Signin() {
             onClick={handleClose}
             aria-label="Cerrar"
             sx={{
-=======
-            src="/logo/tae.png"   // ← tu ruta de asset
-            alt="Logo TAE"
-            sx={{ width: 96, height: "auto" }}
-          />
-          <Button
-            onClick={handleClose}
-            aria-label="Cerrar"
-            sx={{
-              minWidth: 0,
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
               p: 1,
               position: "absolute",
               right: 10,
@@ -418,18 +329,10 @@ export default function Signin() {
               color: brandBlack,
               bgcolor: "rgba(0,0,0,.04)",
               "&:hover": { bgcolor: "rgba(0,0,0,.08)" },
-<<<<<<< HEAD
             }}
           >
             <Close fontSize="small" />
           </IconButton>
-=======
-              borderRadius: "50%",
-            }}
-          >
-            <Close fontSize="small" />
-          </Button>
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
         </DialogTitle>
 
         <DialogContent sx={{ pt: 2, pb: 4 }}>
@@ -573,19 +476,12 @@ export default function Signin() {
               </Grid>
 
               <Grid item xs={12}>
-<<<<<<< HEAD
-=======
-                {/* Botón principal con gradiente azul → naranja */}
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
                 <Button
                   type="submit"
                   fullWidth
                   size="large"
                   variant="contained"
-<<<<<<< HEAD
                   disabled={sendingCode}
-=======
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
                   sx={{
                     py: 1.4,
                     backgroundImage: `linear-gradient(135deg, ${brandBlue}, ${brandOrange})`,
@@ -596,7 +492,6 @@ export default function Signin() {
                       backgroundImage: `linear-gradient(135deg, ${brandBlue}, ${brandOrange})`,
                     },
                   }}
-<<<<<<< HEAD
                   startIcon={
                     sendingCode ? (
                       <CircularProgress size={18} sx={{ color: "#fff" }} />
@@ -604,15 +499,10 @@ export default function Signin() {
                   }
                 >
                   {sendingCode ? "Enviando código..." : "Crear cuenta"}
-=======
-                >
-                  Crear cuenta
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
                 </Button>
               </Grid>
 
               <Grid item xs={12}>
-<<<<<<< HEAD
                 <Divider sx={{ my: 0.5 }}>o</Divider>
               </Grid>
 
@@ -621,9 +511,6 @@ export default function Signin() {
                   onClick={handleGoogleClick}
                   disabled={sendingCode}
                 />
-=======
-                <Divider sx={{ my: 0.5 }} />
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
               </Grid>
 
               <Grid item xs={12}>
@@ -636,14 +523,10 @@ export default function Signin() {
                     py: 1.3,
                     borderColor: brandBlack,
                     color: brandBlack,
-<<<<<<< HEAD
                     ":hover": {
                       borderColor: brandBlack,
                       bgcolor: "rgba(0,0,0,.04)",
                     },
-=======
-                    ":hover": { borderColor: brandBlack, bgcolor: "rgba(0,0,0,.04)" },
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
                   }}
                 >
                   ¿Ya tienes cuenta? Inicia sesión
@@ -653,7 +536,6 @@ export default function Signin() {
           </Box>
         </DialogContent>
       </Dialog>
-<<<<<<< HEAD
 
       {/* ======= DIALOG OTP ======= */}
       <Dialog
@@ -743,8 +625,6 @@ export default function Signin() {
           {snack.msg}
         </Alert>
       </Snackbar>
-=======
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
     </ThemeProvider>
   );
 }
