@@ -26,7 +26,7 @@ export type User = {
   apellidos?: string | null;
   email: string;
   phone?: string | null;
-  ganancias?: string; // decimal en backend → string aquí
+  ganancias?: string;
   role?: number;
   codigo_ref?: string | null;
   terminos?: boolean;
@@ -40,7 +40,7 @@ export type Producto = {
   name: string;
   descripcion?: string | null;
   tipo_produc?: string | null;
-  precio: string; // decimal → string
+  precio: string;
   url_imagen?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -50,8 +50,45 @@ export type HistorialCompra = {
   id: number;
   id_user: number;
   id_producto: number;
-  fecha: string; // ISO
+  fecha: string;
   cantidad: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/** =======================
+ *  Tipos Referidos
+ * ======================= */
+export type Ganancia = {
+  id: number;
+  user_id: number;
+  referido_id?: number | null;
+  codigo_referencia?: string | null;
+  sistema?: string | null;
+  origen?: string | null;
+  producto_id?: number | null;
+  producto_nombre?: string | null;
+  monto: string;
+  tipo: "comision" | "bono" | "reversa" | "otro";
+  status: "pendiente" | "confirmada" | "pagada" | "rechazada";
+  meta?: any;
+  referencia_externa?: string | null;
+  fecha_pago_esperada?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type RetiroGanancia = {
+  id: number;
+  user_id: number;
+  monto: string;
+  metodo: "transferencia" | "paypal" | "oxxo" | "manual" | "otro";
+  cuenta_destino?: string | null;
+  status: "pendiente" | "procesado" | "rechazado" | "pagado";
+  procesado_por?: number | null;
+  referencia_pago?: string | null;
+  notas?: string | null;
+  fecha_procesado?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -69,7 +106,7 @@ export const API_ROUTES = {
     resetPasswordByCode: "/auth/password/reset",
   },
   users: {
-    me: "/user", // Laravel Sanctum por defecto: GET /api/user
+    me: "/user",
   },
   productos: {
     root: "/productos",
@@ -79,7 +116,12 @@ export const API_ROUTES = {
     root: "/historial-compras",
     byUser: (userId: number | string) => `/historial-compras?user_id=${userId}`,
   },
-  // Externo (WhatsApp vía TeLoRecargo):
+  referidos: {
+    asignarCodigo: (userId: number | string) => `/referidos/asignar-codigo/${userId}`,
+    regenerarCodigo: (userId: number | string) => `/referidos/regenerar-codigo/${userId}`,
+    ganancias: "/referidos/ganancias",
+    retiros: "/referidos/retiros",
+  },
   external: {
     whatsappSend: "https://telorecargo.com/api/enviar-documentos-whatsapp",
   },
@@ -100,7 +142,7 @@ export const authApi = {
     apellidos?: string;
     email: string;
     password: string;
-    phone: string; // 10 dígitos
+    phone: string;
     code: string;
     terminos: boolean;
     codigo_ref?: string;
@@ -137,7 +179,7 @@ export const usersApi = {
 };
 
 /** =======================
- *  Productos services (CRUD)
+ *  Productos services
  * ======================= */
 export const productosApi = {
   list: (params?: PaginationParams) =>
@@ -180,16 +222,53 @@ export const historialApi = {
 };
 
 /** =======================
- *  WhatsApp externo (opcional)
+ *  Referidos services
+ * ======================= */
+export const referidosApi = {
+  asignarCodigo: (userId: number | string) =>
+    axiosClient.post<ApiResponse<{ codigo_ref: string; user_id: number }>>(
+      API_ROUTES.referidos.asignarCodigo(userId)
+    ),
+
+  regenerarCodigo: (userId: number | string) =>
+    axiosClient.post<ApiResponse<{ codigo_ref: string; user_id: number }>>(
+      API_ROUTES.referidos.regenerarCodigo(userId)
+    ),
+
+  verGanancias: (params?: {
+    user_id?: number | string;
+    status?: "pendiente" | "confirmada" | "pagada" | "rechazada";
+    sistema?: string;
+    tipo?: "comision" | "bono" | "reversa" | "otro";
+    per_page?: number;
+    page?: number;
+  }) =>
+    axiosClient.get<
+      ApiResponse<{ data: Ganancia[]; total?: number; pagination?: { current_page: number; last_page: number } }>
+    >(API_ROUTES.referidos.ganancias, { params }),
+
+  verRetiros: (params?: {
+    user_id?: number | string;
+    status?: "pendiente" | "procesado" | "rechazado" | "pagado";
+    metodo?: "transferencia" | "paypal" | "oxxo" | "manual" | "otro";
+    per_page?: number;
+    page?: number;
+  }) =>
+    axiosClient.get<
+      ApiResponse<{ data: RetiroGanancia[]; total?: number; pagination?: { current_page: number; last_page: number } }>
+    >(API_ROUTES.referidos.retiros, { params }),
+};
+
+/** =======================
+ *  WhatsApp externo
  * ======================= */
 export const whatsappApi = {
   sendMessage: (params: {
-    phone: string; // uno o varios separados por coma (10 dígitos)
+    phone: string;
     message?: string;
     pdf_url?: string;
     xml_url?: string;
   }) =>
-    // Nota: endpoint externo fuera del BASE_URL
     fetch(API_ROUTES.external.whatsappSend, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -200,18 +279,17 @@ export const whatsappApi = {
     }),
 };
 
-// (opcional) pequeño helper para extraer data
+/** =======================
+ *  Helpers
+ * ======================= */
 export function extract<T>(r: { data: ApiResponse<T> }): T {
   return (r.data?.data as T) ?? (r.data as unknown as T);
 }
 
 /** =======================
- *  Helpers de sesión (login, logout, register auto-login)
+ *  Auth session helpers
  * ======================= */
 export const authSession = {
-  /**
-   * REGISTRO + login automático
-   */
   async register(payload: {
     name: string;
     apellidos?: string;
@@ -228,22 +306,14 @@ export const authSession = {
       throw new Error(data?.message || "Respuesta inválida del servidor");
     }
 
-    // Persistir token para siguientes requests
     setAuthToken(res.token);
-
-    // Usar SOLO 'token' en localStorage
     localStorage.setItem("token", res.token);
     localStorage.setItem("auth_user", JSON.stringify(res.user));
-
-    // Limpieza de llaves viejas (si existían)
     localStorage.removeItem("auth_token");
 
     return res;
   },
 
-  /**
-   * Login y persistencia del token/usuario
-   */
   async login(email_or_phone: string, password: string) {
     const { data } = await authApi.login(email_or_phone, password);
     const res = data?.data as { user: User; token: string };
@@ -252,29 +322,20 @@ export const authSession = {
     }
 
     setAuthToken(res.token);
-    localStorage.setItem("token", res.token); // única clave
+    localStorage.setItem("token", res.token);
     localStorage.setItem("auth_user", JSON.stringify(res.user));
-
-    // Limpieza de llaves viejas (si existían)
     localStorage.removeItem("auth_token");
-
     return res;
   },
 
-  /**
-   * Limpia sesión local (solo front).
-   */
   logout() {
-    localStorage.removeItem("token");     // única clave
+    localStorage.removeItem("token");
     localStorage.removeItem("auth_user");
-    setAuthToken(""); // o crea/usa clearAuthToken en axiosClient
+    setAuthToken("");
   },
 
-  /**
-   * Lee sesión de localStorage (si existe)
-   */
   getSession(): { token: string; user: User } | null {
-    const token = localStorage.getItem("token"); // única clave
+    const token = localStorage.getItem("token");
     const userRaw = localStorage.getItem("auth_user");
     if (!token || !userRaw) return null;
     try {
@@ -286,35 +347,22 @@ export const authSession = {
   },
 };
 
-// --- Helpers extra para "Olvidé mi contraseña" ---
-
-/**
- * Solicita código de verificación por WhatsApp para el teléfono dado (10 dígitos).
- */
+/** =======================
+ *  Password reset helpers
+ * ======================= */
 export async function requestResetCode(phone: string) {
   const clean = (phone || "").replace(/\D/g, "").slice(0, 10);
-  if (!/^\d{10}$/.test(clean)) {
-    throw new Error("El teléfono debe tener 10 dígitos");
-  }
+  if (!/^\d{10}$/.test(clean)) throw new Error("El teléfono debe tener 10 dígitos");
   return authApi.requestCode(clean);
 }
 
-/**
- * Resetea la contraseña con código y luego inicia sesión automáticamente.
- * Devuelve { user, token } si todo sale bien.
- */
 export async function resetPasswordByCodeAndLogin(params: {
   phone: string;
   code: string;
   new_password: string;
 }) {
   const phone = params.phone.replace(/\D/g, "").slice(0, 10);
-
-  // 1) Reset en backend
   await authApi.resetPasswordByCode(phone, params.code, params.new_password);
-
-  // 2) Auto-login con phone + nueva password
   const { user, token } = await authSession.login(phone, params.new_password);
   return { user, token };
 }
-
