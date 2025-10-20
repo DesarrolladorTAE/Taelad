@@ -14,13 +14,10 @@ const ConEle = React.lazy(() => import("../pages/landings/Index1/ConEle"));
 const DisWeb = React.lazy(() => import("../pages/landings/Index1/DisWeb"));
 const ImaCor = React.lazy(() => import("../pages/landings/Index1/ImaCor"));
 const MarDig = React.lazy(() => import("../pages/landings/Index1/MarDig"));
-<<<<<<< HEAD
-const panel = React.lazy(() => import("../pages/users/panel"));
-
-=======
 
 const panel = React.lazy(() => import("../pages/users/panel"));
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
+
+
 
 // Tarjetas
 const TarjetaJennys = React.lazy(() => import("../tarjetas/TarjetaJennys"));
@@ -80,12 +77,10 @@ export default function AllRoutes() {
         { path: "enlaces-terrestres", element: <LoadComponent component={EnlacesTerrestres} /> },
         { path: "balneario-rancho-santa-maria", element: <LoadComponent component={BalnearioSantaMaria} /> },
 
-<<<<<<< HEAD
+
         { path: "panel/*", element: <LoadComponent component={panel} /> },
         
-=======
-        { path: "panel", element: <LoadComponent component={panel} /> },
->>>>>>> 897231601a7809a98afd4b539e3338fff585ad47
+
 
         // Auth
         { path: "auth", element: <Navigate to="auth/login" replace /> }, // /auth → /auth/login

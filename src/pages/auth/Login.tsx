@@ -431,7 +431,7 @@ export default function Login() {
         onClose={() => setForgotOpen(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 20 } }}
+        PaperProps={{ sx: { borderRadius: 2 } }}
       >
         <DialogTitle sx={{ pb: 1 }}>
           Recuperar contraseña
