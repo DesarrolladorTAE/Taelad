@@ -33,12 +33,27 @@ const TAE = {
   white: "#ffffff",
 };
 
-const URLS = {
-  MTLMX: "https://mitiendaenlineamx.com.mx",
-  TAECONTA: "https://taeconta.com",
-  RECHARGES: "https://telorecargo.com",
+// URLs base solicitadas
+const URLS_BASE = {
+  MTLMX: "https://mitiendaenlineamx.com.mx/login-register",
+  TAECONTA: "https://www.taeconta.com/autenticacion/crear-cuenta",
+  RECHARGES: "https://telorecargo.com/loginmui",
+  // Página principal (por si la usas en otra parte)
   TAE_HOME: typeof window !== "undefined" ? window.location.origin : "https://taeconta.com",
 };
+
+// Helper para anexar ?ref=codigo respetando query existente
+function linkWithRef(baseUrl: string, ref?: string | null) {
+  try {
+    const u = new URL(baseUrl);
+    if (ref) u.searchParams.set("ref", ref);
+    return u.toString();
+  } catch {
+    // Fallback si por alguna razón no parsea
+    if (!ref) return baseUrl;
+    return baseUrl.includes("?") ? `${baseUrl}&ref=${encodeURIComponent(ref)}` : `${baseUrl}?ref=${encodeURIComponent(ref)}`;
+  }
+}
 
 function currency(n: string | number) {
   const v = typeof n === "string" ? parseFloat(n || "0") : n || 0;
@@ -48,25 +63,34 @@ function currency(n: string | number) {
 export default function TaeTeDaMas() {
   const [me, setMe] = useState<{ id: number; name: string; codigo_ref?: string | null } | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
-
   const [codigo, setCodigo] = useState<string | null>(null);
 
-  // Mensaje para compartir (NO se muestra en UI)
+  // Enlaces con ref dinámico
+  const links = useMemo(() => {
+    return {
+      mtlmx: linkWithRef(URLS_BASE.MTLMX, codigo),
+      taeconta: linkWithRef(URLS_BASE.TAECONTA, codigo),
+      telorecargo: linkWithRef(URLS_BASE.RECHARGES, codigo),
+      home: linkWithRef(URLS_BASE.TAE_HOME, codigo),
+    };
+  }, [codigo]);
+
+  // Mensaje para compartir con enlaces que incluyen el código
   const promoMsg = useMemo(() => {
     return [
       "💙🧡 TAE te da más",
       "",
       "¡Increíbles promociones en nuestros sistemas! 🚀",
-      "• MiTiendaEnLineaMX (POS + Tienda): " + URLS.MTLMX,
-      "• TAEConta (Contabilidad + CFDI): " + URLS.TAECONTA,
-      "• TeLoRecargo (Tiempo aire): " + URLS.RECHARGES,
-      "• Plataforma TAE: " + URLS.TAE_HOME,
+      "• MiTiendaEnLineaMX (POS + Tienda): " + links.mtlmx,
+      "• TAEConta (Contabilidad + CFDI): " + links.taeconta,
+      "• TeLoRecargo (Tiempo aire): " + links.telorecargo,
+      "• Plataforma TAE: " + links.home,
       "",
       "Beneficios: comisiones por altas y compras, bonos por volumen, soporte prioritario y promos exclusivas. 🎁",
       "",
       "¿Listo para ganar más con TAE? 😉",
     ].join("\n");
-  }, []);
+  }, [links]);
 
   const [openTC, setOpenTC] = useState(false);
   const [aceptaTC, setAceptaTC] = useState(false);
@@ -126,7 +150,7 @@ export default function TaeTeDaMas() {
   const copy = async (text: string, label = "Copiado") => {
     try {
       await navigator.clipboard.writeText(text);
-    setToast({ open: true, msg: label, sev: "success" });
+      setToast({ open: true, msg: label, sev: "success" });
     } catch {
       setToast({ open: true, msg: "No se pudo copiar", sev: "error" });
     }
@@ -153,14 +177,14 @@ export default function TaeTeDaMas() {
     }
   };
 
-  // Compartir (no mostramos el mensaje, solo lo usamos para compartir)
+  // Compartir usando el mensaje con links que incluyen ref
   const shareWhatsApp = () => {
     const url = `https://wa.me/?text=${encodeURIComponent(promoMsg)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
   const shareFacebook = () => {
-    // Facebook requiere una URL; usamos MTLMX y adjuntamos quote con el mensaje
-    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(URLS.MTLMX)}&quote=${encodeURIComponent(promoMsg)}`;
+    // Facebook requiere una URL; compartimos la de MiTienda con ?ref=...
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(links.mtlmx)}&quote=${encodeURIComponent(promoMsg)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -207,7 +231,7 @@ export default function TaeTeDaMas() {
         ))}
       </Grid>
 
-      {/* Código y acciones (debajo del código van los botones pedir/copiar/compartir) */}
+      {/* Código + Acciones + Enlaces con ref */}
       <Grid container spacing={2} sx={{ mb: 1 }}>
         <Grid item xs={12} md={5}>
           <Card sx={{ border: `1px solid ${TAE.blue}22` }}>
@@ -225,9 +249,6 @@ export default function TaeTeDaMas() {
                       <Button startIcon={<ContentCopyIcon />} onClick={() => copy(codigo!, "Código copiado")} variant="outlined">
                         Copiar código
                       </Button>
-                      {/* <Button startIcon={<LinkIcon />} onClick={() => copy(`Mi código TAE: ${codigo}`, "Mensaje con código copiado")} variant="contained">
-                        Copiar “Mi código TAE: {codigo}”
-                      </Button> */}
                       <Button startIcon={<WhatsAppIcon />} onClick={shareWhatsApp} variant="contained" sx={{ bgcolor: "#25D366" }}>
                         WhatsApp
                       </Button>
@@ -236,9 +257,28 @@ export default function TaeTeDaMas() {
                       </Button>
                     </Stack>
 
+                    {/* Enlaces con ?ref=<codigo> para copiar rápido */}
                     <Box sx={{ p: 1.25, borderRadius: 1, bgcolor: `${TAE.blue}0F`, border: `1px dashed ${TAE.blue}55` }}>
-                      <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                        Comparte tu código cuando te lo soliciten. Para difundir la promo usa los botones de WhatsApp o Facebook (el mensaje se arma automáticamente).
+                      <Typography variant="subtitle2" sx={{ mb: .75 }}>Tus enlaces con código</Typography>
+                      <Stack spacing={0.75}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <LinkIcon fontSize="small" />
+                          <Typography variant="body2" sx={{ wordBreak: "break-all" }}>{links.mtlmx}</Typography>
+                          <Button size="small" onClick={() => copy(links.mtlmx, "Link MiTienda copiado")} startIcon={<ContentCopyIcon />}>Copiar</Button>
+                        </Stack>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <LinkIcon fontSize="small" />
+                          <Typography variant="body2" sx={{ wordBreak: "break-all" }}>{links.taeconta}</Typography>
+                          <Button size="small" onClick={() => copy(links.taeconta, "Link TAEConta copiado")} startIcon={<ContentCopyIcon />}>Copiar</Button>
+                        </Stack>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <LinkIcon fontSize="small" />
+                          <Typography variant="body2" sx={{ wordBreak: "break-all" }}>{links.telorecargo}</Typography>
+                          <Button size="small" onClick={() => copy(links.telorecargo, "Link TeLoRecargo copiado")} startIcon={<ContentCopyIcon />}>Copiar</Button>
+                        </Stack>
+                      </Stack>
+                      <Typography variant="caption" display="block" sx={{ mt: 0.75 }}>
+                        Comparte tu código cuando te lo soliciten o usa los enlaces directos ya con tu <b>ref</b>.
                       </Typography>
                     </Box>
                   </>
