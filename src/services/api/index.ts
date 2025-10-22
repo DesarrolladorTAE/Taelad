@@ -33,7 +33,6 @@ export type User = {
   temspace?: string | null;
   created_at?: string;
   updated_at?: string;
-  profile_photo_url?: string | null;
 };
 
 export type Producto = {
@@ -55,71 +54,6 @@ export type HistorialCompra = {
   cantidad: number;
   created_at?: string;
   updated_at?: string;
-};
-
-/** =======================
- *  Tipos Account
- * ======================= */
-export type UserFiscalData = {
-  id: number;
-  user_id: number;
-  razon_social?: string | null;
-  rfc?: string | null;
-  regimen_fiscal?: string | null; // código SAT
-  codigo_postal?: string | null;
-
-  // (si ya los quitaste del backend, puedes borrar estos 6 campos)
-  csd_cer_path?: string | null;
-  csd_key_path?: string | null;
-  csd_password?: string | null;
-  fiel_cer_path?: string | null;
-  fiel_key_path?: string | null;
-  fiel_password?: string | null;
-
-  active: boolean;
-  created_at?: string;
-  updated_at?: string;
-};
-
-export type UserBusiness = {
-  id: number;
-  user_id: number;
-  business_name?: string | null;
-  domain?: string | null;
-  website_url?: string | null;
-  created_at?: string;
-  updated_at?: string;
-};
-
-export type SystemKey =
-  | "taeconta"
-  | "telorecargo"
-  | "ticketbusiness"
-  | "mitiendaenlinea"
-  | "otro";
-
-export type LoginType = "email" | "phone" | "username";
-
-export type UserSystemCredential = {
-  id: number;
-  user_id: number;
-  system: SystemKey;
-  login_type: LoginType;
-  login_value: string;
-  credential_password?: string | null; // servidor lo cifra
-  extra?: Record<string, any> | null;
-  is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
-};
-
-export type UpsertCredentialPayload = {
-  system: SystemKey;
-  login_type: LoginType;
-  login_value: string;
-  credential_password?: string;
-  extra?: Record<string, any>;
-  is_active?: boolean;
 };
 
 /** =======================
@@ -173,15 +107,6 @@ export const API_ROUTES = {
   },
   users: {
     me: "/user",
-  },
-  // 🔹 NUEVO: grupo account
-  account: {
-    profile: "/account/profile", // GET (mostrar), PUT/POST (actualizar/subir foto)
-    password: "/account/password", // PUT
-    fiscal: "/account/fiscal", // GET/PUT
-    business: "/account/business", // GET/PUT
-    credentials: "/account/credentials", // GET (lista) / POST (upsert)
-    credentialBySystem: (system: SystemKey) => `/account/credentials/${system}`, // GET / DELETE
   },
   productos: {
     root: "/productos",
@@ -251,54 +176,6 @@ export const authApi = {
  * ======================= */
 export const usersApi = {
   getMe: () => axiosClient.get<ApiResponse<User>>(API_ROUTES.users.me),
-};
-
-/** =======================
- *  Account services (NUEVOS)
- * ======================= */
-export const accountApi = {
-  /** ---- GET (mostrar) ---- */
-  getProfile: () =>
-    axiosClient.get<ApiResponse<User>>(API_ROUTES.account.profile),
-
-  getFiscal: () =>
-    axiosClient.get<ApiResponse<UserFiscalData | null>>(API_ROUTES.account.fiscal),
-
-  getBusiness: () =>
-    axiosClient.get<ApiResponse<UserBusiness | null>>(API_ROUTES.account.business),
-
-  listCredentials: () =>
-    axiosClient.get<ApiResponse<UserSystemCredential[]>>(API_ROUTES.account.credentials),
-
-  getCredential: (system: SystemKey) =>
-    axiosClient.get<ApiResponse<UserSystemCredential>>(API_ROUTES.account.credentialBySystem(system)),
-
-  /** ---- UPDATE / UPSERT ---- */
-  updateProfile: (payload: Partial<Pick<User, "name" | "apellidos" | "email" | "phone" | "profile_photo_url">>) =>
-    axiosClient.put<ApiResponse<User>>(API_ROUTES.account.profile, payload),
-
-  // subir foto / multipart con _method=PUT
-  uploadProfileForm: (fd: FormData) =>
-    axiosClient.post<ApiResponse<User>>(API_ROUTES.account.profile, fd),
-
-  updatePassword: (current_password: string, new_password: string, new_password_confirmation: string) =>
-    axiosClient.put<ApiResponse<unknown>>(API_ROUTES.account.password, {
-      current_password,
-      new_password,
-      new_password_confirmation,
-    }),
-
-  updateFiscal: (payload: Partial<UserFiscalData>) =>
-    axiosClient.put<ApiResponse<UserFiscalData>>(API_ROUTES.account.fiscal, payload),
-
-  updateBusiness: (payload: Partial<UserBusiness>) =>
-    axiosClient.put<ApiResponse<UserBusiness>>(API_ROUTES.account.business, payload),
-
-  upsertCredential: (payload: UpsertCredentialPayload) =>
-    axiosClient.post<ApiResponse<UserSystemCredential>>(API_ROUTES.account.credentials, payload),
-
-  deleteCredential: (system: SystemKey) =>
-    axiosClient.delete<ApiResponse<unknown>>(API_ROUTES.account.credentialBySystem(system)),
 };
 
 /** =======================
@@ -488,10 +365,4 @@ export async function resetPasswordByCodeAndLogin(params: {
   await authApi.resetPasswordByCode(phone, params.code, params.new_password);
   const { user, token } = await authSession.login(phone, params.new_password);
   return { user, token };
-}
-
-// Notifica a toda la app que el usuario local cambió
-export function broadcastAuthUserChange(user: User) {
-  localStorage.setItem("auth_user", JSON.stringify(user));
-  window.dispatchEvent(new CustomEvent("auth:user-changed", { detail: user }));
 }
