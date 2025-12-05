@@ -17,7 +17,6 @@ import {
   WhatsApp,
   Facebook,
   Instagram,
-  Twitter as X,
   ExpandLess,
   ExpandMore,
   LocalTaxi,
@@ -37,6 +36,7 @@ const EnlacesTerrestres: React.FC = () => {
     width: { xs: "100%", sm: "80%", md: "60%", lg: "50%" },
     mx: "auto",
   };
+
   const mensaje = encodeURIComponent("Hola, necesito una factura 📄");
   const facturarLink = `https://api.whatsapp.com/send?phone=525614219586&text=${mensaje}`;
 
@@ -137,7 +137,7 @@ const EnlacesTerrestres: React.FC = () => {
             <Button
               variant="outlined"
               startIcon={<AttachMoney />}
-              href="https://clip.mx/@Taxienlaces"
+              href="https://linkdenegocio.mx/@enlacesterrestres/pagar"
               target="_blank"
               sx={{
                 ...buttonStyle,
@@ -167,6 +167,50 @@ const EnlacesTerrestres: React.FC = () => {
             >
               Facturar
             </Button>
+                      {/* 🔴 Bloque de apoyo a la mujer */}
+          <Box
+            mt={3}
+            sx={{
+              width: { xs: "100%", sm: "80%", md: "70%" },
+              mx: "auto",
+              borderRadius: 3,
+              p: 2,
+              bgcolor: "rgba(0,0,0,0.35)",
+              border: "1px solid rgba(255,255,255,0.5)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <Typography
+              variant="subtitle1"
+              fontWeight="bold"
+              sx={{ textTransform: "uppercase", mb: 0.5 }}
+            >
+              Apoya a la mujer en caso de peligro
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ mb: 1.5, opacity: 0.9, lineHeight: 1.4 }}
+            >
+              Si ves a una mujer en riesgo durante tu viaje, no dudes en
+              pedir ayuda. Tu llamada puede hacer la diferencia. 💜
+            </Typography>
+
+            <Button
+              variant="contained"
+              fullWidth
+              startIcon={<Call />}
+              href="tel:*765"
+              sx={{
+                bgcolor: "#ff4f9a",
+                color: "#fff",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                "&:hover": { bgcolor: "#ff2f86" },
+              }}
+            >
+              ¡Llama ya!
+            </Button>
+          </Box>
           </Stack>
 
           <Typography variant="subtitle1" fontWeight="bold" mt={2}>
@@ -213,6 +257,8 @@ const EnlacesTerrestres: React.FC = () => {
           <Typography variant="body2" mt={2}>
             ¡Contamos con facturación electrónica!
           </Typography>
+
+
         </div>
 
         <Box mt={4}>
