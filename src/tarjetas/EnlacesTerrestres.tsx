@@ -4,7 +4,7 @@ import {
   Button,
   Typography,
   Stack,
-  Avatar,
+  // Avatar,
   IconButton,
   List,
   ListItemButton,
@@ -71,43 +71,43 @@ const EnlacesTerrestres: React.FC = () => {
         }}
       >
         <div>
-<Box
-  sx={{
-    display: "flex",
-    justifyContent: "center",
-    mb: 3,
-  }}
->
-  <Box
-    sx={{
-      background: "#111",
-      borderRadius: "20px",
-      p: 2,
-      width: {
-        xs: 280,
-        sm: 340,
-        md: 400,
-      },
-      border: "2px solid rgba(255,255,255,.25)",
-      boxShadow:
-        "0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.1)",
-    }}
-  >
-    <Box
-      component="img"
-      src={logoUrl}
-      alt="Frente Mexicano del Transporte"
-      sx={{
-        width: "100%",
-        display: "block",
-        objectFit: "contain",
-      }}
-    />
-  </Box>
-</Box>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              mb: 3,
+            }}
+          >
+            <Box
+              sx={{
+                background: "#111",
+                borderRadius: "20px",
+                p: 2,
+                width: {
+                  xs: 280,
+                  sm: 340,
+                  md: 400,
+                },
+                border: "2px solid rgba(255,255,255,.25)",
+                boxShadow:
+                  "0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.1)",
+              }}
+            >
+              <Box
+                component="img"
+                src={logoUrl}
+                alt="Frente Mexicano del Transporte"
+                sx={{
+                  width: "100%",
+                  display: "block",
+                  objectFit: "contain",
+                }}
+              />
+            </Box>
+          </Box>
 
           <Typography variant="h5" fontWeight="bold" mb={3}>
-            Frente  Mexicano del Transporte
+            Frente Mexicano del Transporte
           </Typography>
 
           <Stack spacing={1.5} mb={2} alignItems="center" width="100%">
@@ -206,55 +206,42 @@ const EnlacesTerrestres: React.FC = () => {
             </Button>
           </Stack>
 
-<Box
-  sx={{
-    ...buttonStyle,
-    mt: 1,
-    p: 1.5,
-    borderRadius: "18px",
-    background: "linear-gradient(180deg, #b83cff 0%, #8d22d6 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 24px rgba(0,0,0,.25)",
-  }}
->
-  <Button
-    fullWidth
-    href="tel:*765"
-    sx={{
-      minHeight: "72px",
-      borderRadius: "6px",
-      border: "2px solid rgba(255,255,255,.85)",
-      color: "#fff",
-      textTransform: "uppercase",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 1.2,
-      fontWeight: 700,
-      background: "transparent",
-      "&:hover": {
-        background: "rgba(255,255,255,.08)",
-      },
-    }}
-  >
-    <Call
-      sx={{
-        fontSize: 24,
-      }}
-    />
-
-    <Typography
-      sx={{
-        color: "#fff",
-        fontWeight: 700,
-        fontSize: "1.0rem",
-        letterSpacing: ".5px",
-      }}
-    >
-      LÍNEA SOS MUJER
-    </Typography>
-  </Button>
-</Box>
+          <Box
+            sx={{
+              ...buttonStyle,
+              mt: 1,
+              borderRadius: "18px",
+              overflow: "hidden",
+              boxShadow: "0 8px 24px rgba(0,0,0,.25)",
+            }}
+          >
+            <Button
+              fullWidth
+              href="tel:*765"
+              sx={{
+                p: 0,
+                minHeight: "unset",
+                borderRadius: 0,
+                display: "block",
+                "&:hover": {
+                  opacity: 0.95,
+                  transform: "scale(1.01)",
+                },
+                transition: "all .25s ease",
+              }}
+            >
+              <Box
+                component="img"
+                src="/Tarjetas/Banners/mensajesos.png"
+                alt="Línea SOS Mujer"
+                sx={{
+                  width: "100%",
+                  display: "block",
+                  objectFit: "cover",
+                }}
+              />
+            </Button>
+          </Box>
           <Typography variant="subtitle1" fontWeight="bold" mt={2}>
             Nuestros Servicios
           </Typography>
@@ -304,6 +291,54 @@ const EnlacesTerrestres: React.FC = () => {
               </List>
             </Collapse>
           </List>
+
+          <Box
+            sx={{
+              mt: 2,
+              width: "100%",
+              overflow: "hidden",
+              borderRadius: "16px",
+              mx: "auto",
+
+              "@keyframes taxiCarousel": {
+                "0%": {
+                  transform: "translateX(0)",
+                },
+                "100%": {
+                  transform: "translateX(-50%)",
+                },
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                width: "max-content",
+                animation: "taxiCarousel 20s linear infinite",
+                alignItems: "center",
+                gap: 0,
+              }}
+            >
+              {Array.from({ length: 8 }).map((_, index) => (
+                <Box
+                  key={index}
+                  component="img"
+                  src="/Tarjetas/Banners/taxiseguro.png"
+                  alt="Taxi Seguro"
+                  sx={{
+                    height: {
+                      xs: 50,
+                      sm: 70,
+                      md: 90,
+                    },
+                    objectFit: "contain",
+                    flexShrink: 0,
+                    mr: "-12px",
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
 
           <Typography variant="body2" mt={2}>
             ¡Contamos con facturación electrónica!
