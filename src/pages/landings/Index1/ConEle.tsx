@@ -19,10 +19,9 @@ import CEHero from "../../../components/ConEle/CEHero";
 import Iconos from "../../../components/ConEle/Iconos";
 import Nube from "../../../components/ConEle/Nube";
 import Correo from "../../../components/ConEle/Correo";
-<<<<<<< HEAD
-=======
+
 import AltaClientes from "../../../components/ConEle/AltaClientes";
->>>>>>> 4992dcc8d86efbbc01a23b2b1017672027d0f3b7
+
 import TaeFooter from "../../../components/TaeFooter";
 
 const index = () => {
@@ -41,10 +40,9 @@ const index = () => {
                 <Nube />
                 {/* fetures2 */}
                 <Correo />
-<<<<<<< HEAD
-=======
+
                 <AltaClientes />
->>>>>>> 4992dcc8d86efbbc01a23b2b1017672027d0f3b7
+
                 {/* counter */}
                 {/* <Counter /> */}
             </div>

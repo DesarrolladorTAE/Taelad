@@ -17,7 +17,6 @@ import {
   WhatsApp,
   Facebook,
   Instagram,
-  Twitter as X,
   ExpandLess,
   ExpandMore,
   LocalTaxi,
@@ -31,13 +30,15 @@ import {
 const EnlacesTerrestres: React.FC = () => {
   const [open, setOpen] = useState(false);
 
-  const logoUrl = "/Tarjetas/Banners/juliotaxi.png";
+  const logoUrl = "/Tarjetas/Banners/juliotaxi.jpeg";
 
   const buttonStyle = {
     width: { xs: "100%", sm: "80%", md: "60%", lg: "50%" },
     mx: "auto",
   };
+
   const mensaje = encodeURIComponent("Hola, necesito una factura 📄");
+
   const facturarLink = `https://api.whatsapp.com/send?phone=525614219586&text=${mensaje}`;
 
   return (
@@ -70,20 +71,43 @@ const EnlacesTerrestres: React.FC = () => {
         }}
       >
         <div>
-          <Avatar
-            src={logoUrl}
-            alt="Logo Conotaxi"
-            sx={{
-              width: 180,
-              height: 180,
-              mx: "auto",
-              mb: 2,
-              variant: "square",
-            }}
-          />
+<Box
+  sx={{
+    display: "flex",
+    justifyContent: "center",
+    mb: 3,
+  }}
+>
+  <Box
+    sx={{
+      background: "#111",
+      borderRadius: "20px",
+      p: 2,
+      width: {
+        xs: 280,
+        sm: 340,
+        md: 400,
+      },
+      border: "2px solid rgba(255,255,255,.25)",
+      boxShadow:
+        "0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.1)",
+    }}
+  >
+    <Box
+      component="img"
+      src={logoUrl}
+      alt="Frente Mexicano del Transporte"
+      sx={{
+        width: "100%",
+        display: "block",
+        objectFit: "contain",
+      }}
+    />
+  </Box>
+</Box>
 
           <Typography variant="h5" fontWeight="bold" mb={3}>
-            Enlaces Terrestres
+            Frente  Mexicano del Transporte
           </Typography>
 
           <Stack spacing={1.5} mb={2} alignItems="center" width="100%">
@@ -96,7 +120,9 @@ const EnlacesTerrestres: React.FC = () => {
                 bgcolor: "#000",
                 color: "#fff",
                 textTransform: "uppercase",
-                "&:hover": { bgcolor: "#333" },
+                "&:hover": {
+                  bgcolor: "#333",
+                },
               }}
             >
               Contacto
@@ -112,7 +138,9 @@ const EnlacesTerrestres: React.FC = () => {
                 border: "1px solid #fff",
                 color: "#fff",
                 textTransform: "uppercase",
-                "&:hover": { bgcolor: "#333" },
+                "&:hover": {
+                  bgcolor: "#333",
+                },
               }}
             >
               E-mail
@@ -127,25 +155,31 @@ const EnlacesTerrestres: React.FC = () => {
               sx={{
                 ...buttonStyle,
                 bgcolor: "#25D366",
+                color: "#fff",
                 textTransform: "uppercase",
-                "&:hover": { bgcolor: "#1EBE5D" },
+                "&:hover": {
+                  bgcolor: "#1EBE5D",
+                },
               }}
             >
-              Pedir taxi
+              Pedir Taxi
             </Button>
 
             <Button
               variant="outlined"
               startIcon={<AttachMoney />}
-              href="https://clip.mx/@Taxienlaces"
+              href="https://linkdenegocio.mx/@enlacesterrestres/pagar"
               target="_blank"
+              rel="noopener noreferrer"
               sx={{
                 ...buttonStyle,
                 bgcolor: "#000",
                 border: "1px solid #fff",
                 color: "#fff",
                 textTransform: "uppercase",
-                "&:hover": { bgcolor: "#333" },
+                "&:hover": {
+                  bgcolor: "#333",
+                },
               }}
             >
               Pagar
@@ -156,19 +190,71 @@ const EnlacesTerrestres: React.FC = () => {
               startIcon={<RequestQuote />}
               href={facturarLink}
               target="_blank"
+              rel="noopener noreferrer"
               sx={{
                 ...buttonStyle,
                 bgcolor: "#000",
                 border: "1px solid #fff",
                 color: "#fff",
                 textTransform: "uppercase",
-                "&:hover": { bgcolor: "#333" },
+                "&:hover": {
+                  bgcolor: "#333",
+                },
               }}
             >
               Facturar
             </Button>
           </Stack>
 
+<Box
+  sx={{
+    ...buttonStyle,
+    mt: 1,
+    p: 1.5,
+    borderRadius: "18px",
+    background: "linear-gradient(180deg, #b83cff 0%, #8d22d6 100%)",
+    border: "1px solid rgba(255,255,255,0.5)",
+    boxShadow: "0 8px 24px rgba(0,0,0,.25)",
+  }}
+>
+  <Button
+    fullWidth
+    href="tel:*765"
+    sx={{
+      minHeight: "72px",
+      borderRadius: "6px",
+      border: "2px solid rgba(255,255,255,.85)",
+      color: "#fff",
+      textTransform: "uppercase",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 1.2,
+      fontWeight: 700,
+      background: "transparent",
+      "&:hover": {
+        background: "rgba(255,255,255,.08)",
+      },
+    }}
+  >
+    <Call
+      sx={{
+        fontSize: 24,
+      }}
+    />
+
+    <Typography
+      sx={{
+        color: "#fff",
+        fontWeight: 700,
+        fontSize: "1.0rem",
+        letterSpacing: ".5px",
+      }}
+    >
+      LÍNEA SOS MUJER
+    </Typography>
+  </Button>
+</Box>
           <Typography variant="subtitle1" fontWeight="bold" mt={2}>
             Nuestros Servicios
           </Typography>
@@ -178,7 +264,12 @@ const EnlacesTerrestres: React.FC = () => {
             aria-label="servicios"
             sx={{
               color: "white",
-              width: { xs: "100%", sm: "80%", md: "60%", lg: "50%" },
+              width: {
+                xs: "100%",
+                sm: "80%",
+                md: "60%",
+                lg: "50%",
+              },
               mx: "auto",
             }}
           >
@@ -186,9 +277,12 @@ const EnlacesTerrestres: React.FC = () => {
               <ListItemIcon sx={{ color: "white" }}>
                 <LocalTaxi />
               </ListItemIcon>
+
               <ListItemText primary="Modalidades de Servicio" />
+
               {open ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
+
             <Collapse in={open} timeout="auto" unmountOnExit>
               <List component="div" disablePadding>
                 {[
@@ -203,6 +297,7 @@ const EnlacesTerrestres: React.FC = () => {
                     <ListItemIcon sx={{ color: "white" }}>
                       <StarBorder />
                     </ListItemIcon>
+
                     <ListItemText primary={item} />
                   </ListItemButton>
                 ))}
@@ -219,6 +314,7 @@ const EnlacesTerrestres: React.FC = () => {
           <Typography variant="subtitle2" fontWeight="bold" mb={1}>
             Síguenos en redes
           </Typography>
+
           <Stack direction="row" justifyContent="center" spacing={2}>
             <IconButton
               href="https://www.facebook.com/enlaces.terrestres.52/"
@@ -227,6 +323,7 @@ const EnlacesTerrestres: React.FC = () => {
             >
               <Facebook />
             </IconButton>
+
             <IconButton
               href="https://www.instagram.com/terrestresenlaces/"
               target="_blank"
