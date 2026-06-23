@@ -4,7 +4,6 @@ import {
   CardContent,
   Typography,
   Grid,
-  Avatar,
   CircularProgress,
   Divider,
   Chip,
@@ -12,9 +11,17 @@ import {
 
 import { useState } from "react";
 import axiosClient from "../../../services/axiosClient";
-import { fetchMiTiendaTiendas } from "../../../services/superadminService";
+import { useNavigate } from "react-router-dom";
 
-const sistemas = [
+type Sistema = {
+  id: string;
+  nombre: string;
+  logo: string;
+  descripcion: string;
+  estado: string;
+};
+
+const sistemas: Sistema[] = [
   {
     id: "taeconta",
     nombre: "TAECONTA",
@@ -37,23 +44,17 @@ const sistemas = [
     estado: "Activo",
   },
   {
-  id: "clicmenu",
-  nombre: "CLICMENU",
-  logo: "/logo/clicmenu-naranja.png",
-  descripcion: "Sistema de gestión para restaurantes, pedidos y control operativo",
-  estado: "Activo",
-}
+    id: "clicmenu",
+    nombre: "CLICMENU",
+    logo: "/logo/clicmenu-naranja.png",
+    descripcion: "Sistema de gestión para restaurantes, pedidos y control operativo",
+    estado: "Activo",
+  },
 ];
 
-type Sistema = {
-  id: string;
-  nombre: string;
-  logo: string;
-  descripcion: string;
-  estado: string;
-};
-
 export default function Sistemas() {
+  const navigate = useNavigate();
+
   const [sistemaActivo, setSistemaActivo] = useState<Sistema | null>(null);
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,24 +70,23 @@ export default function Sistemas() {
         const response = await axiosClient.get(
           "/superadmin/taeconta/empresas"
         );
-
         data = response.data?.data ?? [];
       }
 
       if (sistema.id === "telorecargo") {
-        console.log("TELRECARGO aún no conectado");
         data = [];
       }
 
       if (sistema.id === "mitienda") {
-        const response = await fetchMiTiendaTiendas();
-       setEmpresas(response.data ?? []);
+        const response = await axiosClient.get(
+          "/superadmin/mitienda/tiendas"
+        );
+        data = response.data ?? [];
       }
-      if (sistema.id === "ClicMenu") {
-        console.log("ClicMenu aún no conectado");
+
+      if (sistema.id === "clicmenu") {
         data = [];
       }
-      
 
       setEmpresas(data);
     } catch (error) {
@@ -98,111 +98,54 @@ export default function Sistemas() {
   };
 
   return (
-    <Box sx={{ width: "100%", minWidth: 0 }}>
+    <Box sx={{ width: "100%" }}>
       {/* HEADER */}
       <Box mb={3}>
         <Typography variant="h5" fontWeight={800}>
           Sistemas
         </Typography>
 
-        <Typography color="text.secondary" mt={1}>
+        <Typography color="text.secondary">
           Control general de sistemas registrados.
         </Typography>
       </Box>
 
       {/* SISTEMAS */}
-      <Grid container spacing={3} sx={{ width: "100%" }}>
+      <Grid container spacing={3}>
         {sistemas.map((sistema) => (
-          <Grid item xs={12} md={4} key={sistema.id} sx={{ minWidth: 0 }}>
+          <Grid item xs={12} md={4} key={sistema.id}>
             <Card
               onClick={() => abrirSistema(sistema)}
-              sx={(theme) => ({
-                width: "100%",
-                minWidth: 0,
+              sx={{
                 cursor: "pointer",
                 borderRadius: 4,
                 transition: "0.2s",
-                backgroundColor:
-                  theme.palette.mode === "dark"
-                    ? "#1C1F26"
-                    : "#ffffff",
-                boxShadow:
-                  theme.palette.mode === "dark"
-                    ? "0 6px 20px rgba(0,0,0,0.6)"
-                    : "0 6px 20px rgba(0,0,0,0.1)",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: 6,
-                },
-              })}
+                "&:hover": { transform: "translateY(-4px)" },
+              }}
             >
-              <CardContent sx={{ width: "100%", minWidth: 0 }}>
+              <CardContent>
+                <Box sx={{ textAlign: "center", mb: 2 }}>
+                  <img
+                    src={sistema.logo}
+                    alt={sistema.nombre}
+                    style={{ maxHeight: 70, objectFit: "contain" }}
+                  />
+                </Box>
 
-  {/* LOGO CORREGIDO */}
-  <Box
-    sx={{
-      width: "100%",
-      height: 90,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      mb: 2,
-    }}
-  >
-    <Box
-      component="img"
-      src={sistema.logo}
-      alt={sistema.nombre}
-      sx={{
-        maxWidth: "100%",
-        maxHeight: 70,
-        objectFit: "contain",
-        display: "block",
-       }}
-      />
-     </Box>
+                <Typography fontSize={18} fontWeight={800}>
+                  {sistema.nombre}
+                </Typography>
 
-     {/* NOMBRE */}
-     <Typography
-      fontSize={22}
-      fontWeight={800}
-      sx={{
-      whiteSpace: "normal",
-      wordBreak: "break-word",
-    }}
-  >
-    {sistema.nombre}
-  </Typography>
+                <Typography fontSize={13} color="text.secondary">
+                  {sistema.descripcion}
+                </Typography>
 
-  {/* DESCRIPCIÓN */}
-  <Typography
-    fontSize={14}
-    color="text.secondary"
-    sx={{
-      whiteSpace: "normal",
-      wordBreak: "break-word",
-    }}
-  >
-    {sistema.descripcion}
-  </Typography>
-
-  {/* ESTADO */}
-  <Box mt={2}>
-    <Chip
-      label={sistema.estado}
-      sx={(theme) => ({
-        backgroundColor:
-          theme.palette.mode === "dark"
-            ? "#2E7D32"
-            : "#4CAF50",
-        color: "#fff",
-        fontWeight: 600,
-      })}
-      size="small"
-    />
-  </Box>
-
-</CardContent>
+                <Chip
+                  label={sistema.estado}
+                  size="small"
+                  sx={{ mt: 2 }}
+                />
+              </CardContent>
             </Card>
           </Grid>
         ))}
@@ -210,21 +153,21 @@ export default function Sistemas() {
 
       {/* EMPRESAS */}
       {sistemaActivo && (
-        <Box mt={4} sx={{ width: "100%", minWidth: 0 }}>
+        <Box mt={4}>
           <Divider sx={{ mb: 3 }} />
 
-          <Typography variant="h5" fontWeight={800} mb={2}>
-            {sistemaActivo.nombre} - Empresas registradas
+          <Typography variant="h6">
+            {sistemaActivo.nombre} - Empresas
           </Typography>
 
           {loading ? (
             <CircularProgress />
           ) : (
-            <Grid container spacing={2} sx={{ width: "100%" }}>
+            <Grid container spacing={2}>
               {empresas.length > 0 ? (
-                empresas.map((empresa: any, index: number) => (
-                  <Grid item xs={12} md={4} key={index} sx={{ minWidth: 0 }}>
-                    <Card sx={{ width: "100%", minWidth: 0 }}>
+                empresas.map((empresa: any, i: number) => (
+                  <Grid item xs={12} md={4} key={i}>
+                    <Card>
                       <CardContent>
                         <Typography fontWeight={700}>
                           {empresa.nombre ?? "Sin nombre"}

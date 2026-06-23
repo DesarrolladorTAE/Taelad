@@ -22,6 +22,7 @@ export default function Shell({ children }: Props) {
   const [darkMode, setDarkMode] = useState(false);
   const [view, setView] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
+  
 
   const handleNavigate = (nextView: string) => {
     setView(nextView);

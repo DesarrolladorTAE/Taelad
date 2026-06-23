@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import { useRoutes, Navigate } from "react-router-dom";
 import Root from "./Root";
 
+
 // Landings
 const Index1 = React.lazy(() => import("../pages/landings/Index1"));
 const Index3 = React.lazy(() => import("../pages/landings/Index3"));

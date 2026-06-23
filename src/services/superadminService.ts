@@ -5,10 +5,6 @@ export const getEmpresasTaeconta = async () => {
   const res = await axiosClient.get("/superadmin/taeconta/empresas");
   return res.data;
 }
-export async function fetchMiTiendaTiendas() {
-  const res = await axiosClient.get("/superadmin/mitienda/tiendas");
-  return res.data;
-}
 
 
 const API_URL = "https://api.tecnologiasadministrativas.com/api";
