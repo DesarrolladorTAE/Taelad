@@ -1,98 +1,43 @@
 import Shell from "./components/Shell";
 
 import Dashboard from "./components/Dashboard";
+import Usuarios from "./components/Usuarios";
 import Metricas from "./components/Metricas";
 import Sistemas from "./components/Sistemas";
 import Facturacion from "./components/Facturacion";
-import Usuarios from "./components/Usuarios";
 import Administradores from "./components/Administradores";
 import Configuracion from "./components/Configuracion";
 
-import "./superadmin.css";
-
 
 export default function SuperAdminPanel() {
-
   return (
-
     <Shell>
+      {(_, view, setView) => {
+        const volverPanel = () => setView("dashboard");
 
-      {(darkMode, view, setView) => {
+        switch (view) {
+          case "metricas":
+            return <Metricas />;
 
-        const volverPanel = () => {
-          setView("dashboard");
-        };
+          case "sistemas":
+            return <Sistemas />;
 
+          case "facturacion":
+            return <Facturacion />;
 
-        if (view === "metricas") {
-          return (
-            <Metricas
-              darkMode={darkMode}
-              volver={volverPanel}
-            />
-          );
+          case "usuarios":
+            return <Usuarios />;
+
+          case "administradores":
+            return <Administradores />;
+
+          case "configuracion":
+            return <Configuracion />;
+
+          default:
+            return <Dashboard />;
         }
-
-
-        if (view === "sistemas") {
-          return (
-            <Sistemas
-              darkMode={darkMode}
-              volver={volverPanel}
-            />
-          );
-        }
-
-
-        if (view === "facturacion") {
-          return (
-            <Facturacion
-              darkMode={darkMode}
-              volver={volverPanel}
-            />
-          );
-        }
-
-
-        if (view === "usuarios") {
-          return (
-            <Usuarios
-              darkMode={darkMode}
-              volver={volverPanel}
-            />
-          );
-        }
-
-
-        if (view === "administradores") {
-          return (
-            <Administradores
-              darkMode={darkMode}
-              volver={volverPanel}
-            />
-          );
-        }
-
-
-        if (view === "configuracion") {
-          return (
-            <Configuracion
-              darkMode={darkMode}
-              volver={volverPanel}
-            />
-          );
-        }
-
-
-        return (
-          <Dashboard
-            darkMode={darkMode}
-          />
-        );
-
       }}
-
     </Shell>
-
   );
 }

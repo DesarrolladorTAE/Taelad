@@ -1,35 +1,79 @@
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Select,
+  MenuItem,
+  Button,
+  FormControl,
+  InputLabel,
+} from "@mui/material";
+
 export default function Configuracion() {
   return (
-    <section className="superadmin-section configuracion-view">
-      <div className="section-header">
-        <h2>Configuración</h2>
-        <p>Ajustes generales del panel SuperAdmin.</p>
-      </div>
+    <Box>
+      {/* HEADER */}
+      <Box mb={3}>
+        <Typography variant="h5" fontWeight={800}>
+          Configuración
+        </Typography>
 
-      <div className="superadmin-panel panel-configuracion">
-        <div className="superadmin-form-group">
-          <label>Nombre del sistema</label>
-          <input type="text" placeholder="Nombre del sistema" />
-        </div>
+        <Typography color="text.secondary" mt={1}>
+          Ajustes generales del panel SuperAdmin.
+        </Typography>
+      </Box>
 
-        <div className="superadmin-form-group">
-          <label>Correo de soporte</label>
-          <input type="email" placeholder="soporte@dominio.com" />
-        </div>
+      {/* PANEL */}
+      <Card
+        sx={(theme) => ({
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 4,
+        })}
+      >
+        <CardContent>
+          {/* Nombre sistema */}
+          <Box mb={3}>
+            <Typography mb={1} fontWeight={600}>
+              Nombre del sistema
+            </Typography>
 
-        <div className="superadmin-form-group">
-          <label>Estado general</label>
-          <select>
-            <option>Activo</option>
-            <option>Mantenimiento</option>
-            <option>Inactivo</option>
-          </select>
-        </div>
+            <TextField fullWidth placeholder="Nombre del sistema" />
+          </Box>
 
-        <button className="superadmin-button" type="button">
-          Guardar configuración
-        </button>
-      </div>
-    </section>
+          {/* Correo soporte */}
+          <Box mb={3}>
+            <Typography mb={1} fontWeight={600}>
+              Correo de soporte
+            </Typography>
+
+            <TextField
+              fullWidth
+              type="email"
+              placeholder="soporte@dominio.com"
+            />
+          </Box>
+
+          {/* Estado */}
+          <Box mb={3}>
+            <FormControl fullWidth>
+              <InputLabel>Estado general</InputLabel>
+
+              <Select label="Estado general" defaultValue="Activo">
+                <MenuItem value="Activo">Activo</MenuItem>
+                <MenuItem value="Mantenimiento">Mantenimiento</MenuItem>
+                <MenuItem value="Inactivo">Inactivo</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+
+          {/* BOTÓN */}
+          <Button variant="contained" fullWidth>
+            Guardar configuración
+          </Button>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }

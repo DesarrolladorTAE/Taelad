@@ -1,21 +1,47 @@
-// src/App.tsx
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BrowserRouter } from "react-router-dom";
+import { ThemeProvider, CssBaseline } from "@mui/material";
 import AOS from "aos";
 
-import "bootstrap/dist/js/bootstrap.bundle.min";
-import "./assets/css/materialdesignicons.min.css";
-import "./assets/scss/style.scss";
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
-
+import { getTheme } from "./theme";
 import AllRoutes from "./routes/Routes";
 
 export default function App() {
-  useEffect(() => { AOS.init(); }, []);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem("theme") === "dark";
+  });
+
+  useEffect(() => {
+    AOS.init();
+  }, []);
+
+  // sincronización activa (MISMA pestaña + otras pestañas)
+  useEffect(() => {
+    const syncTheme = () => {
+      const mode = localStorage.getItem("theme") === "dark";
+      setDarkMode(mode);
+    };
+
+    window.addEventListener("storage", syncTheme);
+
+    // 🔥 clave: sincroniza cambios dentro de la misma pestaña
+    const interval = setInterval(syncTheme, 300);
+
+    return () => {
+      window.removeEventListener("storage", syncTheme);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const theme = useMemo(() => getTheme(darkMode), [darkMode]);
+
   return (
-    <BrowserRouter>
-      <AllRoutes />
-    </BrowserRouter>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+
+      <BrowserRouter>
+        <AllRoutes />
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }

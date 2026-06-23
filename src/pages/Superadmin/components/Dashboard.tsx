@@ -22,86 +22,53 @@ type Props = {
 };
 
 export default function Dashboard({ darkMode }: Props) {
-  const cardBg = darkMode ? "#171A21" : "#FFFFFF";
-  const cardBgSoft = darkMode ? "#1F2430" : "#F9FAFB";
-  const cardBorder = darkMode ? "1px solid #2B3140" : "1px solid #E5E7EB";
-  const titleColor = darkMode ? "#F9FAFB" : "#111827";
-  const textColor = darkMode ? "#B7C0D1" : "#6B7280";
-
   const metrics = [
-    {
-      title: "Usuarios totales",
-      value: "0",
-      icon: <People />,
-    },
-    {
-      title: "Facturas emitidas",
-      value: "0",
-      icon: <ReceiptLong />,
-    },
-    {
-      title: "Referencias",
-      value: "0",
-      icon: <AccountTree />,
-    },
-    {
-      title: "Ganancias totales",
-      value: "$0.00",
-      icon: <MonetizationOn />,
-    },
+    { title: "Usuarios totales", value: "0", icon: <People /> },
+    { title: "Facturas emitidas", value: "0", icon: <ReceiptLong /> },
+    { title: "Referencias", value: "0", icon: <AccountTree /> },
+    { title: "Ganancias totales", value: "$0.00", icon: <MonetizationOn /> },
   ];
 
   return (
     <Box>
+      {/* HEADER */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}>
         <Avatar
           sx={{
             width: 56,
             height: 56,
-            background: "linear-gradient(135deg, #1577CE, #C77B1C)",
-            color: "#FFFFFF",
+            background: "linear-gradient(135deg,#1577CE,#C77B1C)",
           }}
         >
           <AdminPanelSettings />
         </Avatar>
 
         <Box>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 800,
-              color: titleColor,
-            }}
-          >
+          <Typography variant="h4" fontWeight={800}>
             Panel SuperAdministrador
           </Typography>
 
-          <Typography
-            sx={{
-              color: textColor,
-              fontSize: 14,
-              mt: 0.5,
-            }}
-          >
+          <Typography variant="body2" color="text.secondary" mt={0.5}>
             Control general de métricas, flujo, facturación, referencias y
             rendimiento entre sistemas.
           </Typography>
         </Box>
       </Box>
 
+      {/* METRICS */}
       <Grid container spacing={3}>
         {metrics.map((item) => (
           <Grid item xs={12} md={3} key={item.title}>
             <Card
-              sx={{
+              sx={(theme) => ({
                 height: "100%",
-                background: cardBg,
-                border: cardBorder,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 4,
                 boxShadow: darkMode
                   ? "0 16px 40px rgba(0,0,0,.35)"
                   : "0 14px 35px rgba(15,23,42,.08)",
-              }}
+              })}
             >
               <CardContent>
                 <Box
@@ -112,35 +79,23 @@ export default function Dashboard({ darkMode }: Props) {
                     mb: 2,
                   }}
                 >
-                  <Typography
-                    sx={{
-                      color: textColor,
-                      fontSize: 13,
-                      fontWeight: 600,
-                    }}
-                  >
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>
                     {item.title}
                   </Typography>
 
                   <Avatar
-                    sx={{
+                    sx={(theme) => ({
                       width: 38,
                       height: 38,
-                      background: cardBgSoft,
-                      color: darkMode ? "#FFFFFF" : "#1577CE",
-                    }}
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.primary.main,
+                    })}
                   >
                     {item.icon}
                   </Avatar>
                 </Box>
 
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 800,
-                    color: titleColor,
-                  }}
-                >
+                <Typography variant="h4" fontWeight={800}>
                   {item.value}
                 </Typography>
               </CardContent>
@@ -149,44 +104,36 @@ export default function Dashboard({ darkMode }: Props) {
         ))}
       </Grid>
 
+      {/* FLOW + INSIGHTS */}
       <Grid container spacing={3} sx={{ mt: 1 }}>
         <Grid item xs={12} md={8}>
           <Card
-            sx={{
+            sx={(theme) => ({
               height: "100%",
-              background: cardBg,
-              border: cardBorder,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
               borderRadius: 4,
-              boxShadow: darkMode
-                ? "0 16px 40px rgba(0,0,0,.35)"
-                : "0 14px 35px rgba(15,23,42,.08)",
-            }}
+            })}
           >
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
                 <Avatar
-                  sx={{
+                  sx={(theme) => ({
                     width: 38,
                     height: 38,
-                    background: cardBgSoft,
-                    color: darkMode ? "#FFFFFF" : "#1577CE",
-                  }}
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.primary.main,
+                  })}
                 >
                   <AutoGraph />
                 </Avatar>
 
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 800,
-                    color: titleColor,
-                  }}
-                >
+                <Typography variant="h6" fontWeight={800}>
                   Flujo entre sistemas
                 </Typography>
               </Box>
 
-              <Typography sx={{ color: textColor }}>
+              <Typography color="text.secondary">
                 Aquí se mostrará el concentrado de uso por sistema: usuarios,
                 compras, facturas, referencias y rendimiento general.
               </Typography>
@@ -196,41 +143,32 @@ export default function Dashboard({ darkMode }: Props) {
 
         <Grid item xs={12} md={4}>
           <Card
-            sx={{
+            sx={(theme) => ({
               height: "100%",
-              background: cardBg,
-              border: cardBorder,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
               borderRadius: 4,
-              boxShadow: darkMode
-                ? "0 16px 40px rgba(0,0,0,.35)"
-                : "0 14px 35px rgba(15,23,42,.08)",
-            }}
+            })}
           >
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
                 <Avatar
-                  sx={{
+                  sx={(theme) => ({
                     width: 38,
                     height: 38,
-                    background: cardBgSoft,
-                    color: darkMode ? "#FFFFFF" : "#C77B1C",
-                  }}
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.secondary.main,
+                  })}
                 >
                   <TrendingUp />
                 </Avatar>
 
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 800,
-                    color: titleColor,
-                  }}
-                >
+                <Typography variant="h6" fontWeight={800}>
                   Ventajas detectadas
                 </Typography>
               </Box>
 
-              <Typography sx={{ color: textColor }}>
+              <Typography color="text.secondary">
                 Este bloque mostrará los beneficios generados por las referencias,
                 ventas cruzadas y actividad entre plataformas.
               </Typography>

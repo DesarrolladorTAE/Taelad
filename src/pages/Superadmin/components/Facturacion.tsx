@@ -1,31 +1,73 @@
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Chip,
+} from "@mui/material";
+
 export default function Facturacion() {
+  const data: any[] = [];
+
   return (
-    <section className="superadmin-section">
-      <h2>Facturación</h2>
+    <Box>
+      {/* HEADER */}
+      <Box mb={3}>
+        <Typography variant="h5" fontWeight={800}>
+          Facturación
+        </Typography>
 
-      <div className="superadmin-panel">
-        <p>Control general de pagos, suscripciones y movimientos.</p>
+        <Typography color="text.secondary" mt={1}>
+          Control general de pagos, suscripciones y movimientos.
+        </Typography>
+      </Box>
 
-        <table className="superadmin-table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Plan</th>
-              <th>Monto</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
+      {/* PANEL */}
+      <Card
+        sx={(theme) => ({
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 4,
+        })}
+      >
+        <CardContent>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Cliente</TableCell>
+                <TableCell>Plan</TableCell>
+                <TableCell>Monto</TableCell>
+                <TableCell>Estado</TableCell>
+              </TableRow>
+            </TableHead>
 
-          <tbody>
-            <tr>
-              <td>Sin registros</td>
-              <td>-</td>
-              <td>$0.00</td>
-              <td>-</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+            <TableBody>
+              {data.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center">
+                    Sin registros
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{item.cliente}</TableCell>
+                    <TableCell>{item.plan}</TableCell>
+                    <TableCell>{item.monto}</TableCell>
+                    <TableCell>
+                      <Chip label={item.estado || "-"} size="small" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }

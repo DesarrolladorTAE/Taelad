@@ -15,80 +15,266 @@ const DisWeb = React.lazy(() => import("../pages/landings/Index1/DisWeb"));
 const ImaCor = React.lazy(() => import("../pages/landings/Index1/ImaCor"));
 const MarDig = React.lazy(() => import("../pages/landings/Index1/MarDig"));
 
+
+// Paneles
 const Panel = React.lazy(() => import("../pages/users/panel"));
 const Superadmin = React.lazy(() => import("../pages/Superadmin/panel"));
 
+
+// TAECONTA
+const TaecontaEmpresasPage = React.lazy(() =>
+  import("../pages/taeconta/TaecontaEmpresasPage")
+);
+
+
 // Tarjetas
 const TarjetaJennys = React.lazy(() => import("../tarjetas/TarjetaJennys"));
-const EnlacesTerrestres = React.lazy(() => import("../tarjetas/EnlacesTerrestres"));
+
+const EnlacesTerrestres = React.lazy(() =>
+  import("../tarjetas/EnlacesTerrestres")
+);
+
 const BalnearioSantaMaria = React.lazy(() =>
   import("../tarjetas/balneario-rancho-santa-maria")
 );
 
+
 // Footer
-const Nosotros = React.lazy(() => import("../pages/TaeFooter/Nosotros"));
-const AvisoPrivacidad = React.lazy(() => import("../pages/TaeFooter/Aviso"));
-const TerminosCondiciones = React.lazy(() => import("../pages/TaeFooter/TerCon"));
+const Nosotros = React.lazy(() =>
+  import("../pages/TaeFooter/Nosotros")
+);
+
+const AvisoPrivacidad = React.lazy(() =>
+  import("../pages/TaeFooter/Aviso")
+);
+
+const TerminosCondiciones = React.lazy(() =>
+  import("../pages/TaeFooter/TerCon")
+);
+
 
 // Auth
-const Login = React.lazy(() => import("../pages/auth/Login"));
-const SignUp = React.lazy(() => import("../pages/auth/Signin"));
+const Login = React.lazy(() =>
+  import("../pages/auth/Login")
+);
 
-const loading = () => <div style={{ padding: 20 }}>Cargando…</div>;
+const SignUp = React.lazy(() =>
+  import("../pages/auth/Signin")
+);
+
+
+
+const loading = () => (
+  <div style={{ padding: 20 }}>
+    Cargando…
+  </div>
+);
+
 
 type LCProps = {
-  component: React.LazyExoticComponent<React.ComponentType<any>>;
+  component: React.LazyExoticComponent<
+    React.ComponentType<any>
+  >;
 };
 
-const LoadComponent = ({ component: Component }: LCProps) => (
+
+const LoadComponent = ({
+  component: Component,
+}: LCProps) => (
+
   <Suspense fallback={loading()}>
     <Component />
   </Suspense>
+
 );
 
+
+
 export default function AllRoutes() {
+
+
   return useRoutes([
+
     {
+
       path: "/",
+
       element: <Root />,
+
+
       children: [
-        { index: true, element: <Navigate to="landing" replace /> },
 
-        // Landings
-        { path: "landing", element: <LoadComponent component={Index1} /> },
-        { path: "index3", element: <LoadComponent component={Index3} /> },
-        { path: "index4", element: <LoadComponent component={Index4} /> },
-        { path: "index5", element: <LoadComponent component={Index5} /> },
-        { path: "index6", element: <LoadComponent component={Index6} /> },
+        {
+          index: true,
+          element: (
+            <Navigate
+              to="landing"
+              replace
+            />
+          ),
+        },
 
-        { path: "facturacion", element: <LoadComponent component={FacEle} /> },
-        { path: "contabilidad", element: <LoadComponent component={ConEle} /> },
-        { path: "desarrollo", element: <LoadComponent component={DisWeb} /> },
-        { path: "diseno", element: <LoadComponent component={ImaCor} /> },
-        { path: "marketing", element: <LoadComponent component={MarDig} /> },
 
-        // Footer
-        { path: "nosotros", element: <LoadComponent component={Nosotros} /> },
-        { path: "aviso-privacidad", element: <LoadComponent component={AvisoPrivacidad} /> },
-        { path: "terminos-condiciones", element: <LoadComponent component={TerminosCondiciones} /> },
+        // LANDINGS
 
-        // Tarjetas
-        { path: "jennysbananasandfruits", element: <LoadComponent component={TarjetaJennys} /> },
-        { path: "enlaces-terrestres", element: <LoadComponent component={EnlacesTerrestres} /> },
-        { path: "balneario-rancho-santa-maria", element: <LoadComponent component={BalnearioSantaMaria} /> },
+        {
+          path: "landing",
+          element: <LoadComponent component={Index1} />,
+        },
 
-        // Paneles
-        { path: "panel/*", element: <LoadComponent component={Panel} /> },
-        { path: "superadmin/*", element: <LoadComponent component={Superadmin} /> },
+        {
+          path: "index3",
+          element: <LoadComponent component={Index3} />,
+        },
 
-        // Auth
-        { path: "auth", element: <Navigate to="auth/login" replace /> },
-        { path: "auth/login", element: <LoadComponent component={Login} /> },
-        { path: "auth/signup", element: <LoadComponent component={SignUp} /> },
+        {
+          path: "index4",
+          element: <LoadComponent component={Index4} />,
+        },
+
+        {
+          path: "index5",
+          element: <LoadComponent component={Index5} />,
+        },
+
+        {
+          path: "index6",
+          element: <LoadComponent component={Index6} />,
+        },
+
+
+        {
+          path: "facturacion",
+          element: <LoadComponent component={FacEle} />,
+        },
+
+        {
+          path: "contabilidad",
+          element: <LoadComponent component={ConEle} />,
+        },
+
+        {
+          path: "desarrollo",
+          element: <LoadComponent component={DisWeb} />,
+        },
+
+        {
+          path: "diseno",
+          element: <LoadComponent component={ImaCor} />,
+        },
+
+        {
+          path: "marketing",
+          element: <LoadComponent component={MarDig} />,
+        },
+
+
+        // FOOTER
+
+        {
+          path: "nosotros",
+          element: <LoadComponent component={Nosotros} />,
+        },
+
+        {
+          path: "aviso-privacidad",
+          element: <LoadComponent component={AvisoPrivacidad} />,
+        },
+
+        {
+          path: "terminos-condiciones",
+          element: <LoadComponent component={TerminosCondiciones} />,
+        },
+
+
+
+        // TARJETAS
+
+        {
+          path: "jennysbananasandfruits",
+          element: <LoadComponent component={TarjetaJennys} />,
+        },
+
+        {
+          path: "enlaces-terrestres",
+          element: <LoadComponent component={EnlacesTerrestres} />,
+        },
+
+        {
+          path: "balneario-rancho-santa-maria",
+          element: <LoadComponent component={BalnearioSantaMaria} />,
+        },
+
+
+
+        // PANELES
+
+        {
+          path: "panel/*",
+          element: <LoadComponent component={Panel} />,
+        },
+
+        {
+          path: "superadmin/*",
+          element: <LoadComponent component={Superadmin} />,
+        },
+
+
+
+        // TAECONTA EMPRESAS
+
+        {
+          path: "taeconta/empresas",
+          element: (
+            <LoadComponent
+              component={TaecontaEmpresasPage}
+            />
+          ),
+        },
+
+
+
+        // AUTH
+
+        {
+          path: "auth",
+          element: (
+            <Navigate
+              to="auth/login"
+              replace
+            />
+          ),
+        },
+
+        {
+          path: "auth/login",
+          element: <LoadComponent component={Login} />,
+        },
+
+        {
+          path: "auth/signup",
+          element: <LoadComponent component={SignUp} />,
+        },
+
+
 
         // 404
-        { path: "*", element: <Navigate to="/landing" replace /> },
+
+        {
+          path: "*",
+          element: (
+            <Navigate
+              to="/landing"
+              replace
+            />
+          ),
+        },
+
+
       ],
+
     },
+
   ]);
+
 }

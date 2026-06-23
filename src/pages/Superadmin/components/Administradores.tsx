@@ -1,4 +1,19 @@
 import { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Chip,
+  Button,
+  CircularProgress,
+} from "@mui/material";
+
 import { getSuperAdminAdministrators } from "../../../services/superadminService";
 
 export default function Administradores({ volver }: any) {
@@ -19,53 +34,81 @@ export default function Administradores({ volver }: any) {
   }, []);
 
   return (
-    <section className="superadmin-section administradores-view">
-      <div className="section-header">
-        <button type="button" onClick={volver} className="superadmin-button">
+    <Box>
+      {/* HEADER */}
+      <Box mb={3} display="flex" alignItems="center" gap={2}>
+        <Button variant="contained" onClick={volver}>
           Volver
-        </button>
+        </Button>
 
-        <h2>Administradores</h2>
-        <p>Usuarios con permisos administrativos.</p>
-      </div>
+        <Box>
+          <Typography variant="h5" fontWeight={800}>
+            Administradores
+          </Typography>
 
-      <div className="superadmin-panel panel-administradores">
-        {loading ? (
-          <p>Cargando administradores...</p>
-        ) : (
-          <table className="superadmin-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Correo</th>
-                <th>Rol</th>
-                <th>Registro</th>
-              </tr>
-            </thead>
+          <Typography color="text.secondary" mt={1}>
+            Usuarios con permisos administrativos.
+          </Typography>
+        </Box>
+      </Box>
 
-            <tbody>
-              {administradores.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>Sin administradores registrados</td>
-                </tr>
-              ) : (
-                administradores.map((admin) => (
-                  <tr key={admin.id}>
-                    <td>{admin.id}</td>
-                    <td>{admin.name || "-"}</td>
-                    <td>{admin.email || "-"}</td>
-                    <td>
-                      <span className="badge neutral">Administrador</span>
-                    </td>
-                    <td>{admin.created_at || "-"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </section>
+      {/* PANEL */}
+      <Card
+        sx={(theme) => ({
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 4,
+        })}
+      >
+        <CardContent>
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Nombre</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Rol</TableCell>
+                  <TableCell>Registro</TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {administradores.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center">
+                      Sin administradores registrados
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  administradores.map((admin) => (
+                    <TableRow key={admin.id}>
+                      <TableCell>{admin.id}</TableCell>
+                      <TableCell>{admin.name || "-"}</TableCell>
+                      <TableCell>{admin.email || "-"}</TableCell>
+
+                      <TableCell>
+                        <Chip
+                          label="Administrador"
+                          size="small"
+                          color="primary"
+                        />
+                      </TableCell>
+
+                      <TableCell>
+                        {admin.created_at || "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
