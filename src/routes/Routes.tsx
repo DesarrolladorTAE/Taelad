@@ -15,14 +15,15 @@ const DisWeb = React.lazy(() => import("../pages/landings/Index1/DisWeb"));
 const ImaCor = React.lazy(() => import("../pages/landings/Index1/ImaCor"));
 const MarDig = React.lazy(() => import("../pages/landings/Index1/MarDig"));
 
-const panel = React.lazy(() => import("../pages/users/panel"));
-
-
+const Panel = React.lazy(() => import("../pages/users/panel"));
+const Superadmin = React.lazy(() => import("../pages/Superadmin/panel"));
 
 // Tarjetas
 const TarjetaJennys = React.lazy(() => import("../tarjetas/TarjetaJennys"));
 const EnlacesTerrestres = React.lazy(() => import("../tarjetas/EnlacesTerrestres"));
-const BalnearioSantaMaria = React.lazy(() => import("../tarjetas/balneario-rancho-santa-maria"));
+const BalnearioSantaMaria = React.lazy(() =>
+  import("../tarjetas/balneario-rancho-santa-maria")
+);
 
 // Footer
 const Nosotros = React.lazy(() => import("../pages/TaeFooter/Nosotros"));
@@ -49,9 +50,8 @@ export default function AllRoutes() {
   return useRoutes([
     {
       path: "/",
-      element: <Root />, // Root debe tener <Outlet />
+      element: <Root />,
       children: [
-        // Redirección inicial de "/" → "/landing"
         { index: true, element: <Navigate to="landing" replace /> },
 
         // Landings
@@ -77,17 +77,16 @@ export default function AllRoutes() {
         { path: "enlaces-terrestres", element: <LoadComponent component={EnlacesTerrestres} /> },
         { path: "balneario-rancho-santa-maria", element: <LoadComponent component={BalnearioSantaMaria} /> },
 
-
-        { path: "panel/*", element: <LoadComponent component={panel} /> },
-        
-
+        // Paneles
+        { path: "panel/*", element: <LoadComponent component={Panel} /> },
+        { path: "superadmin/*", element: <LoadComponent component={Superadmin} /> },
 
         // Auth
-        { path: "auth", element: <Navigate to="auth/login" replace /> }, // /auth → /auth/login
+        { path: "auth", element: <Navigate to="auth/login" replace /> },
         { path: "auth/login", element: <LoadComponent component={Login} /> },
         { path: "auth/signup", element: <LoadComponent component={SignUp} /> },
 
-        // 404 opcional
+        // 404
         { path: "*", element: <Navigate to="/landing" replace /> },
       ],
     },

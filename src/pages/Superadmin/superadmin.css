@@ -1,0 +1,140 @@
+.superadmin-section {
+  width: 100%;
+  animation: fadeIn 0.3s ease;
+}
+
+.superadmin-section h2 {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 25px;
+  color: var(--text-primary);
+}
+
+.superadmin-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.superadmin-card {
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 25px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  transition: all 0.25s ease;
+}
+
+.superadmin-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.superadmin-card span {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.superadmin-card strong {
+  font-size: 32px;
+  color: var(--text-primary);
+}
+
+.superadmin-panel {
+  background: var(--card-bg);
+  padding: 28px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow);
+}
+
+.superadmin-panel p {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.superadmin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.superadmin-table th {
+  text-align: left;
+  background: var(--table-header-bg);
+  padding: 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.superadmin-table td {
+  padding: 14px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.superadmin-form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.superadmin-form-group label {
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.superadmin-form-group input,
+.superadmin-form-group select {
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  outline: none;
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.superadmin-form-group input:focus,
+.superadmin-form-group select:focus {
+  border-color: #2563eb;
+}
+
+.superadmin-button {
+  background: var(--button-bg);
+  color: var(--button-text);
+  padding: 14px 22px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.superadmin-button:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 1000px) {
+  .superadmin-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .superadmin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
