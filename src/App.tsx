@@ -4,7 +4,7 @@ import { ThemeProvider, CssBaseline } from "@mui/material";
 import AOS from "aos";
 
 import { getTheme } from "./theme";
-import AllRoutes from "./routes/Routes";
+import AllRoutes from "./routes/Routes"
 
 export default function App() {
   const [darkMode, setDarkMode] = useState<boolean>(() => {

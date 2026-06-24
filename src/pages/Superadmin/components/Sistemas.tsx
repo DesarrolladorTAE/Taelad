@@ -4,8 +4,6 @@ import {
   CardContent,
   Typography,
   Grid,
-  CircularProgress,
-  Divider,
   Chip,
 } from "@mui/material";
 
@@ -55,45 +53,27 @@ const sistemas: Sistema[] = [
 export default function Sistemas() {
   const navigate = useNavigate();
 
-  const [sistemaActivo, setSistemaActivo] = useState<Sistema | null>(null);
-  const [empresas, setEmpresas] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const abrirSistema = (sistema: Sistema) => {
+    if (!sistema?.id) return;
 
-  const abrirSistema = async (sistema: Sistema) => {
-    setSistemaActivo(sistema);
-    setLoading(true);
+    if (sistema.id === "mitienda") {
+      navigate(`/superadmin/mitienda/${sistema.id}/dashboard`);
+      return;
+    }
 
-    try {
-      let data: any[] = [];
+    if (sistema.id === "taeconta") {
+      navigate(`/superadmin/taeconta/empresas`);
+      return;
+    }
 
-      if (sistema.id === "taeconta") {
-        const response = await axiosClient.get(
-          "/superadmin/taeconta/empresas"
-        );
-        data = response.data?.data ?? [];
-      }
+    if (sistema.id === "telorecargo") {
+      navigate(`/superadmin/telorecargo`);
+      return;
+    }
 
-      if (sistema.id === "telorecargo") {
-        data = [];
-      }
-
-      if (sistema.id === "mitienda") {
-        const response = await axiosClient.get(
-          "/superadmin/mitienda/tiendas"
-        );
-        data = response.data ?? [];
-      }
-
-      if (sistema.id === "clicmenu") {
-        data = [];
-      }
-
-      setEmpresas(data);
-    } catch (error) {
-      console.error("Error cargando sistema:", error);
-      setEmpresas([]);
-    } finally {
-      setLoading(false);
+    if (sistema.id === "clicmenu") {
+      navigate(`/superadmin/clicmenu`);
+      return;
     }
   };
 
@@ -150,49 +130,6 @@ export default function Sistemas() {
           </Grid>
         ))}
       </Grid>
-
-      {/* EMPRESAS */}
-      {sistemaActivo && (
-        <Box mt={4}>
-          <Divider sx={{ mb: 3 }} />
-
-          <Typography variant="h6">
-            {sistemaActivo.nombre} - Empresas
-          </Typography>
-
-          {loading ? (
-            <CircularProgress />
-          ) : (
-            <Grid container spacing={2}>
-              {empresas.length > 0 ? (
-                empresas.map((empresa: any, i: number) => (
-                  <Grid item xs={12} md={4} key={i}>
-                    <Card>
-                      <CardContent>
-                        <Typography fontWeight={700}>
-                          {empresa.nombre ?? "Sin nombre"}
-                        </Typography>
-
-                        <Typography variant="body2">
-                          RFC: {empresa.rfc ?? "N/A"}
-                        </Typography>
-
-                        <Typography variant="body2">
-                          Estado: {empresa.estado ?? "N/A"}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))
-              ) : (
-                <Typography color="text.secondary">
-                  No hay empresas registradas.
-                </Typography>
-              )}
-            </Grid>
-          )}
-        </Box>
-      )}
     </Box>
   );
 }

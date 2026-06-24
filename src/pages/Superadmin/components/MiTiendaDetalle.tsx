@@ -1,43 +1,93 @@
-import { Box, Card, Typography, Grid, Divider } from "@mui/material";
-import { useLocation, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import axiosClient from "../../../services/axiosClient";
+import { Box, Typography, CircularProgress, Card, CardContent } from "@mui/material";
 
-export default function MiTiendaDetalle() {
-  const { state } = useLocation();
-  const { id } = useParams();
+export default function MiTiendaTiendaDetalle() {
+  const { tiendaId } = useParams();
 
-  const user = state;
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  if (!user) {
-    return (
-      <Box p={3}>
-        <Typography>No hay datos (ID: {id})</Typography>
-      </Box>
-    );
-  }
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true);
+
+      try {
+        const res = await axiosClient.get(
+          `/superadmin/mitienda/tienda/${tiendaId}`
+        );
+
+        setData(res.data?.data ?? res.data ?? null);
+      } catch (error) {
+        console.error(error);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (tiendaId) fetch();
+  }, [tiendaId]);
+
+  if (loading) return <CircularProgress />;
+
+  if (!data) return <Typography>No se encontró la tienda</Typography>;
 
   return (
-    <Box p={3}>
-      <Card sx={{ p: 3 }}>
-        <Typography fontWeight={800}>Detalle Mi Tienda</Typography>
+    <Box sx={{ p: 2 }}>
 
-        <Divider sx={{ my: 2 }} />
+      {/* HEADER */}
+      <Typography variant="h5" fontWeight={800}>
+        {data.nombre}
+      </Typography>
 
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <Typography>ID: {user.id}</Typography>
-            <Typography>Nombre: {user.name} {user.apellidos}</Typography>
-            <Typography>Email: {user.email}</Typography>
-            <Typography>Teléfono: {user.phone}</Typography>
-          </Grid>
+      <Typography color="text.secondary">
+        {data.email} | {data.telefono}
+      </Typography>
 
-          <Grid item xs={12} md={6}>
-            <Typography>Ganancias: {user.ganancias}</Typography>
-            <Typography>Rol: {user.role}</Typography>
-            <Typography>Código: {user.codigo_ref ?? "N/A"}</Typography>
-            <Typography>Terminos: {user.terminos ? "Sí" : "No"}</Typography>
-          </Grid>
-        </Grid>
+      {/* PLAN */}
+      <Card sx={{ mt: 2 }}>
+        <CardContent>
+          <Typography fontWeight={700}>Plan</Typography>
+
+          <Typography>
+            {data.plan?.nombre_plan}
+          </Typography>
+
+          <Typography>
+            Estado: {data.plan?.estado}
+          </Typography>
+
+          <Typography>
+            Vence: {data.plan?.vence}
+          </Typography>
+        </CardContent>
       </Card>
+
+      {/* FISCAL */}
+      <Card sx={{ mt: 2 }}>
+        <CardContent>
+          <Typography fontWeight={700}>Datos fiscales</Typography>
+
+          <Typography>RFC: {data.datos_fiscales?.rfc ?? "N/A"}</Typography>
+          <Typography>
+            Razón social: {data.datos_fiscales?.razon_social ?? "N/A"}
+          </Typography>
+        </CardContent>
+      </Card>
+
+      {/* TAECONTA */}
+      <Card sx={{ mt: 2 }}>
+        <CardContent>
+          <Typography fontWeight={700}>TAECONTA</Typography>
+
+          <Typography>
+            Correo: {data.taeconta?.correo_tae ?? "N/A"}
+          </Typography>
+        </CardContent>
+      </Card>
+
     </Box>
   );
 }
