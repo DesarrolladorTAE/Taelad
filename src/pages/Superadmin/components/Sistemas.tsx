@@ -7,8 +7,6 @@ import {
   Chip,
 } from "@mui/material";
 
-import { useState } from "react";
-import axiosClient from "../../../services/axiosClient";
 import { useNavigate } from "react-router-dom";
 
 type Sistema = {
@@ -17,6 +15,10 @@ type Sistema = {
   logo: string;
   descripcion: string;
   estado: string;
+};
+
+type Props = {
+  setView?: (view: string) => void;
 };
 
 const sistemas: Sistema[] = [
@@ -50,16 +52,16 @@ const sistemas: Sistema[] = [
   },
 ];
 
-export default function Sistemas() {
+export default function Sistemas({ setView }: Props) {
   const navigate = useNavigate();
 
   const abrirSistema = (sistema: Sistema) => {
     if (!sistema?.id) return;
 
     if (sistema.id === "mitienda") {
-      navigate(`/superadmin/mitienda/${sistema.id}/dashboard`);
-      return;
-    }
+  setView?.("mitienda-dashboard");
+  return;
+}
 
     if (sistema.id === "taeconta") {
       navigate(`/superadmin/taeconta/empresas`);
@@ -79,7 +81,6 @@ export default function Sistemas() {
 
   return (
     <Box sx={{ width: "100%" }}>
-      {/* HEADER */}
       <Box mb={3}>
         <Typography variant="h5" fontWeight={800}>
           Sistemas
@@ -90,7 +91,6 @@ export default function Sistemas() {
         </Typography>
       </Box>
 
-      {/* SISTEMAS */}
       <Grid container spacing={3}>
         {sistemas.map((sistema) => (
           <Grid item xs={12} md={4} key={sistema.id}>
@@ -120,11 +120,7 @@ export default function Sistemas() {
                   {sistema.descripcion}
                 </Typography>
 
-                <Chip
-                  label={sistema.estado}
-                  size="small"
-                  sx={{ mt: 2 }}
-                />
+                <Chip label={sistema.estado} size="small" sx={{ mt: 2 }} />
               </CardContent>
             </Card>
           </Grid>

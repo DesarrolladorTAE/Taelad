@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   AppBar,
@@ -7,6 +7,7 @@ import {
   Typography,
   Drawer,
 } from "@mui/material";
+
 import MenuIcon from "@mui/icons-material/Menu";
 import SideNav, { SIDEBAR_WIDTH } from "./SideNav";
 
@@ -18,11 +19,31 @@ type Props = {
   ) => React.ReactNode;
 };
 
+const VIEW_STORAGE_KEY = "superadmin_view";
+
 export default function Shell({ children }: Props) {
   const [darkMode, setDarkMode] = useState(false);
-  const [view, setView] = useState("dashboard");
+
+  const [view, setViewState] = useState<string>(() => {
+    if (typeof window === "undefined") return "dashboard";
+    return localStorage.getItem(VIEW_STORAGE_KEY) || "dashboard";
+  });
+
   const [mobileOpen, setMobileOpen] = useState(false);
-  
+
+  const setView = (nextView: string) => {
+    setViewState(nextView);
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(VIEW_STORAGE_KEY, nextView);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(VIEW_STORAGE_KEY, view);
+    }
+  }, [view]);
 
   const handleNavigate = (nextView: string) => {
     setView(nextView);
@@ -31,19 +52,16 @@ export default function Shell({ children }: Props) {
 
   return (
     <Box
-    
-    sx={(theme) => ({
-    width: "100%",
-    height: "100vh",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-    backgroundColor: theme.palette.background.default,
-    color: theme.palette.text.primary,
-  
+      sx={(theme) => ({
+        width: "100%",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
       })}
     >
-      {/* MOBILE APPBAR */}
       <AppBar
         position="fixed"
         elevation={0}
@@ -69,7 +87,6 @@ export default function Shell({ children }: Props) {
         </Toolbar>
       </AppBar>
 
-      {/* DRAWER MOBILE */}
       <Drawer
         variant="temporary"
         open={mobileOpen}
@@ -87,39 +104,34 @@ export default function Shell({ children }: Props) {
           darkMode={darkMode}
           setDarkMode={setDarkMode}
           setView={handleNavigate}
+          activeView={view}
         />
       </Drawer>
 
-      {/* SIDEBAR DESKTOP */}
       <Box sx={{ display: { xs: "none", md: "block" } }}>
         <SideNav
           darkMode={darkMode}
           setDarkMode={setDarkMode}
           setView={setView}
+          activeView={view}
         />
       </Box>
 
-      {/* MAIN CONTENT */}
       <Box
         component="main"
         sx={{
-        flex: 1,
-        minHeight: 0,          // 🔥 CRÍTICO
-        overflowY: "auto",     // 🔥 scroll real aquí
-        overflowX: "hidden",
-        ml: { xs: 0, md: `${SIDEBAR_WIDTH}px` },
-        width: { xs: "100%", md: `calc(100% - ${SIDEBAR_WIDTH}px)` },
-        boxSizing: "border-box",
-        p: { xs: 2, sm: 2.5, md: 3 },
-        pt: { xs: 9, md: 3 },
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
+          ml: { xs: 0, md: `${SIDEBAR_WIDTH}px` },
+          width: { xs: "100%", md: `calc(100% - ${SIDEBAR_WIDTH}px)` },
+          boxSizing: "border-box",
+          p: { xs: 2, sm: 2.5, md: 3 },
+          pt: { xs: 9, md: 3 },
         }}
       >
-        <Box
-          sx={{
-            width: "100%",
-            minWidth: 0,
-          }}
-        >
+        <Box sx={{ width: "100%", minWidth: 0 }}>
           {children(darkMode, view, setView)}
         </Box>
       </Box>

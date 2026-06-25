@@ -8,19 +8,22 @@ import Facturacion from "./components/Facturacion";
 import Administradores from "./components/Administradores";
 import Configuracion from "./components/Configuracion";
 
+import MiTiendaDashboard from "./components/MiTiendaDashboard";
+import MiTiendaTiendas from "./components/MiTiendaTiendas";
+import MiTiendaVentas from "./components/MiTiendaVentas";
+import MiTiendaMetricas from "./components/MiTiendaMetricas";
+import MiTiendaSuscripcionesGlobal from "./components/MiTiendaSuscripcionesGlobal";
 
 export default function SuperAdminPanel() {
   return (
     <Shell>
       {(_, view, setView) => {
-        const volverPanel = () => setView("dashboard");
-
         switch (view) {
           case "metricas":
             return <Metricas />;
 
           case "sistemas":
-            return <Sistemas />;
+            return <Sistemas setView={setView} />;
 
           case "facturacion":
             return <Facturacion />;
@@ -33,6 +36,21 @@ export default function SuperAdminPanel() {
 
           case "configuracion":
             return <Configuracion />;
+
+          case "mitienda-dashboard":
+            return <MiTiendaDashboard setView={setView} />;
+
+          case "mitienda-tiendas":
+            return <MiTiendaTiendas setView={setView} />;
+
+          case "mitienda-ventas":
+            return <MiTiendaVentas setView={setView} />;
+
+          case "mitienda-metricas":
+            return <MiTiendaMetricas setView={setView} />;
+
+                     case "mitienda-suscripciones":
+            return <MiTiendaSuscripcionesGlobal setView={setView} />;
 
           default:
             return <Dashboard />;

@@ -25,6 +25,7 @@ type Props = {
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
   setView: (view: string) => void;
+  activeView?: string;
 };
 
 export const SIDEBAR_WIDTH = 280;
@@ -33,6 +34,7 @@ export default function SideNav({
   darkMode,
   setDarkMode,
   setView,
+  activeView = "dashboard",
 }: Props) {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
@@ -47,24 +49,49 @@ export default function SideNav({
   }, []);
 
   const logout = () => {
+    localStorage.removeItem("token");
     localStorage.removeItem("TOKEN");
     localStorage.removeItem("USER");
+    localStorage.removeItem("superadmin_view");
     navigate("/auth/login");
   };
 
   const nombreCompleto =
     `${user?.name || ""} ${user?.apellidos || ""}`.trim();
 
-  const menuButtonSx = (theme: any) => ({
-    color: theme.palette.text.primary,
-    justifyContent: "flex-start",
-    mb: 1,
-    gap: 1,
-    textTransform: "none",
-    fontWeight: 600,
-    minHeight: 42,
-    borderRadius: 2,
-  });
+  const isActive = (view: string) => {
+    if (view === "sistemas") {
+      return (
+        activeView === "sistemas" ||
+        activeView.startsWith("mitienda-")
+      );
+    }
+
+    return activeView === view;
+  };
+
+  const menuButtonSx = (view: string) => (theme: any) => {
+    const active = isActive(view);
+
+    return {
+      color: active
+        ? theme.palette.primary.main
+        : theme.palette.text.primary,
+      backgroundColor: active
+        ? theme.palette.action.selected
+        : "transparent",
+      justifyContent: "flex-start",
+      mb: 1,
+      gap: 1,
+      textTransform: "none",
+      fontWeight: active ? 800 : 600,
+      minHeight: 42,
+      borderRadius: 2,
+      "&:hover": {
+        backgroundColor: theme.palette.action.hover,
+      },
+    };
+  };
 
   return (
     <Box
@@ -83,7 +110,6 @@ export default function SideNav({
         overflowY: "auto",
       })}
     >
-      {/* HEADER */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 4 }}>
         <Box
           component="img"
@@ -107,36 +133,62 @@ export default function SideNav({
         </Box>
       </Box>
 
-      {/* MENU */}
-      <Button fullWidth sx={menuButtonSx} onClick={() => setView("dashboard")}>
+      <Button
+        fullWidth
+        sx={menuButtonSx("dashboard")}
+        onClick={() => setView("dashboard")}
+      >
         <Dashboard /> Dashboard
       </Button>
 
-      <Button fullWidth sx={menuButtonSx} onClick={() => setView("metricas")}>
+      <Button
+        fullWidth
+        sx={menuButtonSx("metricas")}
+        onClick={() => setView("metricas")}
+      >
         <Analytics /> Métricas generales
       </Button>
 
-      <Button fullWidth sx={menuButtonSx} onClick={() => setView("sistemas")}>
+      <Button
+        fullWidth
+        sx={menuButtonSx("sistemas")}
+        onClick={() => setView("sistemas")}
+      >
         <Apps /> Sistemas
       </Button>
 
-      <Button fullWidth sx={menuButtonSx} onClick={() => setView("facturacion")}>
+      <Button
+        fullWidth
+        sx={menuButtonSx("facturacion")}
+        onClick={() => setView("facturacion")}
+      >
         <ReceiptLong /> Facturación
       </Button>
 
-      <Button fullWidth sx={menuButtonSx} onClick={() => setView("usuarios")}>
+      <Button
+        fullWidth
+        sx={menuButtonSx("usuarios")}
+        onClick={() => setView("usuarios")}
+      >
         <People /> Usuarios
       </Button>
 
-      <Button fullWidth sx={menuButtonSx} onClick={() => setView("administradores")}>
+      <Button
+        fullWidth
+        sx={menuButtonSx("administradores")}
+        onClick={() => setView("administradores")}
+      >
         <AdminPanelSettings /> Administradores
       </Button>
 
-      <Button fullWidth sx={menuButtonSx} onClick={() => setView("configuracion")}>
+      <Button
+        fullWidth
+        sx={menuButtonSx("configuracion")}
+        onClick={() => setView("configuracion")}
+      >
         <Settings /> Configuración
       </Button>
 
-      {/* DARK MODE TOGGLE */}
       <Box sx={{ display: "flex", alignItems: "center", mt: 2, gap: 1 }}>
         <DarkMode />
 
@@ -150,15 +202,11 @@ export default function SideNav({
             const value = e.target.checked;
 
             setDarkMode(value);
-            localStorage.setItem(
-              "theme",
-              value ? "dark" : "light"
-            );
+            localStorage.setItem("theme", value ? "dark" : "light");
           }}
         />
       </Box>
 
-      {/* LOGOUT */}
       <Button
         fullWidth
         onClick={logout}

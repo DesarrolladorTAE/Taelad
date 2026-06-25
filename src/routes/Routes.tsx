@@ -61,38 +61,6 @@ export default function AllRoutes() {
       path: "/",
       element: <Root />,
       children: [
-
-        // =========================
-        // MI TIENDA (SaaS MODULE)
-        // =========================
-
-        {
-          path: "superadmin/mitienda/:id/dashboard",
-          element: <MiTiendaDashboard />,
-        },
-        
-        {
-          path: "superadmin/mitienda/:id/tiendas",
-          element: <MiTiendaTiendas />,
-        },
-        {
-          path: "superadmin/mitienda/:id/ventas",
-          element: <MiTiendaVentas />,
-        },
-        {
-          path: "superadmin/mitienda/:id/metricas",
-          element: <MiTiendaMetricas />,
-        },
-
-        // 🔴 SIEMPRE AL FINAL (IMPORTANTE)
-        {
-           path: "superadmin/mitienda/:id/tiendas/:tiendaId",
-          element: <MiTiendaDetalle />,
-        },
-
-        // =========================
-        // DEFAULT
-        // =========================
         {
           index: true,
           element: <Navigate to="landing" replace />,
@@ -128,10 +96,28 @@ export default function AllRoutes() {
         { path: "balneario-rancho-santa-maria", element: <LoadComponent component={BalnearioSantaMaria} /> },
 
         // =========================
-        // PANELES
+        // MI TIENDA
         // =========================
-        { path: "panel/*", element: <LoadComponent component={Panel} /> },
-        { path: "superadmin/*", element: <LoadComponent component={Superadmin} /> },
+        {
+          path: "superadmin/mitienda/:id/dashboard",
+          element: <MiTiendaDashboard />,
+        },
+        {
+          path: "superadmin/mitienda/:id/tiendas",
+          element: <MiTiendaTiendas />,
+        },
+        {
+          path: "superadmin/mitienda/:id/ventas",
+          element: <MiTiendaVentas />,
+        },
+        {
+          path: "superadmin/mitienda/:id/metricas",
+          element: <MiTiendaMetricas />,
+        },
+        {
+          path: "superadmin/mitienda/tiendas/:tiendaId",
+          element: <MiTiendaDetalle />,
+        },
 
         // =========================
         // TAECONTA
@@ -147,6 +133,12 @@ export default function AllRoutes() {
         { path: "auth", element: <Navigate to="auth/login" replace /> },
         { path: "auth/login", element: <LoadComponent component={Login} /> },
         { path: "auth/signup", element: <LoadComponent component={SignUp} /> },
+
+        // =========================
+        // PANELES
+        // =========================
+        { path: "panel/*", element: <LoadComponent component={Panel} /> },
+        { path: "superadmin/*", element: <LoadComponent component={Superadmin} /> },
 
         // =========================
         // 404
