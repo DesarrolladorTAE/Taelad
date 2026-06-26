@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
+  Grid,
+  IconButton,
+  InputAdornment,
   Paper,
   Stack,
   Table,
@@ -13,14 +17,24 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
+  TextField,
+  Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import HistoryIcon from "@mui/icons-material/History";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import SearchIcon from "@mui/icons-material/Search";
 
 import { suscripcionesGlobalService } from "../../../services/suscripcionesGlobalService";
+import SuscripcionHistorialModal from "./SuscripcionesGlobal/SuscripcionHistorialModal";
+import AgregarSuscripcionModal from "./SuscripcionesGlobal/AgregarSuscripcionModal";
 
 type Props = {
   setView?: (view: string) => void;
@@ -35,30 +49,78 @@ type Tienda = {
   is_active: boolean;
 };
 
+const ROWS_PER_PAGE = 16;
+
 function formatDate(value: string | null) {
   if (!value) return "N/A";
 
-  return new Date(value).toLocaleDateString("es-MX", {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
+
+  return date.toLocaleDateString("es-MX", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
 }
 
+function formatPlan(planId: number | null) {
+  if (planId === 1) return "Plan Demo";
+  if (planId === 2) return "Plan Negocio";
+  if (planId === 3) return "Plan Profesional";
+  if (planId === 4) return "Plan Avanzado";
+  if (planId === null) return "Sin plan";
+
+  return `Plan ${planId}`;
+}
+
+
 export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [tiendas, setTiendas] = useState<Tienda[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+  const [page, setPage] = useState<number>(0);
+  const [search, setSearch] = useState<string>("");
+
+  const [tiendaSeleccionada, setTiendaSeleccionada] =
+    useState<Tienda | null>(null);
+
+  const [openAgregar, setOpenAgregar] = useState<boolean>(false);
+  const [openHistorial, setOpenHistorial] = useState<boolean>(false);
 
   const cargarTiendas = async () => {
     try {
       setLoading(true);
+      setError("");
 
       const response = await suscripcionesGlobalService.obtenerTiendas();
 
-      setTiendas(response?.data ?? []);
-    } catch (error) {
-      console.error("Error cargando tiendas:", error);
+      const data = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+          ? response.data
+          : [];
+
+      setTiendas(data);
+      setPage(0);
+    } catch (err: any) {
+      console.error("Error cargando tiendas:", err);
+
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "No se pudieron cargar las tiendas.";
+
+      setError(message);
       setTiendas([]);
+      setPage(0);
     } finally {
       setLoading(false);
     }
@@ -67,6 +129,52 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
   useEffect(() => {
     cargarTiendas();
   }, []);
+
+  const tiendasFiltradas = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    if (!term) return tiendas;
+
+    return tiendas.filter((tienda) => {
+      const plan = formatPlan(tienda.plan_id).toLowerCase();
+      const estado = tienda.is_active ? "activo" : "inactivo";
+      const prueba = formatDate(tienda.trial_ends_at).toLowerCase();
+      const vence = formatDate(tienda.plan_expiration).toLowerCase();
+
+      return (
+        tienda.name?.toLowerCase().includes(term) ||
+        plan.includes(term) ||
+        estado.includes(term) ||
+        prueba.includes(term) ||
+        vence.includes(term)
+      );
+    });
+  }, [search, tiendas]);
+
+  const tiendasPaginadas = tiendasFiltradas.slice(
+    page * ROWS_PER_PAGE,
+    page * ROWS_PER_PAGE + ROWS_PER_PAGE
+  );
+
+  const abrirAgregar = (tienda: Tienda) => {
+    setTiendaSeleccionada(tienda);
+    setOpenAgregar(true);
+  };
+
+  const cerrarAgregar = () => {
+    setOpenAgregar(false);
+    setTiendaSeleccionada(null);
+  };
+
+  const abrirHistorial = (tienda: Tienda) => {
+    setTiendaSeleccionada(tienda);
+    setOpenHistorial(true);
+  };
+
+  const cerrarHistorial = () => {
+    setOpenHistorial(false);
+    setTiendaSeleccionada(null);
+  };
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -107,6 +215,12 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
         </Stack>
       </Stack>
 
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
       <Card
         sx={{
           borderRadius: 5,
@@ -114,75 +228,272 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
         }}
       >
         <CardContent>
-          <Typography fontWeight={900} fontSize={18} mb={2}>
-            Catálogo de tiendas
-          </Typography>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", md: "center" }}
+            spacing={2}
+            mb={2}
+          >
+            <Typography fontWeight={900} fontSize={18}>
+              Catálogo de tiendas
+            </Typography>
+
+            <TextField
+              size="small"
+              placeholder="Buscar tienda, plan, estado o fecha..."
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(0);
+              }}
+              sx={{
+                width: { xs: "100%", md: 360 },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Stack>
 
           {loading ? (
             <Box display="flex" justifyContent="center" py={6}>
               <CircularProgress />
             </Box>
+          ) : isMobile ? (
+            <Stack spacing={2}>
+              {tiendasPaginadas.map((tienda, index) => {
+                const numero = page * ROWS_PER_PAGE + index + 1;
+
+                return (
+                  <Card key={tienda.id} variant="outlined" sx={{ borderRadius: 3 }}>
+                    <CardContent>
+                      <Stack spacing={1}>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="flex-start"
+                          spacing={2}
+                        >
+                          <Box>
+                            <Typography fontSize={12} color="text.secondary">
+                              #{numero}
+                            </Typography>
+
+                            <Typography fontWeight={900} fontSize={16}>
+                              {tienda.name}
+                            </Typography>
+                          </Box>
+
+                          <Chip
+                            size="small"
+                            label={tienda.is_active ? "Activo" : "Inactivo"}
+                            color={tienda.is_active ? "success" : "default"}
+                          />
+                        </Stack>
+
+                        <Grid container spacing={1}>
+                          <Grid item xs={6}>
+                            <Typography fontSize={12} color="text.secondary">
+                              Plan
+                            </Typography>
+                            <Typography fontSize={14} fontWeight={700}>
+                              {formatPlan(tienda.plan_id)}
+                            </Typography>
+                          </Grid>
+
+                          <Grid item xs={6}>
+                            <Typography fontSize={12} color="text.secondary">
+                              Prueba
+                            </Typography>
+                            <Typography fontSize={14} fontWeight={700}>
+                              {formatDate(tienda.trial_ends_at)}
+                            </Typography>
+                          </Grid>
+
+                          <Grid item xs={6}>
+                            <Typography fontSize={12} color="text.secondary">
+                              Vence
+                            </Typography>
+                            <Typography fontSize={14} fontWeight={700}>
+                              {formatDate(tienda.plan_expiration)}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+
+                        <Stack direction="row" spacing={1} pt={1}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<AddCircleOutlineIcon />}
+                            onClick={() => abrirAgregar(tienda)}
+                          >
+                            Agregar
+                          </Button>
+
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<HistoryIcon />}
+                            onClick={() => abrirHistorial(tienda)}
+                          >
+                            Historial
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              {tiendasFiltradas.length === 0 && (
+                <Typography align="center" color="text.secondary" py={4}>
+                  No hay tiendas registradas.
+                </Typography>
+              )}
+
+              <TablePagination
+                component="div"
+                count={tiendasFiltradas.length}
+                page={page}
+                onPageChange={(_, newPage) => setPage(newPage)}
+                rowsPerPage={ROWS_PER_PAGE}
+                rowsPerPageOptions={[ROWS_PER_PAGE]}
+                labelRowsPerPage="Filas por página"
+                labelDisplayedRows={({ from, to, count }) =>
+                  `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+                }
+              />
+            </Stack>
           ) : (
             <TableContainer
               component={Paper}
               variant="outlined"
               sx={{
                 borderRadius: 3,
-                overflowX: "auto",
+                overflowX: "hidden",
               }}
             >
-              <Table>
+              <Table size="small" sx={{ tableLayout: "fixed", width: "100%" }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell>ID</TableCell>
+                    <TableCell sx={{ width: 48 }}>No.</TableCell>
                     <TableCell>Tienda</TableCell>
-                    <TableCell>Plan actual</TableCell>
-                    <TableCell>Fin de prueba</TableCell>
-                    <TableCell>Expiración</TableCell>
-                    <TableCell>Estado</TableCell>
+                    <TableCell sx={{ width: 78 }}>Plan</TableCell>
+                    <TableCell sx={{ width: 98 }}>Prueba</TableCell>
+                    <TableCell sx={{ width: 98 }}>Vence</TableCell>
+                    <TableCell sx={{ width: 82 }}>Estado</TableCell>
+                    <TableCell align="center" sx={{ width: 96 }}>
+                      Acciones
+                    </TableCell>
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
-                  {tiendas.map((tienda) => (
-                    <TableRow hover key={tienda.id}>
-                      <TableCell>{tienda.id}</TableCell>
+                  {tiendasPaginadas.map((tienda, index) => {
+                    const numero = page * ROWS_PER_PAGE + index + 1;
 
-                      <TableCell>
-                        <Typography fontWeight={800}>
-                          {tienda.name}
-                        </Typography>
-                      </TableCell>
+                    return (
+                      <TableRow hover key={tienda.id}>
+                        <TableCell>{numero}</TableCell>
 
-                      <TableCell>{tienda.plan_id ?? "Sin plan"}</TableCell>
+                        <TableCell>
+                          <Tooltip title={tienda.name}>
+                            <Typography
+                              fontWeight={800}
+                              noWrap
+                              sx={{
+                                maxWidth: "100%",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {tienda.name}
+                            </Typography>
+                          </Tooltip>
+                        </TableCell>
 
-                      <TableCell>{formatDate(tienda.trial_ends_at)}</TableCell>
+                        <TableCell>{formatPlan(tienda.plan_id)}</TableCell>
 
-                      <TableCell>{formatDate(tienda.plan_expiration)}</TableCell>
+                        <TableCell>{formatDate(tienda.trial_ends_at)}</TableCell>
 
-                      <TableCell>
-                        <Chip
-                          size="small"
-                          label={tienda.is_active ? "Activo" : "Inactivo"}
-                          color={tienda.is_active ? "success" : "default"}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        <TableCell>{formatDate(tienda.plan_expiration)}</TableCell>
 
-                  {tiendas.length === 0 && (
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            label={tienda.is_active ? "Activo" : "Inactivo"}
+                            color={tienda.is_active ? "success" : "default"}
+                            sx={{ height: 22, fontSize: 11 }}
+                          />
+                        </TableCell>
+
+                        <TableCell align="center">
+                          <Tooltip title="Agregar suscripción o complemento">
+                            <IconButton
+                              size="small"
+                              onClick={() => abrirAgregar(tienda)}
+                            >
+                              <AddCircleOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip title="Ver historial">
+                            <IconButton
+                              size="small"
+                              onClick={() => abrirHistorial(tienda)}
+                            >
+                              <HistoryIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+
+                  {tiendasFiltradas.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">
+                      <TableCell colSpan={7} align="center">
                         No hay tiendas registradas.
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
+
+              <TablePagination
+                component="div"
+                count={tiendasFiltradas.length}
+                page={page}
+                onPageChange={(_, newPage) => setPage(newPage)}
+                rowsPerPage={ROWS_PER_PAGE}
+                rowsPerPageOptions={[ROWS_PER_PAGE]}
+                labelRowsPerPage="Filas por página"
+                labelDisplayedRows={({ from, to, count }) =>
+                  `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+                }
+              />
             </TableContainer>
           )}
         </CardContent>
       </Card>
+
+      <AgregarSuscripcionModal
+        open={openAgregar}
+        tienda={tiendaSeleccionada}
+        onClose={cerrarAgregar}
+        onSuccess={cargarTiendas}
+      />
+
+      <SuscripcionHistorialModal
+        open={openHistorial}
+        tienda={tiendaSeleccionada}
+        onClose={cerrarHistorial}
+      />
     </Box>
   );
 }

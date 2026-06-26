@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from "axios";
 
 const BASE_URL = "https://mitiendaenlineamx.com.mx/api";
 
-const EXTERNAL_TOKEN = import.meta.env.VITE_MITIENDA_EXTERNAL_TOKEN;
+const EXTERNAL_TOKEN = "tecnologiaseladA1-";
 
 const miTiendaExternalClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -15,10 +15,7 @@ const miTiendaExternalClient: AxiosInstance = axios.create({
 });
 
 miTiendaExternalClient.interceptors.request.use((config) => {
-  if (EXTERNAL_TOKEN) {
-    config.headers.Authorization = `Bearer ${EXTERNAL_TOKEN}`;
-  }
-
+  config.headers.Authorization = `Bearer ${EXTERNAL_TOKEN}`;
   return config;
 });
 
