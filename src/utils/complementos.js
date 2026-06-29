@@ -44,12 +44,6 @@ const complementos = [
     precio: 199,
     tipo: "mensual",
   },
-    {
-    complemento_id: 8,
-    nombre: "Renovación de Dominio y hosting anual grupointercomp.com",
-    precio: 1700,
-    tipo: "anual",
-  },
   {
     complemento_id: 9,
     nombre: "MataDatos en Marca Blanca",
