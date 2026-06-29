@@ -51,6 +51,14 @@ type Tienda = {
 
 const ROWS_PER_PAGE = 16;
 
+function normalizarTexto(value?: string | null) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function formatDate(value: string | null) {
   if (!value) return "N/A";
 
@@ -76,7 +84,6 @@ function formatPlan(planId: number | null) {
 
   return `Plan ${planId}`;
 }
-
 
 export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
   const theme = useTheme();
@@ -131,23 +138,24 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
   }, []);
 
   const tiendasFiltradas = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term = normalizarTexto(search);
 
     if (!term) return tiendas;
 
     return tiendas.filter((tienda) => {
-      const plan = formatPlan(tienda.plan_id).toLowerCase();
-      const estado = tienda.is_active ? "activo" : "inactivo";
-      const prueba = formatDate(tienda.trial_ends_at).toLowerCase();
-      const vence = formatDate(tienda.plan_expiration).toLowerCase();
-
-      return (
-        tienda.name?.toLowerCase().includes(term) ||
-        plan.includes(term) ||
-        estado.includes(term) ||
-        prueba.includes(term) ||
-        vence.includes(term)
+      const textoTienda = normalizarTexto(
+        [
+          tienda.name,
+          formatPlan(tienda.plan_id),
+          tienda.is_active ? "activo" : "inactivo",
+          formatDate(tienda.trial_ends_at),
+          formatDate(tienda.plan_expiration),
+        ]
+          .filter(Boolean)
+          .join(" ")
       );
+
+      return textoTienda.includes(term);
     });
   }, [search, tiendas]);
 
@@ -247,9 +255,34 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                 setSearch(event.target.value);
                 setPage(0);
               }}
-              sx={{
+              sx={(theme) => ({
                 width: { xs: "100%", md: 360 },
-              }}
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  bgcolor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
+                  "& fieldset": {
+                    borderColor: theme.palette.divider,
+                  },
+                  "&:hover fieldset": {
+                    borderColor: theme.palette.primary.main,
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: theme.palette.primary.main,
+                    borderWidth: 2,
+                  },
+                  "& .MuiSvgIcon-root": {
+                    color: theme.palette.text.secondary,
+                  },
+                },
+                "& .MuiInputBase-input": {
+                  color: theme.palette.text.primary,
+                  "&::placeholder": {
+                    color: theme.palette.text.secondary,
+                    opacity: 1,
+                  },
+                },
+              })}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -270,7 +303,11 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                 const numero = page * ROWS_PER_PAGE + index + 1;
 
                 return (
-                  <Card key={tienda.id} variant="outlined" sx={{ borderRadius: 3 }}>
+                  <Card
+                    key={tienda.id}
+                    variant="outlined"
+                    sx={{ borderRadius: 3 }}
+                  >
                     <CardContent>
                       <Stack spacing={1}>
                         <Stack
@@ -419,9 +456,13 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
 
                         <TableCell>{formatPlan(tienda.plan_id)}</TableCell>
 
-                        <TableCell>{formatDate(tienda.trial_ends_at)}</TableCell>
+                        <TableCell>
+                          {formatDate(tienda.trial_ends_at)}
+                        </TableCell>
 
-                        <TableCell>{formatDate(tienda.plan_expiration)}</TableCell>
+                        <TableCell>
+                          {formatDate(tienda.plan_expiration)}
+                        </TableCell>
 
                         <TableCell>
                           <Chip
