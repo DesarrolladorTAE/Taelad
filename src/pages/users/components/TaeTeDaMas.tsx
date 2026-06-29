@@ -84,6 +84,7 @@ function linkWithRef(baseUrl: string, ref?: string | null) {
 const URLS_BASE = {
   MTLMX: "https://mitiendaenlineamx.com.mx/login-register",
   TAECONTA: "https://www.taeconta.com/autenticacion/crear-cuenta",
+  CLICMENU: "https://clicmenu.com.mx/auth/register",
   RECHARGES: "https://telorecargo.com/loginmui",
   TAE_HOME:
     typeof window !== "undefined"
@@ -149,15 +150,16 @@ export default function TaeTeDaMas() {
   });
 
   // -------------------- Links con ref --------------------
-  const links = useMemo(
-    () => ({
-      mtlmx: linkWithRef(URLS_BASE.MTLMX, codigo),
-      taeconta: linkWithRef(URLS_BASE.TAECONTA, codigo),
-      telorecargo: linkWithRef(URLS_BASE.RECHARGES, codigo),
-      home: linkWithRef(URLS_BASE.TAE_HOME, codigo),
-    }),
-    [codigo]
-  );
+const links = useMemo(
+  () => ({
+    mtlmx: linkWithRef(URLS_BASE.MTLMX, codigo),
+    taeconta: linkWithRef(URLS_BASE.TAECONTA, codigo),
+    clicmenu: linkWithRef(URLS_BASE.CLICMENU, codigo),
+    telorecargo: linkWithRef(URLS_BASE.RECHARGES, codigo),
+    home: linkWithRef(URLS_BASE.TAE_HOME, codigo),
+  }),
+  [codigo]
+);
 
   // -------------------- Mensaje promo general --------------------
   const promoMsg = useMemo(

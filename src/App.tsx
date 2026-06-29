@@ -3,8 +3,16 @@ import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import AOS from "aos";
 
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap/dist/js/bootstrap.bundle.min.js";
+import "aos/dist/aos.css";
+import "./assets/css/materialdesignicons.min.css";
+import "./assets/scss/style.scss";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+
 import { getTheme } from "./theme";
-import AllRoutes from "./routes/Routes"
+import AllRoutes from "./routes/Routes";
 
 export default function App() {
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -15,16 +23,12 @@ export default function App() {
     AOS.init();
   }, []);
 
-  // sincronización activa (MISMA pestaña + otras pestañas)
   useEffect(() => {
     const syncTheme = () => {
-      const mode = localStorage.getItem("theme") === "dark";
-      setDarkMode(mode);
+      setDarkMode(localStorage.getItem("theme") === "dark");
     };
 
     window.addEventListener("storage", syncTheme);
-
-    // 🔥 clave: sincroniza cambios dentro de la misma pestaña
     const interval = setInterval(syncTheme, 300);
 
     return () => {
@@ -38,7 +42,6 @@ export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-
       <BrowserRouter>
         <AllRoutes />
       </BrowserRouter>
