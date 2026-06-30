@@ -8,7 +8,7 @@ import MiTiendaDashboard from "../pages/Superadmin/components/MiTiendaDashboard"
 import MiTiendaTiendas from "../pages/Superadmin/components/MiTiendaTiendas";
 import MiTiendaVentas from "../pages/Superadmin/components/MiTiendaVentas";
 import MiTiendaMetricas from "../pages/Superadmin/components/MiTiendaMetricas";
-
+import ClicMenuDashboard from "../pages/Superadmin/components/ClicMenu/ClicMenuDashboard";
 // Landings
 const Index1 = React.lazy(() => import("../pages/landings/Index1"));
 const Index3 = React.lazy(() => import("../pages/landings/Index3"));
@@ -57,6 +57,8 @@ const LoadComponent = ({ component: Component }: any) => (
 
 export default function AllRoutes() {
   return useRoutes([
+
+    
     {
       path: "/",
       element: <Root />,
@@ -98,6 +100,7 @@ export default function AllRoutes() {
         // =========================
         // MI TIENDA
         // =========================
+
         {
           path: "superadmin/mitienda/:id/dashboard",
           element: <MiTiendaDashboard />,
@@ -118,6 +121,11 @@ export default function AllRoutes() {
           path: "superadmin/mitienda/tiendas/:tiendaId",
           element: <MiTiendaDetalle />,
         },
+        {
+         path: "/superadmin/clicmenu",
+         element: <ClicMenuDashboard />,
+        },
+       
 
         // =========================
         // TAECONTA
@@ -147,6 +155,7 @@ export default function AllRoutes() {
           path: "*",
           element: <Navigate to="/landing" replace />,
         },
+        
       ],
     },
   ]);

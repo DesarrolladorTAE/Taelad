@@ -4,12 +4,19 @@ import axiosClient from "./axiosClient";
 export type TaecontaConfigResponse = {
   id?: number;
   tienda_id?: number;
+
   email?: string | null;
   password?: string | null;
+
   correo?: string | null;
   contrasena?: string | null;
+
+  correo_tae?: string | null;
+  contra_tae?: string | null;
+
   taeconta_email?: string | null;
   taeconta_password?: string | null;
+
   has_access?: boolean;
   exists?: boolean;
   message?: string;
@@ -24,6 +31,10 @@ type ApiErrorResponse = {
   message?: string;
   errors?: Record<string, string[]>;
 };
+
+function unwrap<T>(data: any): T {
+  return (data?.data ?? data) as T;
+}
 
 export function getApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError<ApiErrorResponse>(error)) {
@@ -51,45 +62,58 @@ export function normalizeTaecontaConfig(
   data: TaecontaConfigResponse | null | undefined
 ): TaecontaConfigForm {
   return {
-    email: data?.email ?? data?.correo ?? data?.taeconta_email ?? "",
+    email:
+      data?.email ??
+      data?.correo ??
+      data?.correo_tae ??
+      data?.taeconta_email ??
+      "",
     password:
-      data?.password ?? data?.contrasena ?? data?.taeconta_password ?? "",
+      data?.password ??
+      data?.contrasena ??
+      data?.contra_tae ??
+      data?.taeconta_password ??
+      "",
   };
 }
 
 export function hasTaecontaAccess(
   data: TaecontaConfigResponse | null | undefined
 ): boolean {
+  const normalized = normalizeTaecontaConfig(data);
+
   return Boolean(
-    data?.has_access ??
-      data?.exists ??
-      data?.email ??
-      data?.correo ??
-      data?.taeconta_email
+    data?.has_access ||
+      data?.exists ||
+      normalized.email ||
+      normalized.password
   );
 }
 
 export async function getTaecontaConfigTienda(
   tiendaId: number | string
 ): Promise<TaecontaConfigResponse> {
-  const response = await axiosClient.get<TaecontaConfigResponse>(
-    `/external/tiendas/${tiendaId}/taeconta`
-  );
+  const response = await axiosClient.get(`/external/tiendas/${tiendaId}/taeconta`);
 
-  return response.data;
+  return unwrap<TaecontaConfigResponse>(response.data);
 }
 
 export async function updateTaecontaConfigTienda(
   tiendaId: number | string,
   payload: TaecontaConfigForm
 ): Promise<TaecontaConfigResponse> {
-  const response = await axiosClient.put<TaecontaConfigResponse>(
-    `/external/tiendas/${tiendaId}/taeconta`,
-    {
-      email: payload.email,
-      password: payload.password,
-    }
-  );
+  const response = await axiosClient.put(`/external/tiendas/${tiendaId}/taeconta`, {
+    email: payload.email,
+    password: payload.password,
 
-  return response.data;
+    correo: payload.email,
+    correo_tae: payload.email,
+    taeconta_email: payload.email,
+
+    contrasena: payload.password,
+    contra_tae: payload.password,
+    taeconta_password: payload.password,
+  });
+
+  return unwrap<TaecontaConfigResponse>(response.data);
 }

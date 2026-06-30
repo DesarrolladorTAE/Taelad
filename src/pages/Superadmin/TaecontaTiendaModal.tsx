@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Box,
   Button,
   CircularProgress,
   Dialog,
@@ -33,6 +34,11 @@ type Props = {
   onUpdated?: () => void | Promise<void>;
 };
 
+const EMPTY_FORM: TaecontaConfigForm = {
+  email: "",
+  password: "",
+};
+
 export default function TaecontaTiendaModal({
   open,
   tiendaId,
@@ -40,17 +46,19 @@ export default function TaecontaTiendaModal({
   onClose,
   onUpdated,
 }: Props) {
-  const [form, setForm] = useState<TaecontaConfigForm>({
-    email: "",
-    password: "",
-  });
-
+  const [form, setForm] = useState<TaecontaConfigForm>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const autocompleteKey = useMemo(() => {
+    return `taeconta_${tiendaId ?? "nuevo"}_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2)}`;
+  }, [open, tiendaId]);
 
   const cargarTaeconta = async () => {
     if (!tiendaId) return;
@@ -65,11 +73,7 @@ export default function TaecontaTiendaModal({
       setForm(normalizeTaecontaConfig(data));
       setHasAccess(hasTaecontaAccess(data));
     } catch (err) {
-      setForm({
-        email: "",
-        password: "",
-      });
-
+      setForm(EMPTY_FORM);
       setHasAccess(false);
       setError(getApiErrorMessage(err));
     } finally {
@@ -118,10 +122,7 @@ export default function TaecontaTiendaModal({
     }
 
     if (!open) {
-      setForm({
-        email: "",
-        password: "",
-      });
+      setForm(EMPTY_FORM);
       setHasAccess(false);
       setShowPassword(false);
       setError("");
@@ -131,95 +132,152 @@ export default function TaecontaTiendaModal({
 
   return (
     <Dialog open={open} onClose={cerrar} fullWidth maxWidth="sm">
-      <DialogTitle>
-        Acceso TAECONTA
-        {tiendaNombre ? ` - ${tiendaNombre}` : ""}
-      </DialogTitle>
+      <Box
+        component="form"
+        autoComplete="off"
+        onSubmit={(e) => {
+          e.preventDefault();
+          guardar();
+        }}
+      >
+        <input
+          type="text"
+          name={`${autocompleteKey}_fake_user`}
+          autoComplete="username"
+          tabIndex={-1}
+          style={{
+            position: "absolute",
+            opacity: 0,
+            height: 0,
+            width: 0,
+            pointerEvents: "none",
+          }}
+        />
 
-      <DialogContent dividers>
-        {loading ? (
-          <Stack alignItems="center" justifyContent="center" sx={{ py: 4 }}>
-            <CircularProgress size={32} />
-          </Stack>
-        ) : (
-          <Stack spacing={2}>
-            {!hasAccess && (
-              <Alert severity="warning">
-                Esta tienda no tiene acceso TAECONTA registrado.
-              </Alert>
-            )}
+        <input
+          type="password"
+          name={`${autocompleteKey}_fake_pass`}
+          autoComplete="current-password"
+          tabIndex={-1}
+          style={{
+            position: "absolute",
+            opacity: 0,
+            height: 0,
+            width: 0,
+            pointerEvents: "none",
+          }}
+        />
 
-            {error && <Alert severity="error">{error}</Alert>}
+        <DialogTitle>
+          Acceso TAECONTA
+          {tiendaNombre ? ` - ${tiendaNombre}` : ""}
+        </DialogTitle>
 
-            {success && <Alert severity="success">{success}</Alert>}
+        <DialogContent dividers>
+          {loading ? (
+            <Stack alignItems="center" justifyContent="center" sx={{ py: 4 }}>
+              <CircularProgress size={32} />
+            </Stack>
+          ) : (
+            <Stack spacing={2}>
+              {!hasAccess && (
+                <Alert severity="warning">
+                  Esta tienda no tiene acceso TAECONTA registrado.
+                </Alert>
+              )}
 
-            <Typography variant="body2" color="text.secondary">
-              Configura el correo y contraseña de acceso TAECONTA para esta
-              tienda.
-            </Typography>
+              {error && <Alert severity="error">{error}</Alert>}
 
-            <TextField
-              fullWidth
-              label="Correo de acceso"
-              type="email"
-              value={form.email}
-              disabled={saving}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  email: e.target.value,
-                }))
-              }
-            />
+              {success && <Alert severity="success">{success}</Alert>}
 
-            <TextField
-              fullWidth
-              label="Contraseña"
-              type={showPassword ? "text" : "password"}
-              value={form.password}
-              disabled={saving}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  password: e.target.value,
-                }))
-              }
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      edge="end"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      disabled={saving}
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Stack>
-        )}
-      </DialogContent>
+              <Typography variant="body2" color="text.secondary">
+                Configura el correo y contraseña de acceso TAECONTA para esta
+                tienda.
+              </Typography>
 
-      <DialogActions>
-        <Button onClick={cerrar} disabled={saving}>
-          Cerrar
-        </Button>
+              <TextField
+                fullWidth
+                label="Correo de acceso"
+                type="text"
+                value={form.email}
+                disabled={saving}
+                autoComplete="new-password"
+                name={`${autocompleteKey}_correo_acceso`}
+                inputProps={{
+                  autoComplete: "new-password",
+                  name: `${autocompleteKey}_correo_acceso`,
+                  spellCheck: "false",
+                  autoCorrect: "off",
+                  autoCapitalize: "none",
+                  inputMode: "email",
+                }}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    email: e.target.value,
+                  }))
+                }
+              />
 
-        <Button
-          variant="contained"
-          onClick={guardar}
-          disabled={
-            loading ||
-            saving ||
-            !form.email.trim() ||
-            !form.password.trim()
-          }
-        >
-          {saving ? "Guardando..." : "Guardar"}
-        </Button>
-      </DialogActions>
+              <TextField
+                fullWidth
+                label="Contraseña"
+                type={showPassword ? "text" : "password"}
+                value={form.password}
+                disabled={saving}
+                autoComplete="new-password"
+                name={`${autocompleteKey}_clave_acceso`}
+                inputProps={{
+                  autoComplete: "new-password",
+                  name: `${autocompleteKey}_clave_acceso`,
+                  spellCheck: "false",
+                  autoCorrect: "off",
+                  autoCapitalize: "none",
+                }}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    password: e.target.value,
+                  }))
+                }
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        edge="end"
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        disabled={saving}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Stack>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button type="button" onClick={cerrar} disabled={saving}>
+            Cerrar
+          </Button>
+
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={
+              loading ||
+              saving ||
+              !form.email.trim() ||
+              !form.password.trim()
+            }
+          >
+            {saving ? "Guardando..." : "Guardar"}
+          </Button>
+        </DialogActions>
+      </Box>
     </Dialog>
   );
 }

@@ -74,8 +74,9 @@ export type PlanTienda = {
   productos_registrados?: number | null;
   productos_count?: number | null;
   limite_productos?: number | null;
-  limite_permitido?: number | null;
+  limite_permitido?: number | string | null;
   dentro_del_rango?: boolean | null;
+  en_rango?: boolean | null;
 };
 
 const TIENDAS_ENDPOINT = "/external/tiendas";
@@ -123,11 +124,7 @@ export async function getDetalleTiendaExternal(id: Id): Promise<TiendaExternal> 
 export async function getDatosPersonalesTienda(
   id: Id
 ): Promise<DatosPersonalesTienda> {
-  const response = await axiosClient.get(
-    `${TIENDAS_ENDPOINT}/${id}/datos-personales`
-  );
-
-  const data: any = unwrap(response.data);
+  const data: any = await getDetalleTiendaExternal(id);
 
   return {
     id: data.id,
@@ -147,20 +144,25 @@ export async function updateDatosPersonalesTienda(
       slug: payload.slug,
       email: payload.email,
       phone_number: payload.phone_number,
+      telefono: payload.phone_number,
     }
   );
 
-  return unwrap<DatosPersonalesTienda>(response.data);
+  const data: any = unwrap(response.data);
+
+  return {
+    id: data.id,
+    slug: data.slug ?? "",
+    email: data.email ?? "",
+    phone_number: data.phone_number ?? data.telefono ?? "",
+  };
 }
 
 export async function getDatosFiscalesTienda(
   id: Id
 ): Promise<DatosFiscalesTienda> {
-  const response = await axiosClient.get(
-    `${TIENDAS_ENDPOINT}/${id}/datos-fiscales`
-  );
-
-  const data: any = unwrap(response.data);
+  const tienda: any = await getDetalleTiendaExternal(id);
+  const data: any = tienda?.datos_fiscales ?? {};
 
   return {
     id: data.id,
@@ -170,14 +172,20 @@ export async function getDatosFiscalesTienda(
       data.codigo_postal_fiscal ??
       data.codigo_postal ??
       data.cp_fiscal ??
+      data.domicilio_fac ??
       data.domicilio_fiscal ??
       "",
     domicilio_fiscal:
       data.domicilio_fiscal ??
+      data.domicilio_fac ??
       data.codigo_postal_fiscal ??
       data.codigo_postal ??
       "",
-    regimen_fiscal: data.regimen_fiscal ?? "",
+    regimen_fiscal:
+      data.regimen_fiscal ??
+      data.codigo_regimen ??
+      data.regimen ??
+      "",
   };
 }
 
@@ -190,19 +198,48 @@ export async function updateDatosFiscalesTienda(
     {
       rfc: payload.rfc,
       razon_social: payload.razon_social,
+
       codigo_postal_fiscal: payload.codigo_postal_fiscal,
+      codigo_postal: payload.codigo_postal_fiscal,
+      domicilio_fac: payload.codigo_postal_fiscal,
       domicilio_fiscal:
         payload.domicilio_fiscal || payload.codigo_postal_fiscal,
+
       regimen_fiscal: payload.regimen_fiscal,
+      codigo_regimen: payload.regimen_fiscal,
     }
   );
 
-  return unwrap<DatosFiscalesTienda>(response.data);
+  const data: any = unwrap(response.data);
+
+  return {
+    id: data.id,
+    rfc: data.rfc ?? "",
+    razon_social: data.razon_social ?? "",
+    codigo_postal_fiscal:
+      data.codigo_postal_fiscal ??
+      data.codigo_postal ??
+      data.cp_fiscal ??
+      data.domicilio_fac ??
+      data.domicilio_fiscal ??
+      "",
+    domicilio_fiscal:
+      data.domicilio_fiscal ??
+      data.domicilio_fac ??
+      data.codigo_postal_fiscal ??
+      data.codigo_postal ??
+      "",
+    regimen_fiscal:
+      data.regimen_fiscal ??
+      data.codigo_regimen ??
+      data.regimen ??
+      "",
+  };
 }
 
 export async function getTaecontaTienda(id: Id): Promise<TaecontaForm> {
-  const response = await axiosClient.get(`${TIENDAS_ENDPOINT}/${id}/taeconta`);
-  const data: any = unwrap(response.data);
+  const tienda: any = await getDetalleTiendaExternal(id);
+  const data: any = tienda?.taeconta ?? {};
 
   return {
     email:
@@ -229,14 +266,64 @@ export async function updateTaecontaTienda(
     password: payload.password,
     correo_tae: payload.email,
     correo: payload.email,
+    taeconta_email: payload.email,
     contrasena: payload.password,
     contra_tae: payload.password,
+    taeconta_password: payload.password,
   });
 
   return unwrap<TaecontaTienda>(response.data);
 }
 
 export async function getPlanTienda(id: Id): Promise<PlanTienda> {
-  const response = await axiosClient.get(`${TIENDAS_ENDPOINT}/${id}/plan`);
-  return unwrap<PlanTienda>(response.data);
+  const tienda: any = await getDetalleTiendaExternal(id);
+  const data: any = tienda?.plan ?? {};
+
+  return {
+    id: data.id,
+    plan_id: data.plan_id,
+    nombre: data.nombre ?? data.nombre_plan ?? data.plan ?? "",
+    nombre_plan: data.nombre_plan ?? data.nombre ?? data.plan ?? "",
+    plan: data.plan ?? data.nombre_plan ?? data.nombre ?? "",
+    fecha_vencimiento:
+      data.fecha_vencimiento ??
+      data.vence ??
+      data.expires_at ??
+      "",
+    vence:
+      data.vence ??
+      data.fecha_vencimiento ??
+      data.expires_at ??
+      "",
+    expires_at:
+      data.expires_at ??
+      data.vence ??
+      data.fecha_vencimiento ??
+      "",
+    estado: data.estado ?? "",
+    productos_registrados:
+      data.productos_registrados ??
+      data.productos_count ??
+      0,
+    productos_count:
+      data.productos_count ??
+      data.productos_registrados ??
+      0,
+    limite_productos:
+      data.limite_productos ??
+      data.limite_permitido ??
+      null,
+    limite_permitido:
+      data.limite_permitido ??
+      data.limite_productos ??
+      null,
+    dentro_del_rango:
+      data.dentro_del_rango ??
+      data.en_rango ??
+      false,
+    en_rango:
+      data.en_rango ??
+      data.dentro_del_rango ??
+      false,
+  };
 }
