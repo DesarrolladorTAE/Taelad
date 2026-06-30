@@ -23,6 +23,7 @@ import { TAE } from "./constants";
 type Links = {
   mtlmx: string;
   taeconta: string;
+  clicmenu: string;
   telorecargo: string;
   home: string;
 };
@@ -116,10 +117,8 @@ export function ReferralCodeCard({
                 border: "1px dashed rgba(0,0,0,0.1)",
               }}
             >
-              <Typography>
-                
-              </Typography>
-          
+              <Typography></Typography>
+
               <Typography sx={{ fontSize: { xs: 11, md: 13 }, mb: 0.5 }}>
                 Aún no tienes un código de referido activo.
               </Typography>
@@ -285,6 +284,7 @@ export function ReferralCodeCard({
               <Divider sx={{ my: 1.75 }} />
 
               {/* 🔹 Enlaces con ref */}
+              {/* 🔹 Enlaces con ref */}
               <Box>
                 <Typography
                   sx={{
@@ -303,8 +303,8 @@ export function ReferralCodeCard({
                   spacing={0.75}
                   sx={{
                     width: "100%",
-                    maxWidth: { xs: 260, md: 320 }, // ajusta a tu gusto
-                    mx: "auto",                      // centra el bloque
+                    maxWidth: { xs: 260, md: 320 },
+                    mx: "auto",
                   }}
                 >
                   {/* MiTienda */}
@@ -313,9 +313,7 @@ export function ReferralCodeCard({
                     color="#FFC107"
                     textColor="#111"
                     url={links.mtlmx}
-                    onCopy={() =>
-                      onCopy(links.mtlmx, "Link MiTienda copiado")
-                    }
+                    onCopy={() => onCopy(links.mtlmx, "Link MiTienda copiado")}
                   />
 
                   {/* TAEConta */}
@@ -329,6 +327,17 @@ export function ReferralCodeCard({
                     }
                   />
 
+                  {/* ClicMenu */}
+                  <RowLink
+                    label="ClicMenu"
+                    color="#FF6A00"
+                    textColor="#fff"
+                    url={links.clicmenu}
+                    onCopy={() =>
+                      onCopy(links.clicmenu, "Link ClicMenu copiado")
+                    }
+                  />
+
                   {/* TeLoRecargo */}
                   <RowLink
                     label="TeLoRecargo"
@@ -336,10 +345,7 @@ export function ReferralCodeCard({
                     textColor="#fff"
                     url={links.telorecargo}
                     onCopy={() =>
-                      onCopy(
-                        links.telorecargo,
-                        "Link TeLoRecargo copiado"
-                      )
+                      onCopy(links.telorecargo, "Link TeLoRecargo copiado")
                     }
                   />
                 </Stack>
@@ -391,7 +397,6 @@ function RowLink({ label, color, textColor, url, onCopy }: RowLinkProps) {
           textTransform: "none",
         }}
       >
-        
         {label}
       </Button>
       <Tooltip title="Copiar enlace">
