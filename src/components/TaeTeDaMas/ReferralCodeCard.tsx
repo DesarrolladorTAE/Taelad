@@ -284,7 +284,7 @@ export function ReferralCodeCard({
               <Divider sx={{ my: 1.75 }} />
 
               {/* 🔹 Enlaces con ref */}
-              {/* 🔹 Enlaces con ref */}
+
               <Box>
                 <Typography
                   sx={{
@@ -319,7 +319,7 @@ export function ReferralCodeCard({
                   {/* TAEConta */}
                   <RowLink
                     label="TAEConta"
-                    color="#FF6A00"
+                    color="#FF7A00"
                     textColor="#fff"
                     url={links.taeconta}
                     onCopy={() =>
@@ -330,7 +330,7 @@ export function ReferralCodeCard({
                   {/* ClicMenu */}
                   <RowLink
                     label="ClicMenu"
-                    color="#FF6A00"
+                    color="#C95E38"
                     textColor="#fff"
                     url={links.clicmenu}
                     onCopy={() =>

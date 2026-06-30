@@ -13,21 +13,30 @@ export function SistemaChip({ value }: Props) {
     mtelmx: {
       label: "MiTiendaEnLineaMX",
       bg: "#FFC107",
-      color: "#111",
+      color: "#111111",
     },
+
     taeconta: {
       label: "TAEConta",
-      bg: "#FF6A00",
+      bg: "#FF7A00", // Naranja intenso
       color: "#ffffff",
     },
+
+    clicmenu: {
+      label: "ClicMenu",
+      bg: "#C95E38", // Terracota del logo
+      color: "#ffffff",
+    },
+
     telorecargo: {
       label: "TeLoRecargo",
       bg: "#0B57D0",
       color: "#ffffff",
     },
+
     tae: {
       label: "TAE",
-      bg: "#0B57D0",
+      bg: "#1E40AF", // Azul diferente al de TeLoRecargo
       color: "#ffffff",
     },
   };
@@ -50,8 +59,12 @@ export function SistemaChip({ value }: Props) {
       sx={{
         bgcolor: config.bg,
         color: config.color,
-        fontWeight: 600,
+        fontWeight: 700,
+        letterSpacing: 0.3,
         textTransform: "none",
+        borderRadius: "8px",
+        px: 0.4,
+        boxShadow: "0 2px 6px rgba(0,0,0,.12)",
         fontSize: { xs: 10, md: 11 },
       }}
     />
