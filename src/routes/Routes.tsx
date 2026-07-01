@@ -8,7 +8,7 @@ import MiTiendaDashboard from "../pages/Superadmin/components/MiTiendaDashboard"
 import MiTiendaTiendas from "../pages/Superadmin/components/MiTiendaTiendas";
 import MiTiendaVentas from "../pages/Superadmin/components/MiTiendaVentas";
 import MiTiendaMetricas from "../pages/Superadmin/components/MiTiendaMetricas";
-import ClicMenuDashboard from "../pages/Superadmin/components/ClicMenu/ClicMenuDashboard";
+
 // Landings
 const Index1 = React.lazy(() => import("../pages/landings/Index1"));
 const Index3 = React.lazy(() => import("../pages/landings/Index3"));
@@ -33,7 +33,9 @@ const TaecontaEmpresasPage = React.lazy(() =>
 
 // Tarjetas
 const TarjetaJennys = React.lazy(() => import("../tarjetas/TarjetaJennys"));
-const EnlacesTerrestres = React.lazy(() => import("../tarjetas/EnlacesTerrestres"));
+const EnlacesTerrestres = React.lazy(() =>
+  import("../tarjetas/EnlacesTerrestres")
+);
 const BalnearioSantaMaria = React.lazy(() =>
   import("../tarjetas/balneario-rancho-santa-maria")
 );
@@ -41,7 +43,9 @@ const BalnearioSantaMaria = React.lazy(() =>
 // Footer
 const Nosotros = React.lazy(() => import("../pages/TaeFooter/Nosotros"));
 const AvisoPrivacidad = React.lazy(() => import("../pages/TaeFooter/Aviso"));
-const TerminosCondiciones = React.lazy(() => import("../pages/TaeFooter/TerCon"));
+const TerminosCondiciones = React.lazy(() =>
+  import("../pages/TaeFooter/TerCon")
+);
 
 // Auth
 const Login = React.lazy(() => import("../pages/auth/Login"));
@@ -57,8 +61,6 @@ const LoadComponent = ({ component: Component }: any) => (
 
 export default function AllRoutes() {
   return useRoutes([
-
-    
     {
       path: "/",
       element: <Root />,
@@ -87,20 +89,34 @@ export default function AllRoutes() {
         // FOOTER
         // =========================
         { path: "nosotros", element: <LoadComponent component={Nosotros} /> },
-        { path: "aviso-privacidad", element: <LoadComponent component={AvisoPrivacidad} /> },
-        { path: "terminos-condiciones", element: <LoadComponent component={TerminosCondiciones} /> },
+        {
+          path: "aviso-privacidad",
+          element: <LoadComponent component={AvisoPrivacidad} />,
+        },
+        {
+          path: "terminos-condiciones",
+          element: <LoadComponent component={TerminosCondiciones} />,
+        },
 
         // =========================
         // TARJETAS
         // =========================
-        { path: "jennysbananasandfruits", element: <LoadComponent component={TarjetaJennys} /> },
-        { path: "enlaces-terrestres", element: <LoadComponent component={EnlacesTerrestres} /> },
-        { path: "balneario-rancho-santa-maria", element: <LoadComponent component={BalnearioSantaMaria} /> },
+        {
+          path: "jennysbananasandfruits",
+          element: <LoadComponent component={TarjetaJennys} />,
+        },
+        {
+          path: "enlaces-terrestres",
+          element: <LoadComponent component={EnlacesTerrestres} />,
+        },
+        {
+          path: "balneario-rancho-santa-maria",
+          element: <LoadComponent component={BalnearioSantaMaria} />,
+        },
 
         // =========================
         // MI TIENDA
         // =========================
-
         {
           path: "superadmin/mitienda/:id/dashboard",
           element: <MiTiendaDashboard />,
@@ -121,17 +137,16 @@ export default function AllRoutes() {
           path: "superadmin/mitienda/tiendas/:tiendaId",
           element: <MiTiendaDetalle />,
         },
-        {
-         path: "/superadmin/clicmenu",
-         element: <ClicMenuDashboard />,
-        },
-       
 
         // =========================
         // TAECONTA
         // =========================
         {
           path: "taeconta/empresas",
+          element: <LoadComponent component={TaecontaEmpresasPage} />,
+        },
+        {
+          path: "superadmin/taeconta/empresas",
           element: <LoadComponent component={TaecontaEmpresasPage} />,
         },
 
@@ -155,7 +170,6 @@ export default function AllRoutes() {
           path: "*",
           element: <Navigate to="/landing" replace />,
         },
-        
       ],
     },
   ]);

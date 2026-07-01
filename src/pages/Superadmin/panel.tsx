@@ -14,6 +14,8 @@ import MiTiendaVentas from "./components/MiTiendaVentas";
 import MiTiendaMetricas from "./components/MiTiendaMetricas";
 import MiTiendaSuscripcionesGlobal from "./components/MiTiendaSuscripcionesGlobal";
 
+import ClicMenuDashboard from "./components/ClicMenu/ClicMenuDashboard";
+
 export default function SuperAdminPanel() {
   return (
     <Shell>
@@ -49,8 +51,11 @@ export default function SuperAdminPanel() {
           case "mitienda-metricas":
             return <MiTiendaMetricas setView={setView} />;
 
-                     case "mitienda-suscripciones":
+          case "mitienda-suscripciones":
             return <MiTiendaSuscripcionesGlobal setView={setView} />;
+
+          case "clicmenu":
+            return <ClicMenuDashboard />;
 
           default:
             return <Dashboard />;
