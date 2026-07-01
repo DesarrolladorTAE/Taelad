@@ -39,6 +39,7 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
+import BusinessIcon from "@mui/icons-material/Business";
 
 import { clicMenuService } from "./clicMenuService";
 
@@ -82,6 +83,23 @@ type OwnerFormState = {
   status: string;
 };
 
+type RestaurantPayload = {
+  trade_name: string;
+  description?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  status?: string;
+};
+
+type BranchPayload = {
+  name: string;
+  address?: string;
+  phone?: string;
+  open_time?: string;
+  close_time?: string;
+  status?: string;
+};
+
 const emptyOwnerForm: OwnerFormState = {
   name: "",
   last_name_paternal: "",
@@ -96,11 +114,8 @@ function getArray<T>(payload: any): T[] {
   if (!payload) return [];
 
   if (Array.isArray(payload)) return payload;
-
   if (Array.isArray(payload.data)) return payload.data;
-
   if (Array.isArray(payload.data?.data)) return payload.data.data;
-
   if (Array.isArray(payload.data?.data?.data)) return payload.data.data.data;
 
   if (Array.isArray(payload.owners?.data?.data)) {
@@ -120,6 +135,16 @@ function getArray<T>(payload: any): T[] {
   }
 
   return [];
+}
+
+function getTotal(payload: any, fallback: number) {
+  return Number(
+    payload?.data?.total ??
+      payload?.total ??
+      payload?.data?.data?.total ??
+      fallback ??
+      0
+  );
 }
 
 function getSummary(payload: any) {
@@ -200,11 +225,11 @@ function getErrorMessage(error: any, fallback: string) {
   );
 }
 
-function normalizeText(value: string) {
-  return value
+function normalizeText(value?: string | number | null) {
+  return String(value ?? "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function getMonthName(month: number) {
@@ -256,6 +281,7 @@ export default function ClicMenuDashboard() {
 
   const [ownerSearch, setOwnerSearch] = useState("");
   const [restaurantSearch, setRestaurantSearch] = useState("");
+  const [branchSearch, setBranchSearch] = useState("");
   const [saleSearch, setSaleSearch] = useState("");
 
   const [ownerModalOpen, setOwnerModalOpen] = useState(false);
@@ -263,6 +289,17 @@ export default function ClicMenuDashboard() {
   const [ownerFormError, setOwnerFormError] = useState("");
   const [ownerEditing, setOwnerEditing] = useState<Owner | null>(null);
   const [ownerForm, setOwnerForm] = useState<OwnerFormState>(emptyOwnerForm);
+
+  const [restaurantModalOpen, setRestaurantModalOpen] = useState(false);
+  const [restaurantSaving, setRestaurantSaving] = useState(false);
+  const [restaurantFormError, setRestaurantFormError] = useState("");
+  const [restaurantEditing, setRestaurantEditing] =
+    useState<Restaurant | null>(null);
+
+  const [branchModalOpen, setBranchModalOpen] = useState(false);
+  const [branchSaving, setBranchSaving] = useState(false);
+  const [branchFormError, setBranchFormError] = useState("");
+  const [branchEditing, setBranchEditing] = useState<Branch | null>(null);
 
   const owners = useMemo<Owner[]>(() => {
     return getArray<Owner>(dashboard?.owners);
@@ -275,6 +312,10 @@ export default function ClicMenuDashboard() {
   const monthlySales = useMemo<any[]>(() => {
     return getArray<any>(dashboard?.monthly_sales);
   }, [dashboard]);
+
+  const ownersTotal = useMemo(() => {
+    return getTotal(dashboard?.owners, owners.length);
+  }, [dashboard, owners.length]);
 
   const selectedOwner = useMemo(() => {
     return owners.find((owner) => owner.id === selectedOwnerId) || null;
@@ -329,6 +370,29 @@ export default function ClicMenuDashboard() {
       return text.includes(q);
     });
   }, [restaurants, restaurantSearch]);
+
+  const filteredBranches = useMemo(() => {
+    const q = normalizeText(branchSearch);
+
+    if (!q) return branches;
+
+    return branches.filter((branch) => {
+      const text = normalizeText(
+        [
+          branch.name,
+          branch.address,
+          branch.phone,
+          branch.open_time,
+          branch.close_time,
+          branch.status,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
+
+      return text.includes(q);
+    });
+  }, [branches, branchSearch]);
 
   const filteredSales = useMemo(() => {
     const q = normalizeText(saleSearch);
@@ -390,9 +454,10 @@ export default function ClicMenuDashboard() {
       setCurrentSubscription(null);
       setSelectedRestaurantId(null);
       setRestaurantSearch("");
+      setBranchSearch("");
 
       const response = await clicMenuService.restaurants(ownerId, {
-        per_page: 15,
+        per_page: 50,
       });
 
       setRestaurants(getArray<Restaurant>(response.data));
@@ -412,10 +477,11 @@ export default function ClicMenuDashboard() {
       setError("");
       setBranches([]);
       setCurrentSubscription(null);
+      setBranchSearch("");
 
       const [branchesResponse, subscriptionResponse] = await Promise.allSettled(
         [
-          clicMenuService.branches(ownerId, restaurantId),
+          clicMenuService.branches(ownerId, restaurantId, { per_page: 50 }),
           clicMenuService.currentSubscription(ownerId, restaurantId),
         ]
       );
@@ -452,6 +518,7 @@ export default function ClicMenuDashboard() {
     setCurrentSubscription(null);
     setOwnerSearch("");
     setRestaurantSearch("");
+    setBranchSearch("");
     setSaleSearch("");
 
     cargarDashboard(targetYear, targetMonth);
@@ -587,6 +654,199 @@ export default function ClicMenuDashboard() {
     }
   };
 
+  const abrirCrearRestaurant = () => {
+    if (!selectedOwnerId) {
+      setError("Selecciona un propietario antes de crear un restaurante.");
+      return;
+    }
+
+    setRestaurantEditing(null);
+    setRestaurantFormError("");
+    setRestaurantModalOpen(true);
+  };
+
+  const abrirEditarRestaurant = (restaurant: Restaurant) => {
+    setRestaurantEditing(restaurant);
+    setRestaurantFormError("");
+    setRestaurantModalOpen(true);
+  };
+
+  const cerrarRestaurantModal = () => {
+    if (restaurantSaving) return;
+
+    setRestaurantModalOpen(false);
+    setRestaurantEditing(null);
+    setRestaurantFormError("");
+  };
+
+  const guardarRestaurant = async (payload: RestaurantPayload) => {
+    if (!selectedOwnerId) {
+      setRestaurantFormError("No hay propietario seleccionado.");
+      return;
+    }
+
+    try {
+      setRestaurantSaving(true);
+      setRestaurantFormError("");
+      setError("");
+
+      if (restaurantEditing) {
+        await clicMenuService.updateRestaurant(
+          selectedOwnerId,
+          restaurantEditing.id,
+          payload
+        );
+      } else {
+        await clicMenuService.createRestaurant(selectedOwnerId, payload);
+      }
+
+      setRestaurantModalOpen(false);
+      setRestaurantEditing(null);
+
+      await cargarRestaurantes(selectedOwnerId);
+      await cargarDashboard(consultedYear, consultedMonth, true);
+    } catch (err: any) {
+      setRestaurantFormError(
+        getErrorMessage(err, "No fue posible guardar el restaurante.")
+      );
+    } finally {
+      setRestaurantSaving(false);
+    }
+  };
+
+  const eliminarRestaurant = async (restaurant: Restaurant) => {
+    if (!selectedOwnerId) {
+      setError("No hay propietario seleccionado.");
+      return;
+    }
+
+    const name = restaurant.trade_name || "este restaurante";
+
+    const confirmed = window.confirm(
+      `¿Seguro que deseas eliminar ${name}? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setLoadingDetail(true);
+      setError("");
+
+      await clicMenuService.deleteRestaurant(selectedOwnerId, restaurant.id);
+
+      if (selectedRestaurantId === restaurant.id) {
+        setSelectedRestaurantId(null);
+        setBranches([]);
+        setCurrentSubscription(null);
+      }
+
+      await cargarRestaurantes(selectedOwnerId);
+      await cargarDashboard(consultedYear, consultedMonth, true);
+    } catch (err: any) {
+      setError(getErrorMessage(err, "No fue posible eliminar el restaurante."));
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const abrirCrearBranch = () => {
+    if (!selectedOwnerId || !selectedRestaurantId) {
+      setError("Selecciona un restaurante antes de crear una sucursal.");
+      return;
+    }
+
+    setBranchEditing(null);
+    setBranchFormError("");
+    setBranchModalOpen(true);
+  };
+
+  const abrirEditarBranch = (branch: Branch) => {
+    setBranchEditing(branch);
+    setBranchFormError("");
+    setBranchModalOpen(true);
+  };
+
+  const cerrarBranchModal = () => {
+    if (branchSaving) return;
+
+    setBranchModalOpen(false);
+    setBranchEditing(null);
+    setBranchFormError("");
+  };
+
+  const guardarBranch = async (payload: BranchPayload) => {
+    if (!selectedOwnerId || !selectedRestaurantId) {
+      setBranchFormError("No hay restaurante seleccionado.");
+      return;
+    }
+
+    try {
+      setBranchSaving(true);
+      setBranchFormError("");
+      setError("");
+
+      if (branchEditing) {
+        await clicMenuService.updateBranch(
+          selectedOwnerId,
+          selectedRestaurantId,
+          branchEditing.id,
+          payload
+        );
+      } else {
+        await clicMenuService.createBranch(
+          selectedOwnerId,
+          selectedRestaurantId,
+          payload
+        );
+      }
+
+      setBranchModalOpen(false);
+      setBranchEditing(null);
+
+      await cargarDetalleRestaurante(selectedOwnerId, selectedRestaurantId);
+      await cargarDashboard(consultedYear, consultedMonth, true);
+    } catch (err: any) {
+      setBranchFormError(
+        getErrorMessage(err, "No fue posible guardar la sucursal.")
+      );
+    } finally {
+      setBranchSaving(false);
+    }
+  };
+
+  const eliminarBranch = async (branch: Branch) => {
+    if (!selectedOwnerId || !selectedRestaurantId) {
+      setError("No hay restaurante seleccionado.");
+      return;
+    }
+
+    const name = branch.name || "esta sucursal";
+
+    const confirmed = window.confirm(
+      `¿Seguro que deseas eliminar ${name}? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setLoadingDetail(true);
+      setError("");
+
+      await clicMenuService.deleteBranch(
+        selectedOwnerId,
+        selectedRestaurantId,
+        branch.id
+      );
+
+      await cargarDetalleRestaurante(selectedOwnerId, selectedRestaurantId);
+      await cargarDashboard(consultedYear, consultedMonth, true);
+    } catch (err: any) {
+      setError(getErrorMessage(err, "No fue posible eliminar la sucursal."));
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ p: 4 }}>
@@ -600,7 +860,7 @@ export default function ClicMenuDashboard() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Stack spacing={3}>
+      <Stack spacing={2.5}>
         <Stack
           direction={{ xs: "column", lg: "row" }}
           justifyContent="space-between"
@@ -625,15 +885,26 @@ export default function ClicMenuDashboard() {
               border: "1px solid",
               borderColor: "divider",
               bgcolor: "background.paper",
+              minWidth: 210,
             }}
           >
             <Stack direction="row" spacing={1.5} alignItems="center">
-              <CalendarMonthIcon color="primary" />
+              <Avatar
+                sx={{
+                  width: 38,
+                  height: 38,
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
+                }}
+              >
+                <CalendarMonthIcon fontSize="small" />
+              </Avatar>
+
               <Box>
                 <Typography fontWeight={900} lineHeight={1}>
                   Periodo actual
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="primary" fontWeight={800}>
                   {getMonthName(consultedMonth)} {consultedYear}
                 </Typography>
               </Box>
@@ -645,42 +916,47 @@ export default function ClicMenuDashboard() {
 
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} xl={3}>
-            <ModuleCard
+            <SummaryCard
               icon={<GroupsIcon />}
               title="Propietarios"
-              subtitle={`${owners.length} propietarios registrados`}
+              value={ownersTotal}
+              subtitle="Total de propietarios"
             />
           </Grid>
 
           <Grid item xs={12} sm={6} xl={3}>
-            <ModuleCard
+            <SummaryCard
               icon={<RestaurantIcon />}
               title="Restaurantes"
+              value={selectedOwner ? restaurants.length : "--"}
               subtitle={
                 selectedOwner
-                  ? `${restaurants.length} restaurantes`
-                  : "Consulta por propietario"
+                  ? "Restaurantes del propietario"
+                  : "Selecciona un propietario"
               }
             />
           </Grid>
 
           <Grid item xs={12} sm={6} xl={3}>
-            <ModuleCard
-              icon={<StorefrontIcon />}
+            <SummaryCard
+              icon={<BusinessIcon />}
               title="Sucursales"
+              value={selectedRestaurant ? branches.length : "--"}
               subtitle={
                 selectedRestaurant
-                  ? `${branches.length} sucursales`
-                  : "Gestiona sus sucursales"
+                  ? "Sucursales del restaurante"
+                  : "Selecciona un restaurante"
               }
             />
           </Grid>
 
           <Grid item xs={12} sm={6} xl={3}>
-            <ModuleCard
+            <SummaryCard
               icon={<PaymentsIcon />}
               title="Ventas"
-              subtitle="Resumen y suscripciones"
+              value={formatMoney(salesSummary?.total_sales)}
+              subtitle="Total vendido en el periodo"
+              money
             />
           </Grid>
         </Grid>
@@ -696,8 +972,8 @@ export default function ClicMenuDashboard() {
           }}
         >
           <Grid container spacing={2} alignItems="stretch">
-            <Grid item xs={12} md={4}>
-              <Stack spacing={2}>
+            <Grid item xs={12} lg={4}>
+              <Stack spacing={1.5}>
                 <Box>
                   <Typography variant="h6" fontWeight={900}>
                     Consultar información
@@ -756,7 +1032,7 @@ export default function ClicMenuDashboard() {
               </Stack>
             </Grid>
 
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12} lg={8}>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6} xl={3}>
                   <MetricCard
@@ -799,411 +1075,152 @@ export default function ClicMenuDashboard() {
         </Paper>
 
         <Grid container spacing={2} alignItems="stretch">
-          <Grid item xs={12} lg={4}>
-            <SectionCard
+          <Grid item xs={12} lg={5}>
+            <EntityListCard<Owner>
               title="Propietarios"
-              badge={owners.length}
-             action={
-  <Stack
-    direction="row"
-    spacing={1}
-    alignItems="center"
-    sx={{
-      width: "100%",
-      minWidth: 0,
-    }}
-  >
-    <Box sx={{ flex: 1, minWidth: 0 }}>
-      <SearchInput
-        placeholder="Buscar propietario..."
-        value={ownerSearch}
-        onChange={setOwnerSearch}
-      />
-    </Box>
-
-    <Button
-      variant="contained"
-      size="small"
-      startIcon={<AddIcon />}
-      onClick={abrirCrearOwner}
-      sx={{
-        height: 40,
-        borderRadius: 2,
-        fontWeight: 800,
-        whiteSpace: "nowrap",
-        flexShrink: 0,
-        px: 1.5,
-        minWidth: 92,
-      }}
-    >
-      Nuevo
-    </Button>
-  </Stack>
-}
-            >
-              <ScrollableList maxHeight={360}>
-                {filteredOwners.length === 0 && (
-                  <EmptyText>No hay propietarios para mostrar.</EmptyText>
-                )}
-
-                {filteredOwners.map((owner) => {
-                  const name = getOwnerName(owner) || "Sin nombre";
-
-                  return (
-                    <SelectableItem
-                      key={owner.id}
-                      active={selectedOwnerId === owner.id}
-                      onClick={() => seleccionarOwner(owner.id)}
-                    >
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar
-                          sx={{
-                            width: 44,
-                            height: 44,
-                            bgcolor: "primary.main",
-                            color: "primary.contrastText",
-                            fontWeight: 900,
-                          }}
-                        >
-                          {getInitials(name)}
-                        </Avatar>
-
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography fontWeight={900} noWrap>
-                            {name}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            noWrap
-                          >
-                            {owner.email || "Sin correo"}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {owner.phone || "Sin teléfono"}
-                          </Typography>
-                        </Box>
-
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <StatusChip value={owner.status} />
-
-                          <Tooltip title="Editar propietario">
-                            <IconButton
-                              size="small"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                abrirEditarOwner(owner);
-                              }}
-                            >
-                              <EditIcon sx={{ fontSize: 18 }} />
-                            </IconButton>
-                          </Tooltip>
-
-                          <Tooltip title="Eliminar propietario">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                eliminarOwner(owner);
-                              }}
-                            >
-                              <DeleteIcon sx={{ fontSize: 18 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-
-                        <ArrowForwardIosIcon
-                          sx={{ fontSize: 14, color: "text.secondary" }}
-                        />
-                      </Stack>
-                    </SelectableItem>
-                  );
-                })}
-              </ScrollableList>
-            </SectionCard>
+              badge={ownersTotal}
+              searchPlaceholder="Buscar propietario..."
+              searchValue={ownerSearch}
+              onSearchChange={setOwnerSearch}
+              onCreate={abrirCrearOwner}
+              items={filteredOwners}
+              emptyText="No hay propietarios para mostrar."
+              activeId={selectedOwnerId}
+              getId={(owner) => owner.id}
+              getTitle={(owner) => getOwnerName(owner) || "Sin nombre"}
+              getSubtitle={(owner) => owner.email || "Sin correo"}
+              getMeta={(owner) => owner.phone || "Sin teléfono"}
+              getInitials={(owner) =>
+                getInitials(getOwnerName(owner) || "Sin nombre")
+              }
+              getStatus={(owner) => owner.status}
+              onSelect={(owner) => seleccionarOwner(owner.id)}
+              onEdit={abrirEditarOwner}
+              onDelete={eliminarOwner}
+              footer={
+                <Typography
+                  variant="body2"
+                  color="primary"
+                  fontWeight={800}
+                  sx={{ pt: 0.5 }}
+                >
+                  Mostrando {filteredOwners.length} propietarios
+                </Typography>
+              }
+            />
           </Grid>
 
-          <Grid item xs={12} lg={4}>
-            <SectionCard
+          <Grid item xs={12} lg={3}>
+            <EntityListCard<Restaurant>
               title="Restaurantes"
               badge={restaurants.length}
-              action={
-                <SearchInput
-                  placeholder="Buscar restaurante..."
-                  value={restaurantSearch}
-                  onChange={setRestaurantSearch}
-                />
+              searchPlaceholder="Buscar restaurante..."
+              searchValue={restaurantSearch}
+              onSearchChange={setRestaurantSearch}
+              onCreate={abrirCrearRestaurant}
+              createDisabled={!selectedOwnerId}
+              items={filteredRestaurants}
+              emptyText={
+                selectedOwnerId
+                  ? "Este propietario no tiene restaurantes."
+                  : "Selecciona un propietario para ver restaurantes."
               }
-            >
-              {!selectedOwnerId && (
-                <EmptyText>
-                  Selecciona un propietario para ver restaurantes.
-                </EmptyText>
-              )}
-
-              {loadingDetail && (
-                <Stack alignItems="center" py={4}>
-                  <CircularProgress size={28} />
-                </Stack>
-              )}
-
-              {!loadingDetail &&
-                selectedOwnerId &&
-                filteredRestaurants.length === 0 && (
-                  <EmptyText>Este propietario no tiene restaurantes.</EmptyText>
-                )}
-
-              <ScrollableList maxHeight={360}>
-                {filteredRestaurants.map((restaurant) => {
-                  const name = restaurant.trade_name || "Sin nombre comercial";
-
-                  return (
-                    <SelectableItem
-                      key={restaurant.id}
-                      active={selectedRestaurantId === restaurant.id}
-                      onClick={() => seleccionarRestaurante(restaurant.id)}
-                    >
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar
-                          sx={{
-                            width: 44,
-                            height: 44,
-                            bgcolor: "primary.main",
-                            color: "primary.contrastText",
-                            fontWeight: 900,
-                          }}
-                        >
-                          {getInitials(name)}
-                        </Avatar>
-
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography fontWeight={900} noWrap>
-                            {name}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            noWrap
-                          >
-                            {restaurant.contact_email || "Sin correo"}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {restaurant.contact_phone || "Sin teléfono"}
-                          </Typography>
-                        </Box>
-
-                        <StatusChip value={restaurant.status} />
-                        <ArrowForwardIosIcon
-                          sx={{ fontSize: 14, color: "text.secondary" }}
-                        />
-                      </Stack>
-                    </SelectableItem>
-                  );
-                })}
-              </ScrollableList>
-            </SectionCard>
+              activeId={selectedRestaurantId}
+              getId={(restaurant) => restaurant.id}
+              getTitle={(restaurant) =>
+                restaurant.trade_name || "Sin nombre comercial"
+              }
+              getSubtitle={(restaurant) =>
+                restaurant.contact_email || "Sin correo"
+              }
+              getMeta={(restaurant) =>
+                restaurant.contact_phone || "Sin teléfono"
+              }
+              getInitials={(restaurant) =>
+                getInitials(restaurant.trade_name || "Restaurante")
+              }
+              getStatus={(restaurant) => restaurant.status}
+              onSelect={(restaurant) => seleccionarRestaurante(restaurant.id)}
+              onEdit={selectedOwnerId ? abrirEditarRestaurant : undefined}
+              onDelete={selectedOwnerId ? eliminarRestaurant : undefined}
+              footer={
+                selectedOwner && (
+                  <Typography
+                    variant="body2"
+                    color="primary"
+                    fontWeight={800}
+                    sx={{ pt: 0.5 }}
+                  >
+                    Propietario: {getOwnerName(selectedOwner)}
+                  </Typography>
+                )
+              }
+            />
           </Grid>
 
           <Grid item xs={12} lg={4}>
             <Stack spacing={2} height="100%">
-              <SectionCard
-                title={
-                  selectedRestaurant
-                    ? `Sucursales de ${selectedRestaurant.trade_name}`
-                    : "Sucursales"
-                }
+              <EntityListCard<Branch>
+                title="Sucursales"
                 badge={branches.length}
-              >
-                {!selectedRestaurantId && (
-                  <EmptyText>
-                    Selecciona un restaurante para ver sucursales.
-                  </EmptyText>
-                )}
-
-                {selectedRestaurantId && branches.length === 0 && (
-                  <EmptyText>No hay sucursales registradas.</EmptyText>
-                )}
-
-                <Stack spacing={1.2}>
-                  {branches.slice(0, 3).map((branch) => (
-                    <Paper
-                      key={branch.id}
-                      elevation={0}
-                      sx={{
-                        p: 1.7,
-                        borderRadius: 3,
-                        border: "1px solid",
-                        borderColor: "divider",
-                        bgcolor: "background.default",
-                      }}
+                searchPlaceholder="Buscar sucursal..."
+                searchValue={branchSearch}
+                onSearchChange={setBranchSearch}
+                onCreate={abrirCrearBranch}
+                createDisabled={!selectedRestaurantId}
+                items={filteredBranches}
+                emptyText={
+                  selectedRestaurantId
+                    ? "No hay sucursales registradas."
+                    : "Selecciona un restaurante para ver sucursales."
+                }
+                getId={(branch) => branch.id}
+                getTitle={(branch) => branch.name || "Sucursal sin nombre"}
+                getSubtitle={(branch) => branch.address || "Sin dirección"}
+                getMeta={(branch) =>
+                  `${branch.phone || "Sin teléfono"} · ${
+                    branch.open_time || "--"
+                  } - ${branch.close_time || "--"}`
+                }
+                getStatus={(branch) => branch.status}
+                leadingIcon={<BusinessIcon fontSize="small" />}
+                onEdit={selectedRestaurantId ? abrirEditarBranch : undefined}
+                onDelete={selectedRestaurantId ? eliminarBranch : undefined}
+                footer={
+                  selectedRestaurant && (
+                    <Typography
+                      variant="body2"
+                      color="primary"
+                      fontWeight={800}
+                      sx={{ pt: 0.5 }}
                     >
-                      <Stack direction="row" spacing={1.5}>
-                        <Avatar
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            bgcolor: "primary.main",
-                            color: "primary.contrastText",
-                          }}
-                        >
-                          <StorefrontIcon fontSize="small" />
-                        </Avatar>
+                      Restaurante: {selectedRestaurant.trade_name}
+                    </Typography>
+                  )
+                }
+              />
 
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography fontWeight={900}>
-                            {branch.name || "Sucursal sin nombre"}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            noWrap
-                          >
-                            {branch.address || "Sin dirección"}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {branch.phone || "Sin teléfono"}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {branch.open_time || "--"} -{" "}
-                            {branch.close_time || "--"}
-                          </Typography>
-                        </Box>
-
-                        <StatusChip value={branch.status} />
-                      </Stack>
-                    </Paper>
-                  ))}
-                </Stack>
-              </SectionCard>
-
-              <SectionCard title="Suscripción actual">
-                {!selectedRestaurantId && (
-                  <EmptyText>
-                    Selecciona un restaurante para consultar la suscripción.
-                  </EmptyText>
-                )}
-
-                {selectedRestaurantId && !currentSubscription && (
-                  <EmptyText>No se encontró una suscripción vigente.</EmptyText>
-                )}
-
-                {currentSubscription && (
-                  <Stack spacing={1}>
-                    <InfoRow
-                      label="Plan"
-                      value={
-                        currentSubscription?.plan?.name ||
-                        currentSubscription?.plan_name ||
-                        "Sin plan"
-                      }
-                    />
-                    <InfoRow
-                      label="Proveedor"
-                      value={currentSubscription?.provider || "Sin proveedor"}
-                    />
-                    <InfoRow
-                      label="Estado"
-                      value={<StatusChip value={currentSubscription?.status} />}
-                    />
-                    <InfoRow
-                      label="Inicio"
-                      value={formatDate(currentSubscription?.starts_at)}
-                    />
-                    <InfoRow
-                      label="Vence"
-                      value={formatDate(
-                        currentSubscription?.ends_at ||
-                          currentSubscription?.expires_at
-                      )}
-                    />
-                    <InfoRow
-                      label="Total pagado"
-                      value={formatMoney(currentSubscription?.paid_price)}
-                    />
-                  </Stack>
-                )}
-              </SectionCard>
+              <SubscriptionCard
+                selectedRestaurantId={selectedRestaurantId}
+                currentSubscription={currentSubscription}
+              />
             </Stack>
           </Grid>
         </Grid>
 
-        <SectionCard
+        {loadingDetail && (
+          <Alert severity="info">Cargando detalle seleccionado...</Alert>
+        )}
+
+        <SalesTableCard
           title={`Ventas del periodo (${getMonthName(
             consultedMonth
           )} ${consultedYear})`}
-          action={
-            <SearchInput
-              placeholder="Buscar venta..."
-              value={saleSearch}
-              onChange={setSaleSearch}
-            />
-          }
-        >
-          {monthlySales.length === 0 && (
-            <EmptyText>No hay ventas registradas en el periodo.</EmptyText>
-          )}
-
-          {monthlySales.length > 0 && filteredSales.length === 0 && (
-            <EmptyText>No hay coincidencias con la búsqueda actual.</EmptyText>
-          )}
-
-          {filteredSales.length > 0 && (
-            <Box sx={{ overflowX: "auto" }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Fecha</TableCell>
-                    <TableCell>Restaurante</TableCell>
-                    <TableCell>Propietario</TableCell>
-                    <TableCell>Plan</TableCell>
-                    <TableCell>Proveedor</TableCell>
-                    <TableCell>Estado</TableCell>
-                    <TableCell align="right">Monto</TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {filteredSales.map((sale, index) => (
-                    <TableRow key={sale.id || index} hover>
-                      <TableCell>{formatDateTime(sale?.created_at)}</TableCell>
-
-                      <TableCell>
-                        <Typography fontWeight={800}>
-                          {sale?.restaurant?.trade_name || "Restaurante"}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell>
-                        {[
-                          sale?.restaurant?.owner?.name,
-                          sale?.restaurant?.owner?.last_name_paternal,
-                          sale?.restaurant?.owner?.last_name_maternal,
-                        ]
-                          .filter(Boolean)
-                          .join(" ") || "Sin propietario"}
-                      </TableCell>
-
-                      <TableCell>{sale?.plan?.name || "Sin plan"}</TableCell>
-
-                      <TableCell>{sale?.provider || "Sin proveedor"}</TableCell>
-
-                      <TableCell>
-                        <StatusChip value={sale?.status} />
-                      </TableCell>
-
-                      <TableCell align="right">
-                        <Typography fontWeight={900}>
-                          {formatMoney(sale?.paid_price)}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Box>
-          )}
-        </SectionCard>
+          sales={filteredSales}
+          totalSales={monthlySales.length}
+          saleSearch={saleSearch}
+          onSearchChange={setSaleSearch}
+        />
       </Stack>
 
       <OwnerFormDialog
@@ -1216,249 +1233,68 @@ export default function ClicMenuDashboard() {
         onChange={cambiarOwnerForm}
         onSubmit={guardarOwner}
       />
+
+      <RestaurantFormDialog
+        open={restaurantModalOpen}
+        editing={restaurantEditing}
+        ownerName={selectedOwner ? getOwnerName(selectedOwner) : ""}
+        error={restaurantFormError}
+        saving={restaurantSaving}
+        onClose={cerrarRestaurantModal}
+        onSubmit={guardarRestaurant}
+      />
+
+      <BranchFormDialog
+        open={branchModalOpen}
+        editing={branchEditing}
+        restaurantName={selectedRestaurant?.trade_name || ""}
+        error={branchFormError}
+        saving={branchSaving}
+        onClose={cerrarBranchModal}
+        onSubmit={guardarBranch}
+      />
     </Box>
   );
 }
-function OwnerFormDialog({
-  open,
-  editing,
-  form,
-  error,
-  saving,
-  onClose,
-  onChange,
-  onSubmit,
-}: {
-  open: boolean;
-  editing: Owner | null;
-  form: OwnerFormState;
-  error: string;
-  saving: boolean;
-  onClose: () => void;
-  onChange: (field: keyof OwnerFormState, value: string) => void;
-  onSubmit: () => void;
-}) {
-  const autocompleteKey = editing ? `edit-${editing.id}` : "new-owner";
 
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ pb: 1 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography fontWeight={900} fontSize={20}>
-              {editing ? "Editar propietario" : "Nuevo propietario"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {editing
-                ? "Actualiza los datos del propietario seleccionado."
-                : "Registra un nuevo propietario en ClicMenu."}
-            </Typography>
-          </Box>
-
-          <IconButton onClick={onClose} disabled={saving}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
-
-      <Divider />
-
-      <DialogContent
-        sx={{ pt: 2.5 }}
-        component="form"
-        autoComplete="off"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-      >
-        <Stack spacing={2}>
-          {error && <Alert severity="error">{error}</Alert>}
-
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                label="Nombre"
-                value={form.name}
-                onChange={(event) => onChange("name", event.target.value)}
-                fullWidth
-                required
-                disabled={saving}
-                autoComplete="off"
-                inputProps={{
-                  autoComplete: "off",
-                  name: `cm_owner_name_${autocompleteKey}`,
-                }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Apellido paterno"
-                value={form.last_name_paternal}
-                onChange={(event) =>
-                  onChange("last_name_paternal", event.target.value)
-                }
-                fullWidth
-                disabled={saving}
-                autoComplete="off"
-                inputProps={{
-                  autoComplete: "off",
-                  name: `cm_owner_last_paternal_${autocompleteKey}`,
-                }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Apellido materno"
-                value={form.last_name_maternal}
-                onChange={(event) =>
-                  onChange("last_name_maternal", event.target.value)
-                }
-                fullWidth
-                disabled={saving}
-                autoComplete="off"
-                inputProps={{
-                  autoComplete: "off",
-                  name: `cm_owner_last_maternal_${autocompleteKey}`,
-                }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Correo"
-                type="text"
-                value={form.email}
-                onChange={(event) => onChange("email", event.target.value)}
-                fullWidth
-                disabled={saving}
-                autoComplete="off"
-                inputProps={{
-                  autoComplete: "off",
-                  name: `cm_owner_contact_email_${autocompleteKey}`,
-                  inputMode: "email",
-                }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Teléfono"
-                type="text"
-                value={form.phone}
-                onChange={(event) => onChange("phone", event.target.value)}
-                fullWidth
-                disabled={saving}
-                autoComplete="off"
-                inputProps={{
-                  autoComplete: "off",
-                  name: `cm_owner_contact_phone_${autocompleteKey}`,
-                  inputMode: "tel",
-                }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label={editing ? "Nueva contraseña" : "Contraseña"}
-                type="password"
-                value={form.password}
-                onChange={(event) => onChange("password", event.target.value)}
-                fullWidth
-                disabled={saving}
-                autoComplete="new-password"
-                inputProps={{
-                  autoComplete: "new-password",
-                  name: `cm_owner_new_access_key_${autocompleteKey}`,
-                }}
-                helperText={
-                  editing
-                    ? "Déjala vacía si no deseas cambiarla."
-                    : "Solo se enviará si capturas una contraseña."
-                }
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Estado"
-                select
-                value={form.status}
-                onChange={(event) => onChange("status", event.target.value)}
-                fullWidth
-                disabled={saving}
-                autoComplete="off"
-                inputProps={{
-                  autoComplete: "off",
-                  name: `cm_owner_status_${autocompleteKey}`,
-                }}
-              >
-                <MenuItem value="active">Activo</MenuItem>
-                <MenuItem value="inactive">Inactivo</MenuItem>
-              </TextField>
-            </Grid>
-          </Grid>
-        </Stack>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button
-          variant="outlined"
-          onClick={onClose}
-          disabled={saving}
-          sx={{ fontWeight: 800, borderRadius: 2 }}
-        >
-          Cancelar
-        </Button>
-
-        <Button
-          variant="contained"
-          onClick={onSubmit}
-          disabled={saving}
-          sx={{ fontWeight: 800, borderRadius: 2, minWidth: 120 }}
-        >
-          {saving ? "Guardando..." : editing ? "Actualizar" : "Guardar"}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-function ModuleCard({
+function SummaryCard({
   icon,
   title,
+  value,
   subtitle,
+  money = false,
 }: {
   icon: ReactNode;
   title: string;
+  value: ReactNode;
   subtitle: string;
+  money?: boolean;
 }) {
   return (
     <Paper
       elevation={0}
       sx={{
         p: 2,
-        minHeight: 100,
-        borderRadius: 4,
+        minHeight: 110,
+        borderRadius: 3,
         border: "1px solid",
         borderColor: "divider",
         bgcolor: "background.paper",
         display: "flex",
         alignItems: "center",
-        gap: 1.6,
+        gap: 2,
         overflow: "hidden",
       }}
     >
       <Avatar
         sx={{
-          width: 42,
-          height: 42,
+          width: 56,
+          height: 56,
           flexShrink: 0,
           bgcolor: "primary.main",
           color: "primary.contrastText",
           "& svg": {
-            fontSize: 22,
+            fontSize: 28,
           },
         }}
       >
@@ -1467,30 +1303,39 @@ function ModuleCard({
 
       <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography
-          fontWeight={900}
-          title={title}
+          color="text.secondary"
+          fontWeight={800}
           sx={{
-            fontSize: 17,
-            lineHeight: 1.15,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            fontSize: 13,
+            lineHeight: 1.1,
           }}
         >
           {title}
         </Typography>
 
         <Typography
-          color="text.secondary"
-          title={subtitle}
+          fontWeight={900}
+          title={String(value)}
           sx={{
-            mt: 0.3,
-            fontSize: 13,
-            lineHeight: 1.25,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
+            mt: 0.4,
+            fontSize: money ? 21 : 26,
+            lineHeight: 1,
             overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {value}
+        </Typography>
+
+        <Typography
+          color="text.secondary"
+          sx={{
+            mt: 0.5,
+            fontSize: 13,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {subtitle}
@@ -1617,47 +1462,74 @@ function MetricCard({
   );
 }
 
-function SectionCard({
+function EntityListCard<T>({
   title,
   badge,
-  action,
-  children,
+  searchPlaceholder,
+  searchValue,
+  onSearchChange,
+  onCreate,
+  createDisabled,
+  items,
+  emptyText,
+  getId,
+  getTitle,
+  getSubtitle,
+  getMeta,
+  getInitials,
+  getStatus,
+  activeId,
+  onSelect,
+  onEdit,
+  onDelete,
+  leadingIcon,
+  footer,
 }: {
   title: string;
   badge?: number;
-  action?: ReactNode;
-  children: ReactNode;
+  searchPlaceholder: string;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  onCreate?: () => void;
+  createDisabled?: boolean;
+  items: T[];
+  emptyText: string;
+  getId: (item: T) => number | string;
+  getTitle: (item: T) => string;
+  getSubtitle?: (item: T) => string;
+  getMeta?: (item: T) => string;
+  getInitials?: (item: T) => string;
+  getStatus?: (item: T) => string | undefined;
+  activeId?: number | string | null;
+  onSelect?: (item: T) => void;
+  onEdit?: (item: T) => void;
+  onDelete?: (item: T) => void;
+  leadingIcon?: ReactNode;
+  footer?: ReactNode;
 }) {
   return (
     <Paper
       elevation={0}
       sx={{
         p: 2,
+        height: "100%",
+        minHeight: 520,
         borderRadius: 4,
         border: "1px solid",
         borderColor: "divider",
         bgcolor: "background.paper",
-        height: "100%",
         overflow: "hidden",
       }}
     >
-      <Stack spacing={1.5} mb={2}>
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="center"
-          sx={{
-            minWidth: 0,
-            width: "100%",
-          }}
-        >
+      <Stack spacing={1.5} height="100%">
+        <Stack direction="row" alignItems="center" spacing={1}>
           <Typography
             variant="h6"
             fontWeight={900}
             title={title}
             sx={{
-              minWidth: 0,
               flex: 1,
+              minWidth: 0,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -1671,108 +1543,1111 @@ function SectionCard({
               size="small"
               label={badge}
               color="primary"
-              sx={{
-                fontWeight: 900,
-                flexShrink: 0,
-              }}
+              sx={{ fontWeight: 900, flexShrink: 0 }}
             />
           )}
         </Stack>
 
-        {action && (
-          <Box
+        <Stack direction="row" spacing={1} alignItems="center">
+          <TextField
+            size="small"
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            fullWidth
             sx={{
-              width: "100%",
               minWidth: 0,
-              overflow: "hidden",
+              "& .MuiInputBase-root": {
+                borderRadius: 2,
+                bgcolor: "background.default",
+              },
             }}
-          >
-            {action}
-          </Box>
-        )}
-      </Stack>
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
 
-      {children}
+          {onCreate && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={onCreate}
+              disabled={createDisabled}
+              sx={{
+                height: 40,
+                borderRadius: 2,
+                fontWeight: 800,
+                px: 1.5,
+                minWidth: 92,
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Nuevo
+            </Button>
+          )}
+        </Stack>
+
+        <Stack
+          spacing={1}
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            maxHeight: 400,
+            overflowY: "auto",
+            pr: 0.5,
+          }}
+        >
+          {items.length === 0 && (
+            <Typography color="text.secondary" sx={{ py: 2 }}>
+              {emptyText}
+            </Typography>
+          )}
+
+          {items.map((item) => {
+            const id = getId(item);
+            const titleValue = getTitle(item);
+            const subtitle = getSubtitle?.(item);
+            const meta = getMeta?.(item);
+            const status = getStatus?.(item);
+            const active = activeId === id;
+
+            return (
+              <Paper
+                key={id}
+                elevation={0}
+                onClick={() => onSelect?.(item)}
+                sx={{
+                  p: 1.35,
+                  borderRadius: 3,
+                  cursor: onSelect ? "pointer" : "default",
+                  border: "1px solid",
+                  borderColor: active ? "primary.main" : "divider",
+                  bgcolor: active ? "action.hover" : "background.default",
+                  transition: "0.15s ease",
+                  "&:hover": {
+                    borderColor: onSelect ? "primary.main" : "divider",
+                    bgcolor: onSelect ? "action.hover" : "background.default",
+                  },
+                }}
+              >
+                <Stack direction="row" spacing={1.4} alignItems="center">
+                  <Avatar
+                    sx={{
+                      width: 42,
+                      height: 42,
+                      flexShrink: 0,
+                      bgcolor: "primary.main",
+                      color: "primary.contrastText",
+                      fontWeight: 900,
+                    }}
+                  >
+                    {leadingIcon || getInitials?.(item) || "CM"}
+                  </Avatar>
+
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography
+                      fontWeight={900}
+                      title={titleValue}
+                      sx={{
+                        lineHeight: 1.15,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {titleValue}
+                    </Typography>
+
+                    {subtitle && (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        title={subtitle}
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {subtitle}
+                      </Typography>
+                    )}
+
+                    {meta && (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        title={meta}
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {meta}
+                      </Typography>
+                    )}
+                  </Box>
+
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    alignItems="center"
+                    sx={{ flexShrink: 0 }}
+                  >
+                    {status && <StatusChip value={status} />}
+
+                    {onEdit && (
+                      <Tooltip title="Editar">
+                        <IconButton
+                          size="small"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onEdit(item);
+                          }}
+                        >
+                          <EditIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+
+                    {onDelete && (
+                      <Tooltip title="Eliminar">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDelete(item);
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+
+                    {onSelect && (
+                      <ArrowForwardIosIcon
+                        sx={{ fontSize: 14, color: "text.secondary" }}
+                      />
+                    )}
+                  </Stack>
+                </Stack>
+              </Paper>
+            );
+          })}
+        </Stack>
+
+        {footer && <Box>{footer}</Box>}
+      </Stack>
     </Paper>
   );
 }
 
-function SearchInput({
-  placeholder,
-  value,
-  onChange,
+function SubscriptionCard({
+  selectedRestaurantId,
+  currentSubscription,
 }: {
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <TextField
-      size="small"
-      placeholder={placeholder}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      sx={{
-        width: "100%",
-        minWidth: 0,
-        "& .MuiInputBase-root": {
-          borderRadius: 2,
-        },
-      }}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <SearchIcon fontSize="small" />
-          </InputAdornment>
-        ),
-      }}
-    />
-  );
-}
-
-function ScrollableList({
-  children,
-  maxHeight,
-}: {
-  children: ReactNode;
-  maxHeight: number;
-}) {
-  return (
-    <Stack spacing={1.2} sx={{ maxHeight, overflowY: "auto", pr: 0.5 }}>
-      {children}
-    </Stack>
-  );
-}
-
-function SelectableItem({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
+  selectedRestaurantId: number | null;
+  currentSubscription: any;
 }) {
   return (
     <Paper
       elevation={0}
-      onClick={onClick}
       sx={{
-        p: 1.5,
-        borderRadius: 3,
-        cursor: "pointer",
+        p: 2,
+        borderRadius: 4,
         border: "1px solid",
-        borderColor: active ? "primary.main" : "divider",
-        bgcolor: active ? "action.hover" : "background.default",
-        transition: "0.15s ease",
-        "&:hover": {
-          borderColor: "primary.main",
-          bgcolor: "action.hover",
-        },
+        borderColor: "divider",
+        bgcolor: "background.paper",
       }}
     >
-      {children}
+      <Typography variant="h6" fontWeight={900} mb={1.5}>
+        Suscripción actual
+      </Typography>
+
+      {!selectedRestaurantId && (
+        <Typography color="text.secondary">
+          Selecciona un restaurante para consultar la suscripción.
+        </Typography>
+      )}
+
+      {selectedRestaurantId && !currentSubscription && (
+        <Typography color="text.secondary">
+          No se encontró una suscripción vigente.
+        </Typography>
+      )}
+
+      {currentSubscription && (
+        <Grid container spacing={1.2}>
+          <Grid item xs={12} sm={6}>
+            <InfoRow
+              label="Plan"
+              value={
+                currentSubscription?.plan?.name ||
+                currentSubscription?.plan_name ||
+                "Sin plan"
+              }
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <InfoRow
+              label="Proveedor"
+              value={currentSubscription?.provider || "Sin proveedor"}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <InfoRow
+              label="Estado"
+              value={<StatusChip value={currentSubscription?.status} />}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <InfoRow
+              label="Total pagado"
+              value={formatMoney(currentSubscription?.paid_price)}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <InfoRow
+              label="Inicio"
+              value={formatDate(currentSubscription?.starts_at)}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <InfoRow
+              label="Vence"
+              value={formatDate(
+                currentSubscription?.ends_at || currentSubscription?.expires_at
+              )}
+            />
+          </Grid>
+        </Grid>
+      )}
     </Paper>
+  );
+}
+
+function SalesTableCard({
+  title,
+  sales,
+  totalSales,
+  saleSearch,
+  onSearchChange,
+}: {
+  title: string;
+  sales: any[];
+  totalSales: number;
+  saleSearch: string;
+  onSearchChange: (value: string) => void;
+}) {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        borderRadius: 4,
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
+      }}
+    >
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        justifyContent="space-between"
+        spacing={1.5}
+        alignItems={{ xs: "stretch", md: "center" }}
+        mb={2}
+      >
+        <Typography variant="h6" fontWeight={900}>
+          {title}
+        </Typography>
+
+        <TextField
+          size="small"
+          placeholder="Buscar venta..."
+          value={saleSearch}
+          onChange={(event) => onSearchChange(event.target.value)}
+          sx={{
+            width: { xs: "100%", md: 280 },
+            "& .MuiInputBase-root": {
+              borderRadius: 2,
+              bgcolor: "background.default",
+            },
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Stack>
+
+      {totalSales === 0 && (
+        <Typography color="text.secondary" sx={{ py: 1 }}>
+          No hay ventas registradas en el periodo.
+        </Typography>
+      )}
+
+      {totalSales > 0 && sales.length === 0 && (
+        <Typography color="text.secondary" sx={{ py: 1 }}>
+          No hay coincidencias con la búsqueda actual.
+        </Typography>
+      )}
+
+      {sales.length > 0 && (
+        <Box sx={{ overflowX: "auto" }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Fecha</TableCell>
+                <TableCell>Restaurante</TableCell>
+                <TableCell>Propietario</TableCell>
+                <TableCell>Plan</TableCell>
+                <TableCell>Proveedor</TableCell>
+                <TableCell>Estado</TableCell>
+                <TableCell align="right">Monto</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {sales.map((sale, index) => (
+                <TableRow key={sale.id || index} hover>
+                  <TableCell>{formatDateTime(sale?.created_at)}</TableCell>
+
+                  <TableCell>
+                    <Typography fontWeight={800}>
+                      {sale?.restaurant?.trade_name || "Restaurante"}
+                    </Typography>
+                  </TableCell>
+
+                  <TableCell>
+                    {[
+                      sale?.restaurant?.owner?.name,
+                      sale?.restaurant?.owner?.last_name_paternal,
+                      sale?.restaurant?.owner?.last_name_maternal,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || "Sin propietario"}
+                  </TableCell>
+
+                  <TableCell>{sale?.plan?.name || "Sin plan"}</TableCell>
+
+                  <TableCell>{sale?.provider || "Sin proveedor"}</TableCell>
+
+                  <TableCell>
+                    <StatusChip value={sale?.status} />
+                  </TableCell>
+
+                  <TableCell align="right">
+                    <Typography fontWeight={900}>
+                      {formatMoney(sale?.paid_price)}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
+    </Paper>
+  );
+}
+
+function OwnerFormDialog({
+  open,
+  editing,
+  form,
+  error,
+  saving,
+  onClose,
+  onChange,
+  onSubmit,
+}: {
+  open: boolean;
+  editing: Owner | null;
+  form: OwnerFormState;
+  error: string;
+  saving: boolean;
+  onClose: () => void;
+  onChange: (field: keyof OwnerFormState, value: string) => void;
+  onSubmit: () => void;
+}) {
+  const autocompleteKey = editing ? `edit-${editing.id}` : "new-owner";
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Box>
+            <Typography fontWeight={900} fontSize={20}>
+              {editing ? "Editar propietario" : "Nuevo propietario"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {editing
+                ? "Actualiza los datos del propietario seleccionado."
+                : "Registra un nuevo propietario en ClicMenu."}
+            </Typography>
+          </Box>
+
+          <IconButton onClick={onClose} disabled={saving}>
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+
+      <Divider />
+
+      <DialogContent sx={{ pt: 2.5 }}>
+        <Box
+          component="form"
+          id="owner-form"
+          autoComplete="off"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <Stack spacing={2}>
+            {error && <Alert severity="error">{error}</Alert>}
+
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  label="Nombre"
+                  value={form.name}
+                  onChange={(event) => onChange("name", event.target.value)}
+                  fullWidth
+                  required
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: `cm_owner_name_${autocompleteKey}`,
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Apellido paterno"
+                  value={form.last_name_paternal}
+                  onChange={(event) =>
+                    onChange("last_name_paternal", event.target.value)
+                  }
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: `cm_owner_last_paternal_${autocompleteKey}`,
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Apellido materno"
+                  value={form.last_name_maternal}
+                  onChange={(event) =>
+                    onChange("last_name_maternal", event.target.value)
+                  }
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: `cm_owner_last_maternal_${autocompleteKey}`,
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Correo"
+                  type="text"
+                  value={form.email}
+                  onChange={(event) => onChange("email", event.target.value)}
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: `cm_owner_contact_email_${autocompleteKey}`,
+                    inputMode: "email",
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Teléfono"
+                  type="text"
+                  value={form.phone}
+                  onChange={(event) => onChange("phone", event.target.value)}
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: `cm_owner_contact_phone_${autocompleteKey}`,
+                    inputMode: "tel",
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label={editing ? "Nueva contraseña" : "Contraseña"}
+                  type="password"
+                  value={form.password}
+                  onChange={(event) =>
+                    onChange("password", event.target.value)
+                  }
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="new-password"
+                  inputProps={{
+                    autoComplete: "new-password",
+                    name: `cm_owner_new_access_key_${autocompleteKey}`,
+                  }}
+                  helperText={
+                    editing
+                      ? "Déjala vacía si no deseas cambiarla."
+                      : "Solo se enviará si capturas una contraseña."
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Estado"
+                  select
+                  value={form.status}
+                  onChange={(event) => onChange("status", event.target.value)}
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: `cm_owner_status_${autocompleteKey}`,
+                  }}
+                >
+                  <MenuItem value="active">Activo</MenuItem>
+                  <MenuItem value="inactive">Inactivo</MenuItem>
+                </TextField>
+              </Grid>
+            </Grid>
+          </Stack>
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button
+          variant="outlined"
+          onClick={onClose}
+          disabled={saving}
+          sx={{ fontWeight: 800, borderRadius: 2 }}
+        >
+          Cancelar
+        </Button>
+
+        <Button
+          variant="contained"
+          type="submit"
+          form="owner-form"
+          disabled={saving}
+          sx={{ fontWeight: 800, borderRadius: 2, minWidth: 120 }}
+        >
+          {saving ? "Guardando..." : editing ? "Actualizar" : "Guardar"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function RestaurantFormDialog({
+  open,
+  editing,
+  ownerName,
+  error,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean;
+  editing: Restaurant | null;
+  ownerName?: string;
+  error: string;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (payload: RestaurantPayload) => void;
+}) {
+  const [form, setForm] = useState({
+    trade_name: "",
+    description: "",
+    contact_phone: "",
+    contact_email: "",
+    status: "active",
+  });
+
+  useEffect(() => {
+    if (!open) return;
+
+    setForm({
+      trade_name: editing?.trade_name || "",
+      description: editing?.description || "",
+      contact_phone: editing?.contact_phone || "",
+      contact_email: editing?.contact_email || "",
+      status: editing?.status || "active",
+    });
+  }, [open, editing]);
+
+  const submit = () => {
+    const payload: RestaurantPayload = {
+      trade_name: cleanText(form.trade_name),
+      description: cleanText(form.description),
+      contact_phone: cleanText(form.contact_phone),
+      contact_email: cleanText(form.contact_email),
+      status: form.status || "active",
+    };
+
+    if (!payload.description) delete payload.description;
+    if (!payload.contact_phone) delete payload.contact_phone;
+    if (!payload.contact_email) delete payload.contact_email;
+
+    onSubmit(payload);
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Box>
+            <Typography fontWeight={900} fontSize={20}>
+              {editing ? "Editar restaurante" : "Nuevo restaurante"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {editing
+                ? "Actualiza los datos del restaurante."
+                : ownerName
+                ? `Registra un restaurante para ${ownerName}.`
+                : "Registra un restaurante para el propietario seleccionado."}
+            </Typography>
+          </Box>
+
+          <IconButton onClick={onClose} disabled={saving}>
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+
+      <Divider />
+
+      <DialogContent sx={{ pt: 2.5 }}>
+        <Box
+          component="form"
+          id="restaurant-form"
+          autoComplete="off"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+        >
+          <Stack spacing={2}>
+            {error && <Alert severity="error">{error}</Alert>}
+
+            <TextField
+              label="Nombre comercial"
+              value={form.trade_name}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  trade_name: event.target.value,
+                }))
+              }
+              fullWidth
+              required
+              disabled={saving}
+              autoComplete="off"
+              inputProps={{
+                autoComplete: "off",
+                name: "cm_restaurant_trade_name",
+              }}
+            />
+
+            <TextField
+              label="Descripción"
+              value={form.description}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  description: event.target.value,
+                }))
+              }
+              fullWidth
+              multiline
+              minRows={3}
+              disabled={saving}
+              autoComplete="off"
+              inputProps={{
+                autoComplete: "off",
+                name: "cm_restaurant_description",
+              }}
+            />
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Teléfono"
+                  value={form.contact_phone}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      contact_phone: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: "cm_restaurant_phone",
+                    inputMode: "tel",
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Correo"
+                  type="text"
+                  value={form.contact_email}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      contact_email: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: "cm_restaurant_email",
+                    inputMode: "email",
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  label="Estado"
+                  select
+                  value={form.status}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      status: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: "cm_restaurant_status",
+                  }}
+                >
+                  <MenuItem value="active">Activo</MenuItem>
+                  <MenuItem value="inactive">Inactivo</MenuItem>
+                </TextField>
+              </Grid>
+            </Grid>
+          </Stack>
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button
+          variant="outlined"
+          onClick={onClose}
+          disabled={saving}
+          sx={{ fontWeight: 800, borderRadius: 2 }}
+        >
+          Cancelar
+        </Button>
+
+        <Button
+          variant="contained"
+          type="submit"
+          form="restaurant-form"
+          disabled={saving || !cleanText(form.trade_name)}
+          sx={{ fontWeight: 800, borderRadius: 2, minWidth: 120 }}
+        >
+          {saving ? "Guardando..." : editing ? "Actualizar" : "Guardar"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function BranchFormDialog({
+  open,
+  editing,
+  restaurantName,
+  error,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean;
+  editing: Branch | null;
+  restaurantName?: string;
+  error: string;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (payload: BranchPayload) => void;
+}) {
+  const [form, setForm] = useState({
+    name: "",
+    address: "",
+    phone: "",
+    open_time: "",
+    close_time: "",
+    status: "active",
+  });
+
+  useEffect(() => {
+    if (!open) return;
+
+    setForm({
+      name: editing?.name || "",
+      address: editing?.address || "",
+      phone: editing?.phone || "",
+      open_time: editing?.open_time || "",
+      close_time: editing?.close_time || "",
+      status: editing?.status || "active",
+    });
+  }, [open, editing]);
+
+  const submit = () => {
+    const payload: BranchPayload = {
+      name: cleanText(form.name),
+      address: cleanText(form.address),
+      phone: cleanText(form.phone),
+      open_time: cleanText(form.open_time),
+      close_time: cleanText(form.close_time),
+      status: form.status || "active",
+    };
+
+    if (!payload.address) delete payload.address;
+    if (!payload.phone) delete payload.phone;
+    if (!payload.open_time) delete payload.open_time;
+    if (!payload.close_time) delete payload.close_time;
+
+    onSubmit(payload);
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Box>
+            <Typography fontWeight={900} fontSize={20}>
+              {editing ? "Editar sucursal" : "Nueva sucursal"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {editing
+                ? "Actualiza los datos de la sucursal."
+                : restaurantName
+                ? `Registra una sucursal para ${restaurantName}.`
+                : "Registra una sucursal para el restaurante seleccionado."}
+            </Typography>
+          </Box>
+
+          <IconButton onClick={onClose} disabled={saving}>
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+
+      <Divider />
+
+      <DialogContent sx={{ pt: 2.5 }}>
+        <Box
+          component="form"
+          id="branch-form"
+          autoComplete="off"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+        >
+          <Stack spacing={2}>
+            {error && <Alert severity="error">{error}</Alert>}
+
+            <TextField
+              label="Nombre de sucursal"
+              value={form.name}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  name: event.target.value,
+                }))
+              }
+              fullWidth
+              required
+              disabled={saving}
+              autoComplete="off"
+              inputProps={{
+                autoComplete: "off",
+                name: "cm_branch_name",
+              }}
+            />
+
+            <TextField
+              label="Dirección"
+              value={form.address}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  address: event.target.value,
+                }))
+              }
+              fullWidth
+              disabled={saving}
+              autoComplete="off"
+              inputProps={{
+                autoComplete: "off",
+                name: "cm_branch_address",
+              }}
+            />
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Teléfono"
+                  value={form.phone}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      phone: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: "cm_branch_phone",
+                    inputMode: "tel",
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  label="Abre"
+                  type="time"
+                  value={form.open_time}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      open_time: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                  disabled={saving}
+                  InputLabelProps={{ shrink: true }}
+                  inputProps={{
+                    name: "cm_branch_open_time",
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  label="Cierra"
+                  type="time"
+                  value={form.close_time}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      close_time: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                  disabled={saving}
+                  InputLabelProps={{ shrink: true }}
+                  inputProps={{
+                    name: "cm_branch_close_time",
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  label="Estado"
+                  select
+                  value={form.status}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      status: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                  disabled={saving}
+                  autoComplete="off"
+                  inputProps={{
+                    autoComplete: "off",
+                    name: "cm_branch_status",
+                  }}
+                >
+                  <MenuItem value="active">Activo</MenuItem>
+                  <MenuItem value="inactive">Inactivo</MenuItem>
+                </TextField>
+              </Grid>
+            </Grid>
+          </Stack>
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button
+          variant="outlined"
+          onClick={onClose}
+          disabled={saving}
+          sx={{ fontWeight: 800, borderRadius: 2 }}
+        >
+          Cancelar
+        </Button>
+
+        <Button
+          variant="contained"
+          type="submit"
+          form="branch-form"
+          disabled={saving || !cleanText(form.name)}
+          sx={{ fontWeight: 800, borderRadius: 2, minWidth: 120 }}
+        >
+          {saving ? "Guardando..." : editing ? "Actualizar" : "Guardar"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -1804,14 +2679,6 @@ function StatusChip({ value }: { value?: string }) {
   }
 
   return <Chip size="small" label={normalized} color="default" />;
-}
-
-function EmptyText({ children }: { children: ReactNode }) {
-  return (
-    <Typography color="text.secondary" sx={{ py: 1 }}>
-      {children}
-    </Typography>
-  );
 }
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
