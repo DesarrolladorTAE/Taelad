@@ -16,6 +16,8 @@ import MiTiendaSuscripcionesGlobal from "./components/MiTiendaSuscripcionesGloba
 
 import ClicMenuDashboard from "./components/ClicMenu/ClicMenuDashboard";
 
+import TeaTeDaMas from "./components/TeaTeDaMas";
+
 export default function SuperAdminPanel() {
   return (
     <Shell>
@@ -26,6 +28,9 @@ export default function SuperAdminPanel() {
 
           case "sistemas":
             return <Sistemas setView={setView} />;
+
+          case "tea-te-da-mas":
+            return <TeaTeDaMas />;
 
           case "facturacion":
             return <Facturacion />;

@@ -9,6 +9,7 @@ import MiTiendaTiendas from "../pages/Superadmin/components/MiTiendaTiendas";
 import MiTiendaVentas from "../pages/Superadmin/components/MiTiendaVentas";
 import MiTiendaMetricas from "../pages/Superadmin/components/MiTiendaMetricas";
 
+
 // Landings
 const Index1 = React.lazy(() => import("../pages/landings/Index1"));
 const Index3 = React.lazy(() => import("../pages/landings/Index3"));
@@ -29,6 +30,15 @@ const Superadmin = React.lazy(() => import("../pages/Superadmin/panel"));
 // TAECONTA
 const TaecontaEmpresasPage = React.lazy(() =>
   import("../pages/taeconta/TaecontaEmpresasPage")
+);
+
+// TEA te da más
+const TeaTeDaMas = React.lazy(() =>
+  import("../pages/Superadmin/components/TeaTeDaMas")
+);
+
+const TeaUsuarioDetalle = React.lazy(() =>
+  import("../pages/Superadmin/components/TeaUsuarioDetalle")
 );
 
 // Tarjetas
@@ -149,6 +159,18 @@ export default function AllRoutes() {
           path: "superadmin/taeconta/empresas",
           element: <LoadComponent component={TaecontaEmpresasPage} />,
         },
+
+        // =========================
+        // TEA TE DA MÁS
+        // =========================
+        {
+          path: "superadmin/tea-te-da-mas",
+          element: <LoadComponent component={TeaTeDaMas} />,
+        },
+       {
+         path: "superadmin/tea-te-da-mas/usuario/:userId",
+         element: <LoadComponent component={TeaUsuarioDetalle} />,
+       },
 
         // =========================
         // AUTH

@@ -40,6 +40,8 @@ type Props = {
   setView?: (view: string) => void;
 };
 
+type EstadoPlan = "activo" | "vencido" | string;
+
 type Tienda = {
   id: number;
   name: string;
@@ -47,9 +49,15 @@ type Tienda = {
   trial_ends_at: string | null;
   plan_expiration: string | null;
   is_active: boolean;
+
+  fecha_vencimiento_plan?: string | null;
+  fecha_vencimiento_label?: string | null;
+  estado_plan?: EstadoPlan | null;
+  is_plan_active?: boolean | null;
 };
 
 const ROWS_PER_PAGE = 16;
+const PLAN_DEMO_ID = 1;
 
 function normalizarTexto(value?: string | null) {
   return String(value ?? "")
@@ -59,7 +67,7 @@ function normalizarTexto(value?: string | null) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function formatDate(value: string | null) {
+function formatDate(value?: string | null) {
   if (!value) return "N/A";
 
   const date = new Date(value);
@@ -84,6 +92,70 @@ function formatPlan(planId: number | null) {
 
   return `Plan ${planId}`;
 }
+
+function obtenerFechaVencimiento(tienda: Tienda): string | null {
+  if (tienda.fecha_vencimiento_plan) {
+    return tienda.fecha_vencimiento_plan;
+  }
+
+  return tienda.plan_id === PLAN_DEMO_ID
+    ? tienda.trial_ends_at
+    : tienda.plan_expiration;
+}
+
+function obtenerEtiquetaVencimiento(tienda: Tienda): string {
+  if (tienda.fecha_vencimiento_label) {
+    return tienda.fecha_vencimiento_label;
+  }
+
+  return tienda.plan_id === PLAN_DEMO_ID ? "Demo vence" : "Plan vence";
+}
+
+function obtenerEstadoPlan(tienda: Tienda): "activo" | "vencido" {
+  if (tienda.estado_plan === "activo" || tienda.estado_plan === "vencido") {
+    return tienda.estado_plan;
+  }
+
+  if (typeof tienda.is_plan_active === "boolean") {
+    return tienda.is_plan_active ? "activo" : "vencido";
+  }
+
+  const fechaVencimiento = obtenerFechaVencimiento(tienda);
+
+  if (!fechaVencimiento) {
+    return "vencido";
+  }
+
+  const venceEn = new Date(fechaVencimiento).getTime();
+
+  if (Number.isNaN(venceEn)) {
+    return "vencido";
+  }
+
+  return tienda.is_active && venceEn >= Date.now() ? "activo" : "vencido";
+}
+
+function obtenerEstadoPlanLabel(tienda: Tienda): "Activo" | "Vencido" {
+  return obtenerEstadoPlan(tienda) === "activo" ? "Activo" : "Vencido";
+}
+
+function obtenerEstadoPlanColor(tienda: Tienda): "success" | "error" {
+  return obtenerEstadoPlan(tienda) === "activo" ? "success" : "error";
+}
+
+function normalizarTiendaSeleccionada(tienda: Tienda): Tienda {
+  const estadoPlan = obtenerEstadoPlan(tienda);
+
+  return {
+    ...tienda,
+    estado_plan: estadoPlan,
+    is_plan_active: estadoPlan === "activo",
+    is_active: estadoPlan === "activo",
+    fecha_vencimiento_plan: obtenerFechaVencimiento(tienda),
+    fecha_vencimiento_label: obtenerEtiquetaVencimiento(tienda),
+  };
+}
+
 
 export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
   const theme = useTheme();
@@ -147,9 +219,9 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
         [
           tienda.name,
           formatPlan(tienda.plan_id),
-          tienda.is_active ? "activo" : "inactivo",
-          formatDate(tienda.trial_ends_at),
-          formatDate(tienda.plan_expiration),
+          obtenerEstadoPlan(tienda),
+          obtenerEtiquetaVencimiento(tienda),
+          formatDate(obtenerFechaVencimiento(tienda)),
         ]
           .filter(Boolean)
           .join(" ")
@@ -165,7 +237,7 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
   );
 
   const abrirAgregar = (tienda: Tienda) => {
-    setTiendaSeleccionada(tienda);
+    setTiendaSeleccionada(normalizarTiendaSeleccionada(tienda));
     setOpenAgregar(true);
   };
 
@@ -175,7 +247,7 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
   };
 
   const abrirHistorial = (tienda: Tienda) => {
-    setTiendaSeleccionada(tienda);
+    setTiendaSeleccionada(normalizarTiendaSeleccionada(tienda));
     setOpenHistorial(true);
   };
 
@@ -301,6 +373,8 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
             <Stack spacing={2}>
               {tiendasPaginadas.map((tienda, index) => {
                 const numero = page * ROWS_PER_PAGE + index + 1;
+                const fechaVencimiento = obtenerFechaVencimiento(tienda);
+                const etiquetaVencimiento = obtenerEtiquetaVencimiento(tienda);
 
                 return (
                   <Card
@@ -328,8 +402,8 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
 
                           <Chip
                             size="small"
-                            label={tienda.is_active ? "Activo" : "Inactivo"}
-                            color={tienda.is_active ? "success" : "default"}
+                            label={obtenerEstadoPlanLabel(tienda)}
+                            color={obtenerEstadoPlanColor(tienda)}
                           />
                         </Stack>
 
@@ -345,19 +419,10 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
 
                           <Grid item xs={6}>
                             <Typography fontSize={12} color="text.secondary">
-                              Prueba
+                              {etiquetaVencimiento}
                             </Typography>
                             <Typography fontSize={14} fontWeight={700}>
-                              {formatDate(tienda.trial_ends_at)}
-                            </Typography>
-                          </Grid>
-
-                          <Grid item xs={6}>
-                            <Typography fontSize={12} color="text.secondary">
-                              Vence
-                            </Typography>
-                            <Typography fontSize={14} fontWeight={700}>
-                              {formatDate(tienda.plan_expiration)}
+                              {formatDate(fechaVencimiento)}
                             </Typography>
                           </Grid>
                         </Grid>
@@ -420,10 +485,9 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                   <TableRow>
                     <TableCell sx={{ width: 48 }}>No.</TableCell>
                     <TableCell>Tienda</TableCell>
-                    <TableCell sx={{ width: 78 }}>Plan</TableCell>
-                    <TableCell sx={{ width: 98 }}>Prueba</TableCell>
-                    <TableCell sx={{ width: 98 }}>Vence</TableCell>
-                    <TableCell sx={{ width: 82 }}>Estado</TableCell>
+                    <TableCell sx={{ width: 130 }}>Plan</TableCell>
+                    <TableCell sx={{ width: 150 }}>Vencimiento</TableCell>
+                    <TableCell sx={{ width: 92 }}>Estado</TableCell>
                     <TableCell align="center" sx={{ width: 96 }}>
                       Acciones
                     </TableCell>
@@ -433,6 +497,8 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                 <TableBody>
                   {tiendasPaginadas.map((tienda, index) => {
                     const numero = page * ROWS_PER_PAGE + index + 1;
+                    const fechaVencimiento = obtenerFechaVencimiento(tienda);
+                    const etiquetaVencimiento = obtenerEtiquetaVencimiento(tienda);
 
                     return (
                       <TableRow hover key={tienda.id}>
@@ -457,18 +523,19 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                         <TableCell>{formatPlan(tienda.plan_id)}</TableCell>
 
                         <TableCell>
-                          {formatDate(tienda.trial_ends_at)}
-                        </TableCell>
-
-                        <TableCell>
-                          {formatDate(tienda.plan_expiration)}
+                          <Typography fontSize={12} fontWeight={800}>
+                            {etiquetaVencimiento}
+                          </Typography>
+                          <Typography fontSize={12} color="text.secondary">
+                            {formatDate(fechaVencimiento)}
+                          </Typography>
                         </TableCell>
 
                         <TableCell>
                           <Chip
                             size="small"
-                            label={tienda.is_active ? "Activo" : "Inactivo"}
-                            color={tienda.is_active ? "success" : "default"}
+                            label={obtenerEstadoPlanLabel(tienda)}
+                            color={obtenerEstadoPlanColor(tienda)}
                             sx={{ height: 22, fontSize: 11 }}
                           />
                         </TableCell>
@@ -498,7 +565,7 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
 
                   {tiendasFiltradas.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} align="center">
+                      <TableCell colSpan={6} align="center">
                         No hay tiendas registradas.
                       </TableCell>
                     </TableRow>
@@ -531,6 +598,7 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
       />
 
       <SuscripcionHistorialModal
+        key={tiendaSeleccionada?.id ?? "sin-tienda"}
         open={openHistorial}
         tienda={tiendaSeleccionada}
         onClose={cerrarHistorial}

@@ -110,6 +110,20 @@ export const getToday = () => {
   return `${year}-${month}-${day}`;
 };
 
+export const getFechaInicioRenovacion = (planExpiration?: string | null) => {
+  const hoy = getToday();
+
+  if (!planExpiration) return hoy;
+
+  const fechaVencimiento = planExpiration.split("T")[0];
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaVencimiento)) {
+    return hoy;
+  }
+
+  return fechaVencimiento >= hoy ? fechaVencimiento : hoy;
+};
+
 export const formatMoney = (value: number | string) => {
   return Number(value || 0).toLocaleString("es-MX", {
     style: "currency",
@@ -130,15 +144,25 @@ export const formatDate = (value?: string | null) => {
 
 export const addMonths = (date: string, months: number) => {
   const [year, month, day] = date.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
 
-  d.setMonth(d.getMonth() + months);
+  if (!year || !month || !day) return date;
+
+  const targetMonthIndex = month - 1 + months;
+  const targetYear = year + Math.floor(targetMonthIndex / 12);
+  const normalizedMonthIndex = ((targetMonthIndex % 12) + 12) % 12;
+  const lastDayOfTargetMonth = new Date(
+    targetYear,
+    normalizedMonthIndex + 1,
+    0
+  ).getDate();
+  const finalDay = Math.min(day, lastDayOfTargetMonth);
+  const d = new Date(targetYear, normalizedMonthIndex, finalDay);
 
   const finalYear = d.getFullYear();
   const finalMonth = String(d.getMonth() + 1).padStart(2, "0");
-  const finalDay = String(d.getDate()).padStart(2, "0");
+  const finalDayFormatted = String(d.getDate()).padStart(2, "0");
 
-  return `${finalYear}-${finalMonth}-${finalDay}`;
+  return `${finalYear}-${finalMonth}-${finalDayFormatted}`;
 };
 
 export const normalizarTexto = (value?: string | null) => {
@@ -336,9 +360,7 @@ export function useAgregarSuscripcionModal({
   useEffect(() => {
     if (!open) return;
 
-    const fechaInicio = tienda?.plan_expiration
-      ? tienda.plan_expiration.split("T")[0]
-      : getToday();
+    const fechaInicio = getFechaInicioRenovacion(tienda?.plan_expiration);
 
     setStartsAt(fechaInicio);
     setCantidad("1");

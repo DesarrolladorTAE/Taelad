@@ -59,6 +59,16 @@ type ChipColor =
 
 type Tienda = {
   id: number | string;
+  plan_id?: number | string | null;
+  plan_name?: string | null;
+  nombre_plan?: string | null;
+  trial_ends_at?: string | null;
+  plan_expiration?: string | null;
+  fecha_vencimiento_plan?: string | null;
+  fecha_vencimiento_label?: string | null;
+  estado_plan?: "activo" | "vencido" | string | null;
+  is_active?: boolean | null;
+  is_plan_active?: boolean | null;
   nombre?: string | null;
   name?: string | null;
   slug?: string | null;
@@ -201,6 +211,8 @@ function getTelefonoTienda(tienda: Tienda) {
 
 function getPlanTienda(tienda: Tienda) {
   return (
+    tienda.plan_name ??
+    tienda.nombre_plan ??
     tienda.plan?.nombre_plan ??
     tienda.plan?.nombre ??
     tienda.plan?.plan ??
@@ -208,14 +220,48 @@ function getPlanTienda(tienda: Tienda) {
   );
 }
 
-function getFechaFiltro(tienda: Tienda) {
+function getFechaVencimientoTienda(tienda: Tienda | null | undefined) {
+  if (!tienda) return null;
+
   return (
-    tienda.created_at ??
-    tienda.fecha_creacion ??
-    tienda.fecha ??
+    tienda.fecha_vencimiento_plan ??
+    tienda.plan_expiration ??
+    tienda.trial_ends_at ??
     tienda.plan?.vence ??
     tienda.plan?.fecha_vencimiento ??
     tienda.plan?.expires_at ??
+    null
+  );
+}
+
+function getFechaVencimientoLabel(tienda: Tienda | null | undefined) {
+  if (!tienda) return "Fecha de vencimiento";
+
+  return tienda.fecha_vencimiento_label ?? "Plan vence";
+}
+
+function getEstadoPlanTienda(tienda: Tienda | null | undefined) {
+  if (!tienda) return "Sin plan";
+
+  return tienda.estado_plan ?? tienda.plan?.estado ?? "Sin plan";
+}
+
+function getEstadoPlanLabel(tienda: Tienda | null | undefined) {
+  const estado = normalizeText(getEstadoPlanTienda(tienda));
+
+  if (estado === "activo" || estado === "activa") return "Activo";
+  if (estado === "vencido" || estado === "vencida") return "Vencido";
+  if (estado === "inactivo" || estado === "inactiva") return "Vencido";
+
+  return getEstadoPlanTienda(tienda);
+}
+
+function getFechaFiltro(tienda: Tienda) {
+  return (
+    getFechaVencimientoTienda(tienda) ??
+    tienda.created_at ??
+    tienda.fecha_creacion ??
+    tienda.fecha ??
     null
   );
 }
@@ -676,17 +722,10 @@ export default function MiTiendaTiendas({ setView }: Props) {
   const tiendaModalNombre = getNombreTienda(tiendaModal);
 
   const planDetalle = tiendaDetalle?.plan ?? {};
-  const nombrePlan =
-    planDetalle.nombre_plan ??
-    planDetalle.nombre ??
-    planDetalle.plan ??
-    "Sin plan";
-
-  const vencimiento =
-    planDetalle.vence ??
-    planDetalle.fecha_vencimiento ??
-    planDetalle.expires_at ??
-    null;
+  const nombrePlan = tiendaModal ? getPlanTienda(tiendaModal) : "Sin plan";
+  const vencimiento = getFechaVencimientoTienda(tiendaModal);
+  const vencimientoLabel = getFechaVencimientoLabel(tiendaModal);
+  const estadoPlan = getEstadoPlanTienda(tiendaModal);
 
   const productosRegistrados =
     planDetalle.productos_registrados ?? planDetalle.productos_count ?? 0;
@@ -1031,12 +1070,19 @@ const renderRegimenFiscalField = () => {
                       </Typography>
                     </Box>
 
-                    <Chip
-                      label={tienda.plan?.estado ?? "Sin plan"}
-                      size="small"
-                      color={getEstadoColor(tienda.plan?.estado)}
-                      sx={{ width: "fit-content" }}
-                    />
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Chip
+                        label={getEstadoPlanLabel(tienda)}
+                        size="small"
+                        color={getEstadoColor(getEstadoPlanTienda(tienda))}
+                        sx={{ width: "fit-content" }}
+                      />
+                    </Stack>
+
+                    <Typography variant="body2" color="text.secondary">
+                      {getFechaVencimientoLabel(tienda)}: {" "}
+                      {formatFecha(getFechaVencimientoTienda(tienda))}
+                    </Typography>
 
                     {accionesTienda(tienda)}
                   </Stack>
@@ -1059,6 +1105,7 @@ const renderRegimenFiscalField = () => {
                 <TableCell sx={{ fontWeight: 900, width: 90 }}>#</TableCell>
                 <TableCell sx={{ fontWeight: 900 }}>Nombre</TableCell>
                 <TableCell sx={{ fontWeight: 900 }}>Estado</TableCell>
+                <TableCell sx={{ fontWeight: 900 }}>Vencimiento</TableCell>
                 <TableCell sx={{ fontWeight: 900 }} align="right">
                   Acciones
                 </TableCell>
@@ -1092,10 +1139,19 @@ const renderRegimenFiscalField = () => {
 
                   <TableCell>
                     <Chip
-                      label={tienda.plan?.estado ?? "Sin plan"}
+                      label={getEstadoPlanLabel(tienda)}
                       size="small"
-                      color={getEstadoColor(tienda.plan?.estado)}
+                      color={getEstadoColor(getEstadoPlanTienda(tienda))}
                     />
+                  </TableCell>
+
+                  <TableCell>
+                    <Typography fontSize={13} fontWeight={700}>
+                      {getFechaVencimientoLabel(tienda)}
+                    </Typography>
+                    <Typography fontSize={12} color="text.secondary">
+                      {formatFecha(getFechaVencimientoTienda(tienda))}
+                    </Typography>
                   </TableCell>
 
                   <TableCell align="right">{accionesTienda(tienda)}</TableCell>
@@ -1455,8 +1511,7 @@ const renderRegimenFiscalField = () => {
               </Typography>
 
               <Typography fontSize={{ xs: 14, sm: 16 }}>
-                <strong>Fecha de vencimiento:</strong>{" "}
-                {formatFecha(vencimiento)}
+                <strong>{vencimientoLabel}:</strong> {formatFecha(vencimiento)}
               </Typography>
 
               <Stack direction="row" spacing={1} alignItems="center">
@@ -1464,9 +1519,9 @@ const renderRegimenFiscalField = () => {
                   Estado:
                 </Typography>
                 <Chip
-                  label={planDetalle.estado ?? "Sin plan"}
+                  label={getEstadoPlanLabel(tiendaModal)}
                   size="small"
-                  color={getEstadoColor(planDetalle.estado)}
+                  color={getEstadoColor(estadoPlan)}
                 />
               </Stack>
 

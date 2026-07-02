@@ -16,6 +16,13 @@ export type ClicMenuRestaurantPayload = {
   contact_phone?: string;
   contact_email?: string;
   status?: string;
+  settings?: {
+    inventory_mode?: string;
+    products_mode?: string;
+    recipe_mode?: string;
+    modifiers_mode?: string;
+    attention_mode?: string;
+  };
 };
 
 export type ClicMenuBranchPayload = {
@@ -30,25 +37,24 @@ export type ClicMenuBranchPayload = {
 export type ClicMenuSubscriptionPayload = {
   plan_id: number | string;
   provider?: string;
+  provider_ref?: string;
   status?: string;
   starts_at?: string;
   ends_at?: string;
   expires_at?: string;
   paid_price?: number | string;
+  months_paid?: number | string;
+  months_granted?: number | string;
+  auto_renew?: boolean;
+  meta?: Record<string, any>;
 };
 
 const baseUrl = "/superadmin/clicmenu";
 
 export const clicMenuService = {
-  // =========================
-  // DASHBOARD
-  // =========================
   dashboard: (params?: any) =>
     axiosClient.get(`${baseUrl}/dashboard`, { params }),
 
-  // =========================
-  // PROPIETARIOS
-  // =========================
   owners: (params?: any) => axiosClient.get(`${baseUrl}/owners`, { params }),
 
   owner: (ownerId: number) => axiosClient.get(`${baseUrl}/owners/${ownerId}`),
@@ -62,9 +68,6 @@ export const clicMenuService = {
   deleteOwner: (ownerId: number) =>
     axiosClient.delete(`${baseUrl}/owners/${ownerId}`),
 
-  // =========================
-  // RESTAURANTES
-  // =========================
   restaurants: (ownerId: number, params?: any) =>
     axiosClient.get(`${baseUrl}/owners/${ownerId}/restaurants`, {
       params,
@@ -95,9 +98,6 @@ export const clicMenuService = {
       `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}`
     ),
 
-  // =========================
-  // SUCURSALES
-  // =========================
   branches: (ownerId: number, restaurantId: number, params?: any) =>
     axiosClient.get(
       `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}/branches`,
@@ -135,9 +135,20 @@ export const clicMenuService = {
       `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}/branches/${branchId}`
     ),
 
-  // =========================
-  // LOGO DE SUCURSAL
-  // =========================
+  branchLogo: (ownerId: number, restaurantId: number, branchId: number) =>
+    axiosClient.get(
+      `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}/branches/${branchId}/logo`
+    ),
+
+  branchLogoHistory: (
+    ownerId: number,
+    restaurantId: number,
+    branchId: number
+  ) =>
+    axiosClient.get(
+      `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}/branches/${branchId}/logo/history`
+    ),
+
   uploadBranchLogo: (
     ownerId: number,
     restaurantId: number,
@@ -163,9 +174,16 @@ export const clicMenuService = {
       `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}/branches/${branchId}/logo`
     ),
 
-  // =========================
-  // SUSCRIPCIONES
-  // =========================
+  deleteBranchLogoItem: (
+    ownerId: number,
+    restaurantId: number,
+    branchId: number,
+    branchLogoId: number
+  ) =>
+    axiosClient.delete(
+      `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}/branches/${branchId}/logo/${branchLogoId}`
+    ),
+
   subscriptions: (ownerId: number, restaurantId: number, params?: any) =>
     axiosClient.get(
       `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}/subscriptions`,
@@ -207,9 +225,11 @@ export const clicMenuService = {
       `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}/subscriptions/${subscriptionId}`
     ),
 
-  // =========================
-  // VENTAS DE SUSCRIPCIONES
-  // =========================
+  expireCurrentSubscription: (ownerId: number, restaurantId: number) =>
+    axiosClient.post(
+      `${baseUrl}/owners/${ownerId}/restaurants/${restaurantId}/subscriptions/expire-current`
+    ),
+
   monthlySales: (params?: any) =>
     axiosClient.get(`${baseUrl}/subscription-sales/monthly`, {
       params,

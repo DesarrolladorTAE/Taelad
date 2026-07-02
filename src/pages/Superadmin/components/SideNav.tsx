@@ -15,6 +15,7 @@ import {
   Logout,
   Settings,
   DarkMode,
+  Loyalty,
 } from "@mui/icons-material";
 
 import { useNavigate } from "react-router-dom";
@@ -54,6 +55,11 @@ export default function SideNav({
     localStorage.removeItem("USER");
     localStorage.removeItem("superadmin_view");
     navigate("/auth/login");
+  };
+
+  const cambiarVista = (view: string) => {
+    localStorage.setItem("superadmin_view", view);
+    setView(view);
   };
 
   const nombreCompleto =
@@ -136,7 +142,7 @@ export default function SideNav({
       <Button
         fullWidth
         sx={menuButtonSx("dashboard")}
-        onClick={() => setView("dashboard")}
+        onClick={() => cambiarVista("dashboard")}
       >
         <Dashboard /> Dashboard
       </Button>
@@ -144,7 +150,7 @@ export default function SideNav({
       <Button
         fullWidth
         sx={menuButtonSx("metricas")}
-        onClick={() => setView("metricas")}
+        onClick={() => cambiarVista("metricas")}
       >
         <Analytics /> Métricas generales
       </Button>
@@ -152,15 +158,23 @@ export default function SideNav({
       <Button
         fullWidth
         sx={menuButtonSx("sistemas")}
-        onClick={() => setView("sistemas")}
+        onClick={() => cambiarVista("sistemas")}
       >
         <Apps /> Sistemas
       </Button>
 
       <Button
         fullWidth
+        sx={menuButtonSx("tea-te-da-mas")}
+        onClick={() => cambiarVista("tea-te-da-mas")}
+      >
+        <Loyalty /> TEA te da más
+      </Button>
+
+      <Button
+        fullWidth
         sx={menuButtonSx("facturacion")}
-        onClick={() => setView("facturacion")}
+        onClick={() => cambiarVista("facturacion")}
       >
         <ReceiptLong /> Facturación
       </Button>
@@ -168,7 +182,7 @@ export default function SideNav({
       <Button
         fullWidth
         sx={menuButtonSx("usuarios")}
-        onClick={() => setView("usuarios")}
+        onClick={() => cambiarVista("usuarios")}
       >
         <People /> Usuarios
       </Button>
@@ -176,7 +190,7 @@ export default function SideNav({
       <Button
         fullWidth
         sx={menuButtonSx("administradores")}
-        onClick={() => setView("administradores")}
+        onClick={() => cambiarVista("administradores")}
       >
         <AdminPanelSettings /> Administradores
       </Button>
@@ -184,7 +198,7 @@ export default function SideNav({
       <Button
         fullWidth
         sx={menuButtonSx("configuracion")}
-        onClick={() => setView("configuracion")}
+        onClick={() => cambiarVista("configuracion")}
       >
         <Settings /> Configuración
       </Button>

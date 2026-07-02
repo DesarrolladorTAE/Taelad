@@ -1,29 +1,15 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Avatar,
   Box,
   Button,
-  Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
   Grid,
-  IconButton,
-  InputAdornment,
   MenuItem,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 
@@ -33,72 +19,33 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import SubscriptionsIcon from "@mui/icons-material/Subscriptions";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import SearchIcon from "@mui/icons-material/Search";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import AddIcon from "@mui/icons-material/Add";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import CloseIcon from "@mui/icons-material/Close";
 import BusinessIcon from "@mui/icons-material/Business";
 
 import { clicMenuService } from "./clicMenuService";
 
-type Owner = {
-  id: number;
-  name?: string;
-  last_name_paternal?: string;
-  last_name_maternal?: string | null;
-  email?: string;
-  phone?: string;
-  status?: string;
-  restaurants_count?: number;
-};
+import {
+  BranchFormDialog,
+  BranchLogoDialog,
+  EntityListCard,
+  MetricCard,
+  OwnerFormDialog,
+  RestaurantFormDialog,
+  SalesTableCard,
+  SubscriptionCard,
+  SubscriptionDialog,
+  SummaryCard,
+} from "./ClicMenuDashboardParts";
 
-type Restaurant = {
-  id: number;
-  trade_name?: string;
-  description?: string;
-  contact_phone?: string;
-  contact_email?: string;
-  status?: string;
-};
-
-type Branch = {
-  id: number;
-  name?: string;
-  address?: string;
-  phone?: string;
-  open_time?: string;
-  close_time?: string;
-  status?: string;
-};
-
-type OwnerFormState = {
-  name: string;
-  last_name_paternal: string;
-  last_name_maternal: string;
-  email: string;
-  phone: string;
-  password: string;
-  status: string;
-};
-
-type RestaurantPayload = {
-  trade_name: string;
-  description?: string;
-  contact_phone?: string;
-  contact_email?: string;
-  status?: string;
-};
-
-type BranchPayload = {
-  name: string;
-  address?: string;
-  phone?: string;
-  open_time?: string;
-  close_time?: string;
-  status?: string;
-};
+import type {
+  Branch,
+  BranchPayload,
+  Owner,
+  OwnerFormState,
+  Restaurant,
+  RestaurantPayload,
+  SubscriptionPayload,
+  SalesFiltersState,
+} from "./ClicMenuDashboardParts";
 
 const emptyOwnerForm: OwnerFormState = {
   name: "",
@@ -109,6 +56,17 @@ const emptyOwnerForm: OwnerFormState = {
   password: "",
   status: "active",
 };
+
+function createEmptySalesFilters(): SalesFiltersState {
+  return {
+    q: "",
+    owner_id: "",
+    restaurant_id: "",
+    plan_id: "",
+    status: "",
+    provider: "",
+  };
+}
 
 function getArray<T>(payload: any): T[] {
   if (!payload) return [];
@@ -132,6 +90,18 @@ function getArray<T>(payload: any): T[] {
 
   if (Array.isArray(payload.branches?.data?.data)) {
     return payload.branches.data.data;
+  }
+
+  if (Array.isArray(payload.branches)) {
+    return payload.branches;
+  }
+
+  if (Array.isArray(payload.data?.branches)) {
+    return payload.data.branches;
+  }
+
+  if (Array.isArray(payload.data?.data?.branches)) {
+    return payload.data.data.branches;
   }
 
   return [];
@@ -186,36 +156,6 @@ function formatMoney(value: any) {
   });
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return "--";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString("es-MX", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return "--";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleString("es-MX", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function getErrorMessage(error: any, fallback: string) {
   return (
     error?.response?.data?.message ||
@@ -255,6 +195,34 @@ function cleanText(value?: string | null) {
   return String(value || "").trim();
 }
 
+function getSaleOwnerName(sale: any) {
+  return (
+    [
+      sale?.restaurant?.owner?.name,
+      sale?.restaurant?.owner?.last_name_paternal,
+      sale?.restaurant?.owner?.last_name_maternal,
+    ]
+      .filter(Boolean)
+      .join(" ") || "Sin propietario"
+  );
+}
+
+function toCsvValue(value: any) {
+  const text = String(value ?? "")
+    .replace(/\r?\n|\r/g, " ")
+    .trim();
+
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function getRawAmount(value: any) {
+  const amount = Number(value || 0);
+
+  if (Number.isNaN(amount)) return "0.00";
+
+  return amount.toFixed(2);
+}
+
 export default function ClicMenuDashboard() {
   const now = new Date();
 
@@ -282,7 +250,9 @@ export default function ClicMenuDashboard() {
   const [ownerSearch, setOwnerSearch] = useState("");
   const [restaurantSearch, setRestaurantSearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
-  const [saleSearch, setSaleSearch] = useState("");
+  const [salesFilters, setSalesFilters] = useState<SalesFiltersState>(() =>
+    createEmptySalesFilters()
+  );
 
   const [ownerModalOpen, setOwnerModalOpen] = useState(false);
   const [ownerSaving, setOwnerSaving] = useState(false);
@@ -300,6 +270,17 @@ export default function ClicMenuDashboard() {
   const [branchSaving, setBranchSaving] = useState(false);
   const [branchFormError, setBranchFormError] = useState("");
   const [branchEditing, setBranchEditing] = useState<Branch | null>(null);
+
+  const [branchLogoModalOpen, setBranchLogoModalOpen] = useState(false);
+  const [branchLogoSaving, setBranchLogoSaving] = useState(false);
+  const [branchLogoError, setBranchLogoError] = useState("");
+  const [branchLogoTarget, setBranchLogoTarget] = useState<Branch | null>(null);
+
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+  const [subscriptionSaving, setSubscriptionSaving] = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState("");
+  const [subscriptionHistory, setSubscriptionHistory] = useState<any[]>([]);
 
   const owners = useMemo<Owner[]>(() => {
     return getArray<Owner>(dashboard?.owners);
@@ -362,6 +343,7 @@ export default function ClicMenuDashboard() {
           restaurant.contact_email,
           restaurant.contact_phone,
           restaurant.status,
+          restaurant.branches_count,
         ]
           .filter(Boolean)
           .join(" ")
@@ -395,7 +377,7 @@ export default function ClicMenuDashboard() {
   }, [branches, branchSearch]);
 
   const filteredSales = useMemo(() => {
-    const q = normalizeText(saleSearch);
+    const q = normalizeText(salesFilters.q);
 
     if (!q) return monthlySales;
 
@@ -418,24 +400,133 @@ export default function ClicMenuDashboard() {
 
       return text.includes(q);
     });
-  }, [monthlySales, saleSearch]);
+  }, [monthlySales, salesFilters.q]);
+
+  const buildSalesParams = (
+    targetYear: number,
+    targetMonth: number,
+    targetFilters: SalesFiltersState = salesFilters
+  ) => {
+    const params: Record<string, any> = {
+      year: targetYear,
+      month: targetMonth,
+      per_page: 100,
+      include_internal: false,
+    };
+
+    if (cleanText(targetFilters.q)) params.q = cleanText(targetFilters.q);
+    if (targetFilters.owner_id) params.owner_id = targetFilters.owner_id;
+    if (targetFilters.restaurant_id) {
+      params.restaurant_id = targetFilters.restaurant_id;
+    }
+    if (targetFilters.plan_id) params.plan_id = targetFilters.plan_id;
+    if (targetFilters.status) params.status = targetFilters.status;
+    if (targetFilters.provider) params.provider = targetFilters.provider;
+
+    return params;
+  };
+
+  const cambiarSalesFilter = (
+    field: keyof SalesFiltersState,
+    value: string
+  ) => {
+    setSalesFilters((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const aplicarFiltrosVentas = () => {
+    cargarDashboard(Number(year), Number(month), false, salesFilters);
+  };
+
+  const limpiarFiltrosVentas = () => {
+    const emptyFilters = createEmptySalesFilters();
+    setSalesFilters(emptyFilters);
+    cargarDashboard(Number(year), Number(month), false, emptyFilters);
+  };
+
+  const exportarVentasCsv = () => {
+    if (filteredSales.length === 0) {
+      setError("No hay ventas para exportar con el filtro actual.");
+      return;
+    }
+
+    const headers = [
+      "Fecha",
+      "Restaurante",
+      "Propietario",
+      "Correo propietario",
+      "Plan",
+      "Proveedor",
+      "Estado",
+      "Monto MXN",
+    ];
+
+    const rows = filteredSales.map((sale) => [
+      sale?.created_at || "",
+      sale?.restaurant?.trade_name || "Restaurante",
+      getSaleOwnerName(sale),
+      sale?.restaurant?.owner?.email || "",
+      sale?.plan?.name || "Sin plan",
+      sale?.provider || "Sin proveedor",
+      sale?.status || "Sin estado",
+      getRawAmount(sale?.paid_price),
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map(toCsvValue).join(","))
+      .join("\n");
+
+    const fileName = `clicmenu_ventas_${consultedYear}_${String(
+      consultedMonth
+    ).padStart(2, "0")}.csv`;
+
+    const blob = new Blob([`\uFEFF${csv}`], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = fileName;
+    link.click();
+
+    URL.revokeObjectURL(url);
+  };
 
   const cargarDashboard = async (
     targetYear: number = year,
     targetMonth: number = month,
-    silent = false
+    silent = false,
+    targetFilters: SalesFiltersState = salesFilters
   ) => {
     try {
       if (!silent) setLoading(true);
       setError("");
 
-      const response = await clicMenuService.dashboard({
-        year: targetYear,
-        month: targetMonth,
-        per_page: 15,
-      });
+      const salesParams = buildSalesParams(
+        targetYear,
+        targetMonth,
+        targetFilters
+      );
 
-      setDashboard(response.data);
+      const [dashboardResponse, monthlySalesResponse, salesSummaryResponse] =
+        await Promise.all([
+          clicMenuService.dashboard({
+            year: targetYear,
+            month: targetMonth,
+            per_page: 15,
+          }),
+          clicMenuService.monthlySales(salesParams),
+          clicMenuService.salesSummary(salesParams),
+        ]);
+
+      setDashboard({
+        ...dashboardResponse.data,
+        monthly_sales: monthlySalesResponse.data,
+        sales_summary: salesSummaryResponse.data,
+      });
       setConsultedYear(targetYear);
       setConsultedMonth(targetMonth);
     } catch (err: any) {
@@ -452,6 +543,7 @@ export default function ClicMenuDashboard() {
       setRestaurants([]);
       setBranches([]);
       setCurrentSubscription(null);
+      setSubscriptionHistory([]);
       setSelectedRestaurantId(null);
       setRestaurantSearch("");
       setBranchSearch("");
@@ -460,7 +552,19 @@ export default function ClicMenuDashboard() {
         per_page: 50,
       });
 
-      setRestaurants(getArray<Restaurant>(response.data));
+      const data = getArray<Restaurant>(response.data);
+      setRestaurants(data);
+
+      if (data.length === 1) {
+        const onlyRestaurant = data[0];
+        setSelectedRestaurantId(onlyRestaurant.id);
+
+        await cargarDetalleRestaurante(
+          ownerId,
+          onlyRestaurant.id,
+          onlyRestaurant.active_subscription || null
+        );
+      }
     } catch (err: any) {
       setError(getErrorMessage(err, "No fue posible cargar restaurantes."));
     } finally {
@@ -470,14 +574,16 @@ export default function ClicMenuDashboard() {
 
   const cargarDetalleRestaurante = async (
     ownerId: number,
-    restaurantId: number
+    restaurantId: number,
+    fallbackSubscription: any = null
   ) => {
     try {
       setLoadingDetail(true);
       setError("");
       setBranches([]);
-      setCurrentSubscription(null);
+      setCurrentSubscription(fallbackSubscription);
       setBranchSearch("");
+      setSubscriptionHistory([]);
 
       const [branchesResponse, subscriptionResponse] = await Promise.allSettled(
         [
@@ -491,7 +597,8 @@ export default function ClicMenuDashboard() {
       }
 
       if (subscriptionResponse.status === "fulfilled") {
-        setCurrentSubscription(getObject(subscriptionResponse.value.data));
+        const subscription = getObject(subscriptionResponse.value.data);
+        setCurrentSubscription(subscription || fallbackSubscription);
       }
     } catch (err: any) {
       setError(
@@ -516,12 +623,16 @@ export default function ClicMenuDashboard() {
     setRestaurants([]);
     setBranches([]);
     setCurrentSubscription(null);
+    setSubscriptionHistory([]);
+    setSubscriptionModalOpen(false);
     setOwnerSearch("");
     setRestaurantSearch("");
     setBranchSearch("");
-    setSaleSearch("");
 
-    cargarDashboard(targetYear, targetMonth);
+    const emptyFilters = createEmptySalesFilters();
+    setSalesFilters(emptyFilters);
+
+    cargarDashboard(targetYear, targetMonth, false, emptyFilters);
   };
 
   const seleccionarOwner = (ownerId: number) => {
@@ -532,8 +643,14 @@ export default function ClicMenuDashboard() {
   const seleccionarRestaurante = (restaurantId: number) => {
     setSelectedRestaurantId(restaurantId);
 
+    const restaurant = restaurants.find((item) => item.id === restaurantId);
+
     if (selectedOwnerId) {
-      cargarDetalleRestaurante(selectedOwnerId, restaurantId);
+      cargarDetalleRestaurante(
+        selectedOwnerId,
+        restaurantId,
+        restaurant?.active_subscription || null
+      );
     }
   };
 
@@ -644,6 +761,7 @@ export default function ClicMenuDashboard() {
         setRestaurants([]);
         setBranches([]);
         setCurrentSubscription(null);
+        setSubscriptionHistory([]);
       }
 
       await cargarDashboard(consultedYear, consultedMonth, true);
@@ -738,6 +856,7 @@ export default function ClicMenuDashboard() {
         setSelectedRestaurantId(null);
         setBranches([]);
         setCurrentSubscription(null);
+        setSubscriptionHistory([]);
       }
 
       await cargarRestaurantes(selectedOwnerId);
@@ -844,6 +963,207 @@ export default function ClicMenuDashboard() {
       setError(getErrorMessage(err, "No fue posible eliminar la sucursal."));
     } finally {
       setLoadingDetail(false);
+    }
+  };
+
+
+  const abrirBranchLogo = (branch: Branch) => {
+    if (!selectedOwnerId || !selectedRestaurantId) {
+      setError("Selecciona un restaurante antes de gestionar el logo.");
+      return;
+    }
+
+    setBranchLogoTarget(branch);
+    setBranchLogoError("");
+    setBranchLogoModalOpen(true);
+  };
+
+  const cerrarBranchLogoModal = () => {
+    if (branchLogoSaving) return;
+
+    setBranchLogoModalOpen(false);
+    setBranchLogoTarget(null);
+    setBranchLogoError("");
+  };
+
+  const subirBranchLogo = async (file: File) => {
+    if (!selectedOwnerId || !selectedRestaurantId || !branchLogoTarget) {
+      setBranchLogoError("No hay sucursal seleccionada.");
+      return;
+    }
+
+    try {
+      setBranchLogoSaving(true);
+      setBranchLogoError("");
+      setError("");
+
+      await clicMenuService.uploadBranchLogo(
+        selectedOwnerId,
+        selectedRestaurantId,
+        branchLogoTarget.id,
+        file
+      );
+
+      await cargarDetalleRestaurante(selectedOwnerId, selectedRestaurantId);
+
+      setBranchLogoModalOpen(false);
+      setBranchLogoTarget(null);
+    } catch (err: any) {
+      setBranchLogoError(
+        getErrorMessage(err, "No fue posible subir el logo de la sucursal.")
+      );
+    } finally {
+      setBranchLogoSaving(false);
+    }
+  };
+
+  const eliminarBranchLogoActivo = async () => {
+    if (!selectedOwnerId || !selectedRestaurantId || !branchLogoTarget) {
+      setBranchLogoError("No hay sucursal seleccionada.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `¿Seguro que deseas eliminar el logo activo de ${
+        branchLogoTarget.name || "esta sucursal"
+      }?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setBranchLogoSaving(true);
+      setBranchLogoError("");
+      setError("");
+
+      await clicMenuService.deleteBranchLogo(
+        selectedOwnerId,
+        selectedRestaurantId,
+        branchLogoTarget.id
+      );
+
+      await cargarDetalleRestaurante(selectedOwnerId, selectedRestaurantId);
+
+      setBranchLogoModalOpen(false);
+      setBranchLogoTarget(null);
+    } catch (err: any) {
+      setBranchLogoError(
+        getErrorMessage(err, "No fue posible eliminar el logo de la sucursal.")
+      );
+    } finally {
+      setBranchLogoSaving(false);
+    }
+  };
+
+
+  const cargarHistorialSuscripciones = async (
+    ownerId: number,
+    restaurantId: number
+  ) => {
+    try {
+      setSubscriptionLoading(true);
+      setSubscriptionError("");
+
+      const response = await clicMenuService.subscriptions(ownerId, restaurantId, {
+        per_page: 50,
+      });
+
+      setSubscriptionHistory(getArray<any>(response.data));
+    } catch (err: any) {
+      setSubscriptionError(
+        getErrorMessage(err, "No fue posible cargar el historial de suscripciones.")
+      );
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const abrirSubscriptionModal = async () => {
+    if (!selectedOwnerId || !selectedRestaurantId) {
+      setError("Selecciona un restaurante antes de gestionar suscripciones.");
+      return;
+    }
+
+    setSubscriptionError("");
+    setSubscriptionModalOpen(true);
+
+    await cargarHistorialSuscripciones(selectedOwnerId, selectedRestaurantId);
+  };
+
+  const cerrarSubscriptionModal = () => {
+    if (subscriptionSaving) return;
+
+    setSubscriptionModalOpen(false);
+    setSubscriptionError("");
+  };
+
+  const guardarSubscription = async (payload: SubscriptionPayload) => {
+    if (!selectedOwnerId || !selectedRestaurantId) {
+      setSubscriptionError("No hay restaurante seleccionado.");
+      return;
+    }
+
+    try {
+      setSubscriptionSaving(true);
+      setSubscriptionError("");
+      setError("");
+
+      await clicMenuService.createSubscription(
+        selectedOwnerId,
+        selectedRestaurantId,
+        payload
+      );
+
+      await cargarDetalleRestaurante(selectedOwnerId, selectedRestaurantId);
+      await cargarHistorialSuscripciones(selectedOwnerId, selectedRestaurantId);
+      await cargarDashboard(consultedYear, consultedMonth, true);
+    } catch (err: any) {
+      setSubscriptionError(
+        getErrorMessage(err, "No fue posible asignar la suscripción.")
+      );
+    } finally {
+      setSubscriptionSaving(false);
+    }
+  };
+
+  const terminarSubscriptionActual = async () => {
+    if (!selectedOwnerId || !selectedRestaurantId) {
+      setSubscriptionError("No hay restaurante seleccionado.");
+      return;
+    }
+
+    if (!currentSubscription) {
+      setSubscriptionError("Este restaurante no tiene una suscripción vigente.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "¿Seguro que deseas terminar la suscripción actual de este restaurante?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setSubscriptionSaving(true);
+      setSubscriptionError("");
+      setError("");
+
+      await clicMenuService.expireCurrentSubscription(
+        selectedOwnerId,
+        selectedRestaurantId
+      );
+
+      setCurrentSubscription(null);
+      await cargarDetalleRestaurante(selectedOwnerId, selectedRestaurantId);
+      await cargarHistorialSuscripciones(selectedOwnerId, selectedRestaurantId);
+      await cargarDashboard(consultedYear, consultedMonth, true);
+    } catch (err: any) {
+      setSubscriptionError(
+        getErrorMessage(err, "No fue posible terminar la suscripción actual.")
+      );
+      setError(getErrorMessage(err, "No fue posible terminar la suscripción actual."));
+    } finally {
+      setSubscriptionSaving(false);
     }
   };
 
@@ -1075,7 +1395,7 @@ export default function ClicMenuDashboard() {
         </Paper>
 
         <Grid container spacing={2} alignItems="stretch">
-          <Grid item xs={12} lg={5}>
+          <Grid item xs={12}>
             <EntityListCard<Owner>
               title="Propietarios"
               badge={ownersTotal}
@@ -1110,7 +1430,7 @@ export default function ClicMenuDashboard() {
             />
           </Grid>
 
-          <Grid item xs={12} lg={3}>
+          <Grid item xs={12} md={6}>
             <EntityListCard<Restaurant>
               title="Restaurantes"
               badge={restaurants.length}
@@ -1134,7 +1454,9 @@ export default function ClicMenuDashboard() {
                 restaurant.contact_email || "Sin correo"
               }
               getMeta={(restaurant) =>
-                restaurant.contact_phone || "Sin teléfono"
+                `${restaurant.contact_phone || "Sin teléfono"} · ${
+                  restaurant.branches_count ?? 0
+                } sucursal(es)`
               }
               getInitials={(restaurant) =>
                 getInitials(restaurant.trade_name || "Restaurante")
@@ -1158,7 +1480,7 @@ export default function ClicMenuDashboard() {
             />
           </Grid>
 
-          <Grid item xs={12} lg={4}>
+          <Grid item xs={12} md={6}>
             <Stack spacing={2} height="100%">
               <EntityListCard<Branch>
                 title="Sucursales"
@@ -1184,6 +1506,27 @@ export default function ClicMenuDashboard() {
                 }
                 getStatus={(branch) => branch.status}
                 leadingIcon={<BusinessIcon fontSize="small" />}
+                extraActions={(branch) => (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      abrirBranchLogo(branch);
+                    }}
+                    disabled={!selectedRestaurantId}
+                    sx={{
+                      height: 26,
+                      px: 1,
+                      minWidth: 48,
+                      borderRadius: 2,
+                      fontSize: 11,
+                      fontWeight: 900,
+                    }}
+                  >
+                    Logo
+                  </Button>
+                )}
                 onEdit={selectedRestaurantId ? abrirEditarBranch : undefined}
                 onDelete={selectedRestaurantId ? eliminarBranch : undefined}
                 footer={
@@ -1203,6 +1546,9 @@ export default function ClicMenuDashboard() {
               <SubscriptionCard
                 selectedRestaurantId={selectedRestaurantId}
                 currentSubscription={currentSubscription}
+                onManage={abrirSubscriptionModal}
+                onExpireCurrent={currentSubscription ? terminarSubscriptionActual : undefined}
+                expiring={subscriptionSaving}
               />
             </Stack>
           </Grid>
@@ -1218,8 +1564,14 @@ export default function ClicMenuDashboard() {
           )} ${consultedYear})`}
           sales={filteredSales}
           totalSales={monthlySales.length}
-          saleSearch={saleSearch}
-          onSearchChange={setSaleSearch}
+          salesFilters={salesFilters}
+          ownerOptions={owners}
+          restaurantOptions={restaurants}
+          onSalesFilterChange={cambiarSalesFilter}
+          onApplyFilters={aplicarFiltrosVentas}
+          onClearFilters={limpiarFiltrosVentas}
+          onExportCsv={exportarVentasCsv}
+          exportDisabled={filteredSales.length === 0}
         />
       </Stack>
 
@@ -1253,1439 +1605,34 @@ export default function ClicMenuDashboard() {
         onClose={cerrarBranchModal}
         onSubmit={guardarBranch}
       />
-    </Box>
-  );
-}
 
-function SummaryCard({
-  icon,
-  title,
-  value,
-  subtitle,
-  money = false,
-}: {
-  icon: ReactNode;
-  title: string;
-  value: ReactNode;
-  subtitle: string;
-  money?: boolean;
-}) {
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2,
-        minHeight: 110,
-        borderRadius: 3,
-        border: "1px solid",
-        borderColor: "divider",
-        bgcolor: "background.paper",
-        display: "flex",
-        alignItems: "center",
-        gap: 2,
-        overflow: "hidden",
-      }}
-    >
-      <Avatar
-        sx={{
-          width: 56,
-          height: 56,
-          flexShrink: 0,
-          bgcolor: "primary.main",
-          color: "primary.contrastText",
-          "& svg": {
-            fontSize: 28,
-          },
+      <SubscriptionDialog
+        open={subscriptionModalOpen}
+        restaurantName={selectedRestaurant?.trade_name || ""}
+        currentSubscription={currentSubscription}
+        subscriptions={subscriptionHistory}
+        error={subscriptionError}
+        saving={subscriptionSaving}
+        loading={subscriptionLoading}
+        onClose={cerrarSubscriptionModal}
+        onSubmit={guardarSubscription}
+        onExpireCurrent={terminarSubscriptionActual}
+        onReload={() => {
+          if (selectedOwnerId && selectedRestaurantId) {
+            cargarHistorialSuscripciones(selectedOwnerId, selectedRestaurantId);
+          }
         }}
-      >
-        {icon}
-      </Avatar>
-
-      <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography
-          color="text.secondary"
-          fontWeight={800}
-          sx={{
-            fontSize: 13,
-            lineHeight: 1.1,
-          }}
-        >
-          {title}
-        </Typography>
-
-        <Typography
-          fontWeight={900}
-          title={String(value)}
-          sx={{
-            mt: 0.4,
-            fontSize: money ? 21 : 26,
-            lineHeight: 1,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {value}
-        </Typography>
-
-        <Typography
-          color="text.secondary"
-          sx={{
-            mt: 0.5,
-            fontSize: 13,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {subtitle}
-        </Typography>
-      </Box>
-    </Paper>
-  );
-}
-
-function MetricCard({
-  title,
-  value,
-  subtitle,
-  icon,
-}: {
-  title: string;
-  value: any;
-  subtitle: string;
-  icon: ReactNode;
-}) {
-  const textValue = String(value ?? "");
-  const isMoney = textValue.includes("$");
-  const isLongValue = textValue.length >= 9;
-
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 1.5,
-        height: "100%",
-        minHeight: 104,
-        borderRadius: 3,
-        border: "1px solid",
-        borderColor: "divider",
-        bgcolor: "background.default",
-        overflow: "hidden",
-      }}
-    >
-      <Stack spacing={0.8} height="100%" justifyContent="space-between">
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          spacing={1}
-        >
-          <Typography
-            color="text.secondary"
-            fontWeight={800}
-            title={title}
-            sx={{
-              fontSize: 12.5,
-              lineHeight: 1.1,
-              maxWidth: "calc(100% - 32px)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {title}
-          </Typography>
-
-          <Avatar
-            sx={{
-              width: 26,
-              height: 26,
-              flexShrink: 0,
-              bgcolor: "primary.main",
-              color: "primary.contrastText",
-              "& svg": {
-                fontSize: 16,
-              },
-            }}
-          >
-            {icon}
-          </Avatar>
-        </Stack>
-
-        <Typography
-          fontWeight={900}
-          title={textValue}
-          sx={{
-            fontSize:
-              isMoney || isLongValue
-                ? {
-                    xs: 20,
-                    sm: 21,
-                    md: 21,
-                    xl: 22,
-                  }
-                : {
-                    xs: 24,
-                    sm: 25,
-                    md: 26,
-                    xl: 28,
-                  },
-            lineHeight: 1,
-            letterSpacing: "-0.03em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            maxWidth: "100%",
-          }}
-        >
-          {value}
-        </Typography>
-
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          title={subtitle}
-          sx={{
-            fontSize: 11.5,
-            lineHeight: 1.15,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {subtitle}
-        </Typography>
-      </Stack>
-    </Paper>
-  );
-}
-
-function EntityListCard<T>({
-  title,
-  badge,
-  searchPlaceholder,
-  searchValue,
-  onSearchChange,
-  onCreate,
-  createDisabled,
-  items,
-  emptyText,
-  getId,
-  getTitle,
-  getSubtitle,
-  getMeta,
-  getInitials,
-  getStatus,
-  activeId,
-  onSelect,
-  onEdit,
-  onDelete,
-  leadingIcon,
-  footer,
-}: {
-  title: string;
-  badge?: number;
-  searchPlaceholder: string;
-  searchValue: string;
-  onSearchChange: (value: string) => void;
-  onCreate?: () => void;
-  createDisabled?: boolean;
-  items: T[];
-  emptyText: string;
-  getId: (item: T) => number | string;
-  getTitle: (item: T) => string;
-  getSubtitle?: (item: T) => string;
-  getMeta?: (item: T) => string;
-  getInitials?: (item: T) => string;
-  getStatus?: (item: T) => string | undefined;
-  activeId?: number | string | null;
-  onSelect?: (item: T) => void;
-  onEdit?: (item: T) => void;
-  onDelete?: (item: T) => void;
-  leadingIcon?: ReactNode;
-  footer?: ReactNode;
-}) {
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2,
-        height: "100%",
-        minHeight: 520,
-        borderRadius: 4,
-        border: "1px solid",
-        borderColor: "divider",
-        bgcolor: "background.paper",
-        overflow: "hidden",
-      }}
-    >
-      <Stack spacing={1.5} height="100%">
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Typography
-            variant="h6"
-            fontWeight={900}
-            title={title}
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {title}
-          </Typography>
-
-          {typeof badge === "number" && (
-            <Chip
-              size="small"
-              label={badge}
-              color="primary"
-              sx={{ fontWeight: 900, flexShrink: 0 }}
-            />
-          )}
-        </Stack>
-
-        <Stack direction="row" spacing={1} alignItems="center">
-          <TextField
-            size="small"
-            placeholder={searchPlaceholder}
-            value={searchValue}
-            onChange={(event) => onSearchChange(event.target.value)}
-            fullWidth
-            sx={{
-              minWidth: 0,
-              "& .MuiInputBase-root": {
-                borderRadius: 2,
-                bgcolor: "background.default",
-              },
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          {onCreate && (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={onCreate}
-              disabled={createDisabled}
-              sx={{
-                height: 40,
-                borderRadius: 2,
-                fontWeight: 800,
-                px: 1.5,
-                minWidth: 92,
-                flexShrink: 0,
-                whiteSpace: "nowrap",
-              }}
-            >
-              Nuevo
-            </Button>
-          )}
-        </Stack>
-
-        <Stack
-          spacing={1}
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            maxHeight: 400,
-            overflowY: "auto",
-            pr: 0.5,
-          }}
-        >
-          {items.length === 0 && (
-            <Typography color="text.secondary" sx={{ py: 2 }}>
-              {emptyText}
-            </Typography>
-          )}
-
-          {items.map((item) => {
-            const id = getId(item);
-            const titleValue = getTitle(item);
-            const subtitle = getSubtitle?.(item);
-            const meta = getMeta?.(item);
-            const status = getStatus?.(item);
-            const active = activeId === id;
-
-            return (
-              <Paper
-                key={id}
-                elevation={0}
-                onClick={() => onSelect?.(item)}
-                sx={{
-                  p: 1.35,
-                  borderRadius: 3,
-                  cursor: onSelect ? "pointer" : "default",
-                  border: "1px solid",
-                  borderColor: active ? "primary.main" : "divider",
-                  bgcolor: active ? "action.hover" : "background.default",
-                  transition: "0.15s ease",
-                  "&:hover": {
-                    borderColor: onSelect ? "primary.main" : "divider",
-                    bgcolor: onSelect ? "action.hover" : "background.default",
-                  },
-                }}
-              >
-                <Stack direction="row" spacing={1.4} alignItems="center">
-                  <Avatar
-                    sx={{
-                      width: 42,
-                      height: 42,
-                      flexShrink: 0,
-                      bgcolor: "primary.main",
-                      color: "primary.contrastText",
-                      fontWeight: 900,
-                    }}
-                  >
-                    {leadingIcon || getInitials?.(item) || "CM"}
-                  </Avatar>
-
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography
-                      fontWeight={900}
-                      title={titleValue}
-                      sx={{
-                        lineHeight: 1.15,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {titleValue}
-                    </Typography>
-
-                    {subtitle && (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        title={subtitle}
-                        sx={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {subtitle}
-                      </Typography>
-                    )}
-
-                    {meta && (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        title={meta}
-                        sx={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {meta}
-                      </Typography>
-                    )}
-                  </Box>
-
-                  <Stack
-                    direction="row"
-                    spacing={0.5}
-                    alignItems="center"
-                    sx={{ flexShrink: 0 }}
-                  >
-                    {status && <StatusChip value={status} />}
-
-                    {onEdit && (
-                      <Tooltip title="Editar">
-                        <IconButton
-                          size="small"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onEdit(item);
-                          }}
-                        >
-                          <EditIcon sx={{ fontSize: 18 }} />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-
-                    {onDelete && (
-                      <Tooltip title="Eliminar">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onDelete(item);
-                          }}
-                        >
-                          <DeleteIcon sx={{ fontSize: 18 }} />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-
-                    {onSelect && (
-                      <ArrowForwardIosIcon
-                        sx={{ fontSize: 14, color: "text.secondary" }}
-                      />
-                    )}
-                  </Stack>
-                </Stack>
-              </Paper>
-            );
-          })}
-        </Stack>
-
-        {footer && <Box>{footer}</Box>}
-      </Stack>
-    </Paper>
-  );
-}
-
-function SubscriptionCard({
-  selectedRestaurantId,
-  currentSubscription,
-}: {
-  selectedRestaurantId: number | null;
-  currentSubscription: any;
-}) {
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2,
-        borderRadius: 4,
-        border: "1px solid",
-        borderColor: "divider",
-        bgcolor: "background.paper",
-      }}
-    >
-      <Typography variant="h6" fontWeight={900} mb={1.5}>
-        Suscripción actual
-      </Typography>
-
-      {!selectedRestaurantId && (
-        <Typography color="text.secondary">
-          Selecciona un restaurante para consultar la suscripción.
-        </Typography>
-      )}
-
-      {selectedRestaurantId && !currentSubscription && (
-        <Typography color="text.secondary">
-          No se encontró una suscripción vigente.
-        </Typography>
-      )}
-
-      {currentSubscription && (
-        <Grid container spacing={1.2}>
-          <Grid item xs={12} sm={6}>
-            <InfoRow
-              label="Plan"
-              value={
-                currentSubscription?.plan?.name ||
-                currentSubscription?.plan_name ||
-                "Sin plan"
-              }
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <InfoRow
-              label="Proveedor"
-              value={currentSubscription?.provider || "Sin proveedor"}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <InfoRow
-              label="Estado"
-              value={<StatusChip value={currentSubscription?.status} />}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <InfoRow
-              label="Total pagado"
-              value={formatMoney(currentSubscription?.paid_price)}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <InfoRow
-              label="Inicio"
-              value={formatDate(currentSubscription?.starts_at)}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <InfoRow
-              label="Vence"
-              value={formatDate(
-                currentSubscription?.ends_at || currentSubscription?.expires_at
-              )}
-            />
-          </Grid>
-        </Grid>
-      )}
-    </Paper>
-  );
-}
-
-function SalesTableCard({
-  title,
-  sales,
-  totalSales,
-  saleSearch,
-  onSearchChange,
-}: {
-  title: string;
-  sales: any[];
-  totalSales: number;
-  saleSearch: string;
-  onSearchChange: (value: string) => void;
-}) {
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2,
-        borderRadius: 4,
-        border: "1px solid",
-        borderColor: "divider",
-        bgcolor: "background.paper",
-      }}
-    >
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        spacing={1.5}
-        alignItems={{ xs: "stretch", md: "center" }}
-        mb={2}
-      >
-        <Typography variant="h6" fontWeight={900}>
-          {title}
-        </Typography>
-
-        <TextField
-          size="small"
-          placeholder="Buscar venta..."
-          value={saleSearch}
-          onChange={(event) => onSearchChange(event.target.value)}
-          sx={{
-            width: { xs: "100%", md: 280 },
-            "& .MuiInputBase-root": {
-              borderRadius: 2,
-              bgcolor: "background.default",
-            },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Stack>
-
-      {totalSales === 0 && (
-        <Typography color="text.secondary" sx={{ py: 1 }}>
-          No hay ventas registradas en el periodo.
-        </Typography>
-      )}
-
-      {totalSales > 0 && sales.length === 0 && (
-        <Typography color="text.secondary" sx={{ py: 1 }}>
-          No hay coincidencias con la búsqueda actual.
-        </Typography>
-      )}
-
-      {sales.length > 0 && (
-        <Box sx={{ overflowX: "auto" }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Fecha</TableCell>
-                <TableCell>Restaurante</TableCell>
-                <TableCell>Propietario</TableCell>
-                <TableCell>Plan</TableCell>
-                <TableCell>Proveedor</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell align="right">Monto</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {sales.map((sale, index) => (
-                <TableRow key={sale.id || index} hover>
-                  <TableCell>{formatDateTime(sale?.created_at)}</TableCell>
-
-                  <TableCell>
-                    <Typography fontWeight={800}>
-                      {sale?.restaurant?.trade_name || "Restaurante"}
-                    </Typography>
-                  </TableCell>
-
-                  <TableCell>
-                    {[
-                      sale?.restaurant?.owner?.name,
-                      sale?.restaurant?.owner?.last_name_paternal,
-                      sale?.restaurant?.owner?.last_name_maternal,
-                    ]
-                      .filter(Boolean)
-                      .join(" ") || "Sin propietario"}
-                  </TableCell>
-
-                  <TableCell>{sale?.plan?.name || "Sin plan"}</TableCell>
-
-                  <TableCell>{sale?.provider || "Sin proveedor"}</TableCell>
-
-                  <TableCell>
-                    <StatusChip value={sale?.status} />
-                  </TableCell>
-
-                  <TableCell align="right">
-                    <Typography fontWeight={900}>
-                      {formatMoney(sale?.paid_price)}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
-      )}
-    </Paper>
-  );
-}
-
-function OwnerFormDialog({
-  open,
-  editing,
-  form,
-  error,
-  saving,
-  onClose,
-  onChange,
-  onSubmit,
-}: {
-  open: boolean;
-  editing: Owner | null;
-  form: OwnerFormState;
-  error: string;
-  saving: boolean;
-  onClose: () => void;
-  onChange: (field: keyof OwnerFormState, value: string) => void;
-  onSubmit: () => void;
-}) {
-  const autocompleteKey = editing ? `edit-${editing.id}` : "new-owner";
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ pb: 1 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography fontWeight={900} fontSize={20}>
-              {editing ? "Editar propietario" : "Nuevo propietario"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {editing
-                ? "Actualiza los datos del propietario seleccionado."
-                : "Registra un nuevo propietario en ClicMenu."}
-            </Typography>
-          </Box>
-
-          <IconButton onClick={onClose} disabled={saving}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
-
-      <Divider />
-
-      <DialogContent sx={{ pt: 2.5 }}>
-        <Box
-          component="form"
-          id="owner-form"
-          autoComplete="off"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSubmit();
-          }}
-        >
-          <Stack spacing={2}>
-            {error && <Alert severity="error">{error}</Alert>}
-
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField
-                  label="Nombre"
-                  value={form.name}
-                  onChange={(event) => onChange("name", event.target.value)}
-                  fullWidth
-                  required
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: `cm_owner_name_${autocompleteKey}`,
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Apellido paterno"
-                  value={form.last_name_paternal}
-                  onChange={(event) =>
-                    onChange("last_name_paternal", event.target.value)
-                  }
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: `cm_owner_last_paternal_${autocompleteKey}`,
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Apellido materno"
-                  value={form.last_name_maternal}
-                  onChange={(event) =>
-                    onChange("last_name_maternal", event.target.value)
-                  }
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: `cm_owner_last_maternal_${autocompleteKey}`,
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Correo"
-                  type="text"
-                  value={form.email}
-                  onChange={(event) => onChange("email", event.target.value)}
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: `cm_owner_contact_email_${autocompleteKey}`,
-                    inputMode: "email",
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Teléfono"
-                  type="text"
-                  value={form.phone}
-                  onChange={(event) => onChange("phone", event.target.value)}
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: `cm_owner_contact_phone_${autocompleteKey}`,
-                    inputMode: "tel",
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label={editing ? "Nueva contraseña" : "Contraseña"}
-                  type="password"
-                  value={form.password}
-                  onChange={(event) =>
-                    onChange("password", event.target.value)
-                  }
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="new-password"
-                  inputProps={{
-                    autoComplete: "new-password",
-                    name: `cm_owner_new_access_key_${autocompleteKey}`,
-                  }}
-                  helperText={
-                    editing
-                      ? "Déjala vacía si no deseas cambiarla."
-                      : "Solo se enviará si capturas una contraseña."
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Estado"
-                  select
-                  value={form.status}
-                  onChange={(event) => onChange("status", event.target.value)}
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: `cm_owner_status_${autocompleteKey}`,
-                  }}
-                >
-                  <MenuItem value="active">Activo</MenuItem>
-                  <MenuItem value="inactive">Inactivo</MenuItem>
-                </TextField>
-              </Grid>
-            </Grid>
-          </Stack>
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button
-          variant="outlined"
-          onClick={onClose}
-          disabled={saving}
-          sx={{ fontWeight: 800, borderRadius: 2 }}
-        >
-          Cancelar
-        </Button>
-
-        <Button
-          variant="contained"
-          type="submit"
-          form="owner-form"
-          disabled={saving}
-          sx={{ fontWeight: 800, borderRadius: 2, minWidth: 120 }}
-        >
-          {saving ? "Guardando..." : editing ? "Actualizar" : "Guardar"}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-function RestaurantFormDialog({
-  open,
-  editing,
-  ownerName,
-  error,
-  saving,
-  onClose,
-  onSubmit,
-}: {
-  open: boolean;
-  editing: Restaurant | null;
-  ownerName?: string;
-  error: string;
-  saving: boolean;
-  onClose: () => void;
-  onSubmit: (payload: RestaurantPayload) => void;
-}) {
-  const [form, setForm] = useState({
-    trade_name: "",
-    description: "",
-    contact_phone: "",
-    contact_email: "",
-    status: "active",
-  });
-
-  useEffect(() => {
-    if (!open) return;
-
-    setForm({
-      trade_name: editing?.trade_name || "",
-      description: editing?.description || "",
-      contact_phone: editing?.contact_phone || "",
-      contact_email: editing?.contact_email || "",
-      status: editing?.status || "active",
-    });
-  }, [open, editing]);
-
-  const submit = () => {
-    const payload: RestaurantPayload = {
-      trade_name: cleanText(form.trade_name),
-      description: cleanText(form.description),
-      contact_phone: cleanText(form.contact_phone),
-      contact_email: cleanText(form.contact_email),
-      status: form.status || "active",
-    };
-
-    if (!payload.description) delete payload.description;
-    if (!payload.contact_phone) delete payload.contact_phone;
-    if (!payload.contact_email) delete payload.contact_email;
-
-    onSubmit(payload);
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ pb: 1 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography fontWeight={900} fontSize={20}>
-              {editing ? "Editar restaurante" : "Nuevo restaurante"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {editing
-                ? "Actualiza los datos del restaurante."
-                : ownerName
-                ? `Registra un restaurante para ${ownerName}.`
-                : "Registra un restaurante para el propietario seleccionado."}
-            </Typography>
-          </Box>
-
-          <IconButton onClick={onClose} disabled={saving}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
-
-      <Divider />
-
-      <DialogContent sx={{ pt: 2.5 }}>
-        <Box
-          component="form"
-          id="restaurant-form"
-          autoComplete="off"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit();
-          }}
-        >
-          <Stack spacing={2}>
-            {error && <Alert severity="error">{error}</Alert>}
-
-            <TextField
-              label="Nombre comercial"
-              value={form.trade_name}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  trade_name: event.target.value,
-                }))
-              }
-              fullWidth
-              required
-              disabled={saving}
-              autoComplete="off"
-              inputProps={{
-                autoComplete: "off",
-                name: "cm_restaurant_trade_name",
-              }}
-            />
-
-            <TextField
-              label="Descripción"
-              value={form.description}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  description: event.target.value,
-                }))
-              }
-              fullWidth
-              multiline
-              minRows={3}
-              disabled={saving}
-              autoComplete="off"
-              inputProps={{
-                autoComplete: "off",
-                name: "cm_restaurant_description",
-              }}
-            />
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Teléfono"
-                  value={form.contact_phone}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      contact_phone: event.target.value,
-                    }))
-                  }
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: "cm_restaurant_phone",
-                    inputMode: "tel",
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Correo"
-                  type="text"
-                  value={form.contact_email}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      contact_email: event.target.value,
-                    }))
-                  }
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: "cm_restaurant_email",
-                    inputMode: "email",
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  label="Estado"
-                  select
-                  value={form.status}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      status: event.target.value,
-                    }))
-                  }
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: "cm_restaurant_status",
-                  }}
-                >
-                  <MenuItem value="active">Activo</MenuItem>
-                  <MenuItem value="inactive">Inactivo</MenuItem>
-                </TextField>
-              </Grid>
-            </Grid>
-          </Stack>
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button
-          variant="outlined"
-          onClick={onClose}
-          disabled={saving}
-          sx={{ fontWeight: 800, borderRadius: 2 }}
-        >
-          Cancelar
-        </Button>
-
-        <Button
-          variant="contained"
-          type="submit"
-          form="restaurant-form"
-          disabled={saving || !cleanText(form.trade_name)}
-          sx={{ fontWeight: 800, borderRadius: 2, minWidth: 120 }}
-        >
-          {saving ? "Guardando..." : editing ? "Actualizar" : "Guardar"}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-function BranchFormDialog({
-  open,
-  editing,
-  restaurantName,
-  error,
-  saving,
-  onClose,
-  onSubmit,
-}: {
-  open: boolean;
-  editing: Branch | null;
-  restaurantName?: string;
-  error: string;
-  saving: boolean;
-  onClose: () => void;
-  onSubmit: (payload: BranchPayload) => void;
-}) {
-  const [form, setForm] = useState({
-    name: "",
-    address: "",
-    phone: "",
-    open_time: "",
-    close_time: "",
-    status: "active",
-  });
-
-  useEffect(() => {
-    if (!open) return;
-
-    setForm({
-      name: editing?.name || "",
-      address: editing?.address || "",
-      phone: editing?.phone || "",
-      open_time: editing?.open_time || "",
-      close_time: editing?.close_time || "",
-      status: editing?.status || "active",
-    });
-  }, [open, editing]);
-
-  const submit = () => {
-    const payload: BranchPayload = {
-      name: cleanText(form.name),
-      address: cleanText(form.address),
-      phone: cleanText(form.phone),
-      open_time: cleanText(form.open_time),
-      close_time: cleanText(form.close_time),
-      status: form.status || "active",
-    };
-
-    if (!payload.address) delete payload.address;
-    if (!payload.phone) delete payload.phone;
-    if (!payload.open_time) delete payload.open_time;
-    if (!payload.close_time) delete payload.close_time;
-
-    onSubmit(payload);
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ pb: 1 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography fontWeight={900} fontSize={20}>
-              {editing ? "Editar sucursal" : "Nueva sucursal"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {editing
-                ? "Actualiza los datos de la sucursal."
-                : restaurantName
-                ? `Registra una sucursal para ${restaurantName}.`
-                : "Registra una sucursal para el restaurante seleccionado."}
-            </Typography>
-          </Box>
-
-          <IconButton onClick={onClose} disabled={saving}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
-
-      <Divider />
-
-      <DialogContent sx={{ pt: 2.5 }}>
-        <Box
-          component="form"
-          id="branch-form"
-          autoComplete="off"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit();
-          }}
-        >
-          <Stack spacing={2}>
-            {error && <Alert severity="error">{error}</Alert>}
-
-            <TextField
-              label="Nombre de sucursal"
-              value={form.name}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  name: event.target.value,
-                }))
-              }
-              fullWidth
-              required
-              disabled={saving}
-              autoComplete="off"
-              inputProps={{
-                autoComplete: "off",
-                name: "cm_branch_name",
-              }}
-            />
-
-            <TextField
-              label="Dirección"
-              value={form.address}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  address: event.target.value,
-                }))
-              }
-              fullWidth
-              disabled={saving}
-              autoComplete="off"
-              inputProps={{
-                autoComplete: "off",
-                name: "cm_branch_address",
-              }}
-            />
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Teléfono"
-                  value={form.phone}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      phone: event.target.value,
-                    }))
-                  }
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: "cm_branch_phone",
-                    inputMode: "tel",
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={3}>
-                <TextField
-                  label="Abre"
-                  type="time"
-                  value={form.open_time}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      open_time: event.target.value,
-                    }))
-                  }
-                  fullWidth
-                  disabled={saving}
-                  InputLabelProps={{ shrink: true }}
-                  inputProps={{
-                    name: "cm_branch_open_time",
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={3}>
-                <TextField
-                  label="Cierra"
-                  type="time"
-                  value={form.close_time}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      close_time: event.target.value,
-                    }))
-                  }
-                  fullWidth
-                  disabled={saving}
-                  InputLabelProps={{ shrink: true }}
-                  inputProps={{
-                    name: "cm_branch_close_time",
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  label="Estado"
-                  select
-                  value={form.status}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      status: event.target.value,
-                    }))
-                  }
-                  fullWidth
-                  disabled={saving}
-                  autoComplete="off"
-                  inputProps={{
-                    autoComplete: "off",
-                    name: "cm_branch_status",
-                  }}
-                >
-                  <MenuItem value="active">Activo</MenuItem>
-                  <MenuItem value="inactive">Inactivo</MenuItem>
-                </TextField>
-              </Grid>
-            </Grid>
-          </Stack>
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button
-          variant="outlined"
-          onClick={onClose}
-          disabled={saving}
-          sx={{ fontWeight: 800, borderRadius: 2 }}
-        >
-          Cancelar
-        </Button>
-
-        <Button
-          variant="contained"
-          type="submit"
-          form="branch-form"
-          disabled={saving || !cleanText(form.name)}
-          sx={{ fontWeight: 800, borderRadius: 2, minWidth: 120 }}
-        >
-          {saving ? "Guardando..." : editing ? "Actualizar" : "Guardar"}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-function StatusChip({ value }: { value?: string }) {
-  const normalized = value || "sin estado";
-
-  if (normalized === "active") {
-    return <Chip size="small" label="Activo" color="success" />;
-  }
-
-  if (normalized === "inactive") {
-    return <Chip size="small" label="Inactivo" color="default" />;
-  }
-
-  if (normalized === "trialing") {
-    return <Chip size="small" label="Demo" color="warning" />;
-  }
-
-  if (normalized === "expired") {
-    return <Chip size="small" label="Vencido" color="error" />;
-  }
-
-  if (normalized === "cancelled") {
-    return <Chip size="small" label="Cancelado" color="default" />;
-  }
-
-  if (normalized === "paid") {
-    return <Chip size="small" label="Pagada" color="success" />;
-  }
-
-  return <Chip size="small" label={normalized} color="default" />;
-}
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <Stack direction="row" justifyContent="space-between" spacing={2}>
-      <Typography color="text.secondary">{label}</Typography>
-      <Box sx={{ textAlign: "right", fontWeight: 800 }}>{value}</Box>
-    </Stack>
+      />
+
+      <BranchLogoDialog
+        open={branchLogoModalOpen}
+        branch={branchLogoTarget}
+        error={branchLogoError}
+        saving={branchLogoSaving}
+        onClose={cerrarBranchLogoModal}
+        onUpload={subirBranchLogo}
+        onDeleteActive={eliminarBranchLogoActivo}
+      />
+    </Box>
   );
 }
