@@ -37,6 +37,7 @@ export type TeaUsuario = {
 
 export type TeaReferido = {
   id: number;
+  ganancia_id?: number | null;
   user_id: number;
   referido_user_id?: number | null;
   nombre_referido: string;
@@ -50,20 +51,40 @@ export type TeaReferido = {
   observaciones?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+
+  nombre_producto?: string | null;
+  costo_producto?: number | string | null;
+  porcentaje_comision?: number | string | null;
+  monto?: number | string | null;
+  fecha_pago?: string | null;
+
   usuario?: TeaUsuario | null;
   referido_usuario?: TeaUsuario | null;
   referidoUsuario?: TeaUsuario | null;
 };
 
 export type TeaResumen = {
-  total_referidos: number;
-  total_confirmados: number;
-  total_pendientes: number;
-  total_rechazados: number;
-  referidos_mes_seleccionado: number;
-  confirmados_mes_seleccionado: number;
-  referidos_mes_actual: number;
-  confirmados_mes_actual: number;
+  total_referidos: number | string;
+  total_confirmados: number | string;
+  total_pendientes: number | string;
+  total_rechazados: number | string;
+
+  referidos_mes_seleccionado: number | string;
+  confirmados_mes_seleccionado: number | string;
+  pendientes_mes_seleccionado: number | string;
+  rechazados_mes_seleccionado: number | string;
+
+  referidos_mes_actual: number | string;
+  confirmados_mes_actual: number | string;
+  pendientes_mes_actual: number | string;
+  rechazados_mes_actual: number | string;
+
+  ganancia_total?: number | string;
+  ganancia_confirmada?: number | string;
+  ganancia_pendiente?: number | string;
+  ganancia_mes_seleccionado?: number | string;
+  ganancia_confirmada_mes_seleccionado?: number | string;
+  ganancia_pendiente_mes_seleccionado?: number | string;
 };
 
 export type TeaRankingItem = {
@@ -73,7 +94,7 @@ export type TeaRankingItem = {
   email?: string | null;
   phone?: string | null;
   codigo_ref?: string | null;
-  cantidad_referidos: number;
+  cantidad_referidos: number | string;
   ultimo_referido?: string | null;
 };
 
@@ -84,14 +105,20 @@ export type TeaUsuarioTeaItem = {
   email?: string | null;
   phone?: string | null;
   codigo_ref?: string | null;
-  cantidad_referidos: number;
-  confirmados: number;
-  pendientes: number;
-  rechazados: number;
-  referidos_mes_seleccionado: number;
-  referidos_mes_actual: number;
+  cantidad_referidos: number | string;
+  confirmados: number | string;
+  pendientes: number | string;
+  rechazados: number | string;
+  referidos_mes_seleccionado: number | string;
+  confirmados_mes_seleccionado?: number | string;
+  pendientes_mes_seleccionado?: number | string;
+  referidos_mes_actual: number | string;
   sistemas?: string | null;
   ultimo_referido?: string | null;
+
+  ganancia_total?: number | string;
+  ganancia_confirmada?: number | string;
+  ganancia_pendiente?: number | string;
 };
 
 export type TeaUsuariosTeaPaginated = {
@@ -111,18 +138,24 @@ export type TeaUsuariosTeaPaginated = {
 
 export type TeaPorSistemaItem = {
   sistema: string;
-  total: number;
-  confirmados: number;
-  pendientes: number;
-  rechazados: number;
+  total: number | string;
+  confirmados: number | string;
+  pendientes: number | string;
+  rechazados: number | string;
+  ganancia_total?: number | string;
+  ganancia_confirmada?: number | string;
+  ganancia_pendiente?: number | string;
 };
 
 export type TeaPorMesItem = {
   mes: string;
-  total: number;
-  confirmados: number;
-  pendientes: number;
-  rechazados: number;
+  total: number | string;
+  confirmados: number | string;
+  pendientes: number | string;
+  rechazados: number | string;
+  ganancia_total?: number | string;
+  ganancia_confirmada?: number | string;
+  ganancia_pendiente?: number | string;
 };
 
 export type TeaReferidosPaginated = {
