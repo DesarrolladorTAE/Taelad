@@ -1,23 +1,24 @@
 import { useEffect, useState } from "react";
 import {
   Box,
+  Button,
   Card,
   CardContent,
-  Typography,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  MenuItem,
+  Stack,
   Table,
+  TableBody,
+  TableCell,
+  TableContainer,
   TableHead,
   TableRow,
-  TableCell,
-  TableBody,
-  CircularProgress,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   TextField,
-  Stack,
-  Divider,
+  Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -34,9 +35,12 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import TableContainer from "@mui/material/TableContainer";
-import IconButton from "@mui/material/IconButton";
 
+const ROLE_OPTIONS = [
+  { value: "1", label: "Usuario" },
+  { value: "2", label: "Administrador" },
+  { value: "3", label: "Superadministrador" },
+];
 
 export default function Usuarios() {
   const theme = useTheme();
@@ -55,67 +59,101 @@ export default function Usuarios() {
     apellidos: "",
     email: "",
     phone: "",
-    role: "",
+    role: "1",
     codigo_ref: "",
   };
 
   const [form, setForm] = useState<any>(initialForm);
 
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(16);
+
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 16,
+    total: 0,
+  });
+
   const getUserId = (user: any) => {
     return user?.id ?? user?.user_id ?? user?.id_user ?? null;
   };
 
+  const normalizeRoleValue = (role: any) => {
+    const value = String(role ?? "").trim().toLowerCase();
+
+    if (value === "1" || value === "usuario" || value === "user") {
+      return "1";
+    }
+
+    if (
+      value === "2" ||
+      value === "administrador" ||
+      value === "admin"
+    ) {
+      return "2";
+    }
+
+    if (
+      value === "3" ||
+      value === "superadministrador" ||
+      value === "superadmin" ||
+      value === "super_admin"
+    ) {
+      return "3";
+    }
+
+    return "1";
+  };
+
   const getRoleName = (role: any) => {
-    switch (String(role)) {
+    const value = normalizeRoleValue(role);
+
+    switch (value) {
       case "1":
         return "Usuario";
       case "2":
         return "Administrador";
       case "3":
-        return "SuperAdministrador";
+        return "Superadministrador";
       default:
         return "-";
     }
   };
- const [page, setPage] = useState(1);
-const [perPage] = useState(16);
 
-const [pagination, setPagination] = useState({
-  current_page: 1,
-  last_page: 1,
-  per_page: 16,
-  total: 0,
-});
-useEffect(() => {
-  cargarUsuarios();
-}, [page]);
+  useEffect(() => {
+    cargarUsuarios();
+  }, [page]);
 
- const cargarUsuarios = () => {
-  setLoading(true);
+  const cargarUsuarios = () => {
+    setLoading(true);
 
-  getSuperAdminUsers(page, perPage)
-    .then((response) => {
-      const data = Array.isArray(response?.data) ? response.data : [];
+    getSuperAdminUsers(page, perPage)
+      .then((response) => {
+        const data = Array.isArray(response?.data) ? response.data : [];
 
-      setUsuarios(data);
+        setUsuarios(data);
 
-      setPagination({
-        current_page: response?.current_page || 1,
-        last_page: response?.last_page || 1,
-        per_page: response?.per_page || 16,
-        total: response?.total || 0,
-      });
-    })
-    .catch((err) => {
-      console.log(err);
-      Swal.fire("Error", "No se pudieron cargar usuarios", "error");
-    })
-    .finally(() => setLoading(false));
-};
+        setPagination({
+          current_page: response?.current_page || 1,
+          last_page: response?.last_page || 1,
+          per_page: response?.per_page || 16,
+          total: response?.total || 0,
+        });
+      })
+      .catch((err) => {
+        console.log(err);
+        Swal.fire("Error", "No se pudieron cargar usuarios", "error");
+      })
+      .finally(() => setLoading(false));
+  };
+
   const handleChange = (e: any) => {
+    const { name, value } = e.target;
+
     setForm((prev: any) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
@@ -137,7 +175,10 @@ useEffect(() => {
     if (!validate()) return;
 
     try {
-      await createUser(form);
+      await createUser({
+        ...form,
+        role: normalizeRoleValue(form.role),
+      });
 
       Swal.fire("Éxito", "Usuario creado correctamente", "success");
 
@@ -165,7 +206,7 @@ useEffect(() => {
       apellidos: user?.apellidos || "",
       email: user?.email || "",
       phone: user?.phone || "",
-      role: user?.role || "",
+      role: normalizeRoleValue(user?.role),
       codigo_ref: user?.codigo_ref || "",
     });
 
@@ -181,7 +222,10 @@ useEffect(() => {
     if (!validate()) return;
 
     try {
-      await updateUser(editingId, form);
+      await updateUser(editingId, {
+        ...form,
+        role: normalizeRoleValue(form.role),
+      });
 
       Swal.fire("Actualizado", "Usuario actualizado", "success");
 
@@ -196,9 +240,6 @@ useEffect(() => {
 
   const handleDelete = async (user: any) => {
     const id = getUserId(user);
-
-    console.log("DELETE USER:", user);
-    console.log("DELETE USER ID:", id);
 
     if (!id) {
       Swal.fire("Error", "El usuario no tiene ID válido", "error");
@@ -230,14 +271,38 @@ useEffect(() => {
     }
   };
 
+  const renderRoleSelect = () => (
+    <TextField
+      select
+      name="role"
+      label="Rol"
+      value={normalizeRoleValue(form.role)}
+      fullWidth
+      margin="dense"
+      onChange={handleChange}
+    >
+      {ROLE_OPTIONS.map((option) => (
+        <MenuItem key={option.value} value={option.value}>
+          {option.label}
+        </MenuItem>
+      ))}
+    </TextField>
+  );
+
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        gap={2}
+        mb={3}
+        flexDirection={{ xs: "column", sm: "row" }}
+      >
         <Typography variant="h5" fontWeight={800}>
           Usuarios
         </Typography>
 
-        <Box display="flex" gap={1}>
+        <Box display="flex" gap={1} flexWrap="wrap">
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
@@ -258,231 +323,213 @@ useEffect(() => {
         </Box>
       </Box>
 
-<Card
-  sx={{
-    width: "100%",
-    maxWidth: "100%",
-    overflow: "hidden",
-  }}
->
-  <CardContent
-  sx={{
-    p: 2,
-    "&:last-child": {
-      pb: 2,
-    },
-  }}
->
-  {loading ? (
-    <CircularProgress />
-  ) : isMobile ? (
+      <Card
+        sx={{
+          width: "100%",
+          maxWidth: "100%",
+          overflow: "hidden",
+        }}
+      >
+        <CardContent
+          sx={{
+            p: 2,
+            "&:last-child": {
+              pb: 2,
+            },
+          }}
+        >
+          {loading ? (
+            <CircularProgress />
+          ) : isMobile ? (
+            <Stack spacing={1.5}>
+              {usuarios.map((u, index) => {
+                const id = getUserId(u);
 
-    // VISTA MÓVIL
-    <Stack spacing={1.5}>
-      {usuarios.map((u, index) => {
-        const id = getUserId(u);
+                return (
+                  <Card key={id ?? index} variant="outlined">
+                    <CardContent>
+                      <Typography fontWeight={800}>
+                        {u?.name} {u?.apellidos}
+                      </Typography>
 
-        return (
-          <Card key={id ?? index} variant="outlined">
-            <CardContent>
+                      <Typography fontSize={13}>
+                        Email: {u?.email || "-"}
+                      </Typography>
 
-              <Typography fontWeight={800}>
-                {u?.name} {u?.apellidos}
-              </Typography>
+                      <Typography fontSize={13}>
+                        Tel: {u?.phone || "-"}
+                      </Typography>
 
-              <Typography fontSize={13}>
-                Email: {u?.email || "-"}
-              </Typography>
+                      <Typography fontSize={13}>
+                        Rol: {getRoleName(u?.role)}
+                      </Typography>
 
-              <Typography fontSize={13}>
-                Tel: {u?.phone || "-"}
-              </Typography>
+                      <Typography fontSize={13}>
+                        Ref: {u?.codigo_ref || "-"}
+                      </Typography>
 
-              <Typography fontSize={13}>
-                Rol: {getRoleName(u?.role)}
-              </Typography>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 1,
+                          mt: 2,
+                        }}
+                      >
+                        <Button
+                          size="small"
+                          fullWidth
+                          onClick={() => openEditModal(u)}
+                        >
+                          Editar
+                        </Button>
 
-
-              <Box
+                        <Button
+                          size="small"
+                          fullWidth
+                          color="error"
+                          onClick={() => handleDelete(u)}
+                        >
+                          Eliminar
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Stack>
+          ) : (
+            <TableContainer
+              sx={{
+                width: "100%",
+                maxWidth: "100%",
+                maxHeight: 430,
+                overflowY: "auto",
+                overflowX: "auto",
+              }}
+            >
+              <Table
+                stickyHeader
+                size="small"
                 sx={{
-                  display: "flex",
-                  gap: 1,
-                  mt: 2,
+                  width: "100%",
+                  tableLayout: "fixed",
+                  "& td, & th": {
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  },
                 }}
               >
-                <Button
-                  size="small"
-                  fullWidth
-                  onClick={() => openEditModal(u)}
+                <TableHead
+                  sx={{
+                    "& th": {
+                      backgroundColor: "background.paper",
+                      fontWeight: 800,
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 10,
+                    },
+                  }}
                 >
-                  Editar
-                </Button>
+                  <TableRow>
+                    <TableCell sx={{ width: "5%" }}>ID</TableCell>
+                    <TableCell sx={{ width: "11%" }}>Nombre</TableCell>
+                    <TableCell sx={{ width: "13%" }}>Apellidos</TableCell>
+                    <TableCell sx={{ width: "23%" }}>Email</TableCell>
+                    <TableCell sx={{ width: "11%" }}>Phone</TableCell>
+                    <TableCell sx={{ width: "13%" }}>Rol</TableCell>
+                    <TableCell sx={{ width: "9%" }}>Ref</TableCell>
+                    <TableCell sx={{ width: "15%" }}>Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
 
-                <Button
-                  size="small"
-                  fullWidth
-                  color="error"
-                  onClick={() => handleDelete(u)}
-                >
-                  Eliminar
-                </Button>
-              </Box>
+                <TableBody>
+                  {usuarios.map((u, index) => {
+                    const id = getUserId(u);
 
-            </CardContent>
-          </Card>
-        );
-      })}
-    </Stack>
+                    return (
+                      <TableRow key={id ?? index}>
+                        <TableCell title={String(id ?? "")}>
+                          {id ?? "-"}
+                        </TableCell>
 
-  ) : (
+                        <TableCell title={u?.name || ""}>
+                          {u?.name || "-"}
+                        </TableCell>
 
-    
-    <TableContainer
-  sx={{
-    width: "100%",
-    maxWidth: "100%",
-    maxHeight: 430,
-    overflowY: "auto",
-    overflowX: "auto",
-  }}
->
-  <Table
-    stickyHeader
-    size="small"
-    sx={{
-      width: "100%",
-      tableLayout: "fixed",
-    }}
-  >
-    <TableHead
-      sx={{
-        "& th": {
-          backgroundColor: "background.paper",
-          fontWeight: 800,
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        },
-      }}
-    
+                        <TableCell title={u?.apellidos || ""}>
+                          {u?.apellidos || "-"}
+                        </TableCell>
 
->
-  <TableRow>
-    <TableCell sx={{ width: "5%" }}>
-      ID
-    </TableCell>
+                        <TableCell title={u?.email || ""}>
+                          {u?.email || "-"}
+                        </TableCell>
 
-    <TableCell sx={{ width: "11%" }}>
-      Nombre
-    </TableCell>
+                        <TableCell title={u?.phone || ""}>
+                          {u?.phone || "-"}
+                        </TableCell>
 
-    <TableCell sx={{ width: "13%" }}>
-      Apellidos
-    </TableCell>
+                        <TableCell title={getRoleName(u?.role)}>
+                          {getRoleName(u?.role)}
+                        </TableCell>
 
-    <TableCell sx={{ width: "23%" }}>
-      Email
-    </TableCell>
+                        <TableCell title={u?.codigo_ref || ""}>
+                          {u?.codigo_ref || "-"}
+                        </TableCell>
 
-    <TableCell sx={{ width: "11%" }}>
-      Phone
-    </TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.3,
+                            }}
+                          >
+                            <Button
+                              color="primary"
+                              size="small"
+                              sx={{
+                                minWidth: 28,
+                                width: 28,
+                                height: 28,
+                                p: 0,
+                              }}
+                              onClick={() => openEditModal(u)}
+                            >
+                              <EditIcon sx={{ fontSize: 17 }} />
+                            </Button>
 
-    <TableCell sx={{ width: "13%" }}>
-      Role
-    </TableCell>
+                            <Button
+                              color="error"
+                              size="small"
+                              sx={{
+                                minWidth: 28,
+                                width: 28,
+                                height: 28,
+                                p: 0,
+                              }}
+                              onClick={() => handleDelete(u)}
+                            >
+                              <DeleteIcon sx={{ fontSize: 17 }} />
+                            </Button>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
 
-    <TableCell sx={{ width: "9%" }}>
-      Ref
-    </TableCell>
-
-    <TableCell sx={{ width: "15%" }}>
-      Acciones
-    </TableCell>
-  </TableRow>
-</TableHead>
-
-          <TableBody>
-            {usuarios.map((u, index) => {
-              const id = getUserId(u);
-
-              return (
-                <TableRow key={id ?? index}>
-                  <TableCell title={String(id ?? "")}>
-                    {id ?? "-"}
-                  </TableCell>
-
-                  <TableCell title={u?.name || ""}>
-                    {u?.name || "-"}
-                  </TableCell>
-
-                  <TableCell title={u?.apellidos || ""}>
-                    {u?.apellidos || "-"}
-                  </TableCell>
-
-                  <TableCell title={u?.email || ""}>
-                    {u?.email || "-"}
-                  </TableCell>
-
-                  <TableCell title={u?.phone || ""}>
-                    {u?.phone || "-"}
-                  </TableCell>
-
-                  <TableCell title={getRoleName(u?.role)}>
-                    {getRoleName(u?.role)}
-                  </TableCell>
-
-                  <TableCell title={u?.codigo_ref || ""}>
-                    {u?.codigo_ref || "-"}
-                  </TableCell>
-
-                  <TableCell>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.3,
-                      }}
-                    >
-                      <Button
-                        color="primary"
-                        size="small"
-                        sx={{
-                          minWidth: 28,
-                          width: 28,
-                          height: 28,
-                          p: 0,
-                        }}
-                        onClick={() => openEditModal(u)}
-                      >
-                        <EditIcon sx={{ fontSize: 17 }} />
-                      </Button>
-
-                      <Button
-                        color="error"
-                        size="small"
-                        sx={{
-                          minWidth: 28,
-                          width: 28,
-                          height: 28,
-                          p: 0,
-                        }}
-                        onClick={() => handleDelete(u)}
-                      >
-                        <DeleteIcon sx={{ fontSize: 17 }} />
-                      </Button>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    )}
-  </CardContent>
-</Card>
-      <Dialog open={openCreate} onClose={() => setOpenCreate(false)}>
+      <Dialog
+        open={openCreate}
+        onClose={() => setOpenCreate(false)}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Crear usuario</DialogTitle>
 
         <DialogContent>
@@ -522,18 +569,11 @@ useEffect(() => {
             onChange={handleChange}
           />
 
-          <TextField
-            name="role"
-            label="Role"
-            value={form.role}
-            fullWidth
-            margin="dense"
-            onChange={handleChange}
-          />
+          {renderRoleSelect()}
 
           <TextField
             name="codigo_ref"
-            label="Codigo Ref"
+            label="Código Ref"
             value={form.codigo_ref}
             fullWidth
             margin="dense"
@@ -548,19 +588,16 @@ useEffect(() => {
           </Button>
         </DialogActions>
       </Dialog>
- 
-      <Dialog open={openEdit} onClose={() => setOpenEdit(false)}>
+
+      <Dialog
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Editar usuario</DialogTitle>
 
         <DialogContent>
-          <TextField
-            label="ID"
-            value={editingId || ""}
-            fullWidth
-            margin="dense"
-            disabled
-          />
-
           <TextField
             name="name"
             label="Nombre"
@@ -597,22 +634,16 @@ useEffect(() => {
             onChange={handleChange}
           />
 
-          <TextField
-            name="role"
-            label="Role"
-            value={form.role}
-            fullWidth
-            margin="dense"
-            onChange={handleChange}
-          />
+          {renderRoleSelect()}
 
           <TextField
             name="codigo_ref"
-            label="Codigo Ref"
-            value={form.codigo_ref}
+            label="Código Ref"
+            value={form.codigo_ref || ""}
             fullWidth
             margin="dense"
-            onChange={handleChange}
+            disabled
+            helperText="El código de referido no se puede modificar."
           />
         </DialogContent>
 

@@ -24,6 +24,8 @@ import {
   TableRow,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
   ArrowBack,
@@ -171,74 +173,115 @@ function formatoFechaHora(value?: string | null) {
   }).format(date);
 }
 
-function sistemaChipSx(value?: string | null) {
+function logoSistema(value?: string | null) {
   const key = String(value || "").toLowerCase();
 
-  const colors: Record<string, { bg: string; color: string; border: string }> = {
-    mtelmx: {
-      bg: "rgba(25, 118, 210, 0.12)",
-      color: "#1565c0",
-      border: "rgba(25, 118, 210, 0.35)",
-    },
-    taeconta: {
-      bg: "rgba(237, 108, 2, 0.13)",
-      color: "#c45100",
-      border: "rgba(237, 108, 2, 0.38)",
-    },
-    clicmenu: {
-      bg: "rgba(46, 125, 50, 0.13)",
-      color: "#2e7d32",
-      border: "rgba(46, 125, 50, 0.35)",
-    },
-    telorecargo: {
-      bg: "rgba(123, 31, 162, 0.13)",
-      color: "#7b1fa2",
-      border: "rgba(123, 31, 162, 0.35)",
-    },
-    chatingbot: {
-      bg: "rgba(0, 150, 136, 0.13)",
-      color: "#00897b",
-      border: "rgba(0, 150, 136, 0.35)",
-    },
+  const logos: Record<string, string> = {
+    mtelmx: "/app/mitienda.png",
+    taeconta: "/app/taeconta.png",
+    clicmenu: "/app/clicmenu.png",
+    telorecargo: "/app/telorecargo.png",
+    chatingbot: "/app/chatingbot.png",
   };
 
-  const selected = colors[key] || {
-    bg: "action.hover",
-    color: "text.primary",
-    border: "divider",
-  };
-
-  return {
-    bgcolor: selected.bg,
-    color: selected.color,
-    borderColor: selected.border,
-    fontWeight: 800,
-  };
+  return logos[key] || "/logo/logo.png";
 }
 
-function SistemaChip({ sistema }: { sistema?: string | null }) {
+function SistemaLogo({
+  sistema,
+  size = 34,
+}: {
+  sistema?: string | null;
+  size?: number;
+}) {
   return (
-    <Chip
-      size="small"
-      variant="outlined"
-      label={nombreSistema(sistema)}
-      sx={sistemaChipSx(sistema)}
+    <Box
+      component="img"
+      src={logoSistema(sistema)}
+      alt={nombreSistema(sistema)}
+      sx={{
+        width: size,
+        height: size,
+        objectFit: "contain",
+        flexShrink: 0,
+      }}
+      onError={(e) => {
+        e.currentTarget.src = "/logo/logo.png";
+      }}
     />
   );
 }
 
+function NombreConSistema({
+  item,
+  compact = false,
+}: {
+  item: TeaReferidoConGanancia;
+  compact?: boolean;
+}) {
+  return (
+    <Stack direction="row" spacing={1.2} alignItems="flex-start" minWidth={0}>
+      <SistemaLogo sistema={item.sistema} size={compact ? 28 : 36} />
+
+      <Box minWidth={0}>
+        <Typography
+          fontWeight={900}
+          lineHeight={1.2}
+          sx={{ wordBreak: "break-word" }}
+        >
+          {nombreUsuarioReferido(item)}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
 function StatusChip({ status }: { status?: string | null }) {
-  const value = status || "pendiente";
+  const value = (status || "pendiente").toLowerCase().trim();
+
+  const chipSx = {
+    minWidth: 104,
+    maxWidth: "none",
+    flexShrink: 0,
+    fontWeight: 800,
+    justifyContent: "center",
+    "& .MuiChip-label": {
+      px: 1.25,
+      overflow: "visible",
+      textOverflow: "clip",
+      whiteSpace: "nowrap",
+    },
+  };
 
   if (value === "confirmado") {
-    return <Chip size="small" label="Confirmado" color="success" />;
+    return (
+      <Chip
+        size="small"
+        label="Confirmado"
+        color="success"
+        sx={chipSx}
+      />
+    );
   }
 
   if (value === "rechazado") {
-    return <Chip size="small" label="Rechazado" color="error" />;
+    return (
+      <Chip
+        size="small"
+        label="Rechazado"
+        color="error"
+        sx={chipSx}
+      />
+    );
   }
 
-  return <Chip size="small" label="Pendiente" color="warning" />;
+  return (
+    <Chip
+      size="small"
+      label="Pendiente"
+      color="warning"
+      sx={chipSx}
+    />
+  );
 }
 
 function tipoGananciaLabel(item: TeaReferidoConGanancia) {
@@ -315,33 +358,53 @@ function KpiCard({
     <Paper
       variant="outlined"
       sx={{
-        p: 2.5,
+        p: { xs: 1.5, md: 2 },
         borderRadius: 4,
         height: "100%",
+        overflow: "hidden",
       }}
     >
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
         <Avatar
           sx={{
-            width: 52,
-            height: 52,
+            width: { xs: 40, md: 48 },
+            height: { xs: 40, md: 48 },
             bgcolor: "primary.main",
+            flexShrink: 0,
           }}
         >
           {icon}
         </Avatar>
 
-        <Box>
-          <Typography variant="body2" color="text.secondary" fontWeight={800}>
+        <Box minWidth={0} flex={1}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            fontWeight={800}
+            lineHeight={1.2}
+          >
             {title}
           </Typography>
 
-          <Typography variant="h4" fontWeight={900} lineHeight={1.15}>
+          <Typography
+            fontWeight={900}
+            lineHeight={1.1}
+            sx={{
+              fontSize: "clamp(1.25rem, 6vw, 2rem)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {value}
           </Typography>
 
           {subtitle && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", lineHeight: 1.25 }}
+            >
               {subtitle}
             </Typography>
           )}
@@ -379,7 +442,14 @@ function FiltrosTea({
   subtitulo?: string;
 }) {
   return (
-    <Paper variant="outlined" sx={{ p: 2, borderRadius: 4, mb: 3 }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: { xs: 1.5, md: 2 },
+        borderRadius: 4,
+        mb: 3,
+      }}
+    >
       {(titulo || subtitulo) && (
         <Box mb={2}>
           {titulo && (
@@ -479,7 +549,7 @@ function FiltrosTea({
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <Grid item xs={12} md={6}>
+    <Grid item xs={12} sm={6}>
       <Typography variant="caption" color="text.secondary" fontWeight={800}>
         {label}
       </Typography>
@@ -487,6 +557,207 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
         {value || "-"}
       </Typography>
     </Grid>
+  );
+}
+
+function InfoLine({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <Stack direction="row" justifyContent="space-between" spacing={2}>
+      <Typography variant="body2" color="text.secondary">
+        {label}
+      </Typography>
+      <Box sx={{ textAlign: "right", minWidth: 0 }}>{value}</Box>
+    </Stack>
+  );
+}
+
+function MovimientoCard({
+  item,
+  usuarioSeleccionado,
+  mostrarUsuarioTae = false,
+  showAction = false,
+  onDetails,
+}: {
+  item: TeaReferidoConGanancia;
+  usuarioSeleccionado?: TeaUsuarioTeaItem | null;
+  mostrarUsuarioTae?: boolean;
+  showAction?: boolean;
+  onDetails?: (item: TeaReferidoConGanancia) => void;
+}) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 3 }}>
+      <Stack spacing={1.25}>
+        <Stack direction="row" spacing={1.2} alignItems="flex-start">
+          <SistemaLogo sistema={item.sistema} size={34} />
+
+          <Box minWidth={0} flex={1}>
+            <Typography fontWeight={900} lineHeight={1.2}>
+              {nombreUsuarioReferido(item)}
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
+              {item.nombre_producto || "-"}
+            </Typography>
+          </Box>
+
+          <StatusChip status={item.status} />
+        </Stack>
+
+        {mostrarUsuarioTae && (
+          <InfoLine
+            label="Usuario TAE"
+            value={
+              <Typography variant="body2" fontWeight={800}>
+                {item.usuario ? nombreUsuario(item.usuario) : "-"}
+              </Typography>
+            }
+          />
+        )}
+
+        {usuarioSeleccionado && (
+          <InfoLine
+            label="Usuario TAE"
+            value={
+              <Typography variant="body2" fontWeight={800}>
+                {nombreUsuario(usuarioSeleccionado)}
+              </Typography>
+            }
+          />
+        )}
+
+        <Divider />
+
+        <InfoLine
+          label="Costo"
+          value={<Typography variant="body2">{formatoMoneda(item.costo_producto)}</Typography>}
+        />
+
+        <InfoLine
+          label="Ganancia"
+          value={
+            <Stack alignItems="flex-end" spacing={0.5}>
+              <Typography fontWeight={900}>{formatoMoneda(item.monto)}</Typography>
+              <GananciaChip item={item} />
+            </Stack>
+          }
+        />
+
+        <InfoLine
+          label="Registro"
+          value={<Typography variant="body2">{formatoFechaHora(item.fecha_registro)}</Typography>}
+        />
+
+        <InfoLine
+          label="Confirmación"
+          value={<Typography variant="body2">{formatoFechaHora(item.fecha_confirmacion)}</Typography>}
+        />
+
+        <InfoLine
+          label="Pago"
+          value={<Typography variant="body2">{formatoFechaHora(item.fecha_pago)}</Typography>}
+        />
+
+        {showAction && (
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<InfoOutlined />}
+            onClick={() => onDetails?.(item)}
+            sx={{ textTransform: "none" }}
+          >
+            Detalles
+          </Button>
+        )}
+      </Stack>
+    </Paper>
+  );
+}
+
+function UsuarioTeaCard({
+  item,
+  onDetails,
+}: {
+  item: TeaUsuarioTeaItem;
+  onDetails: (item: TeaUsuarioTeaItem) => void;
+}) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{ p: 1.5, borderRadius: 3, cursor: "pointer" }}
+      onClick={() => onDetails(item)}
+    >
+      <Stack spacing={1.25}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar sx={{ width: 42, height: 42 }}>
+            {iniciales(nombreUsuario(item))}
+          </Avatar>
+
+          <Box minWidth={0} flex={1}>
+            <Typography fontWeight={900} lineHeight={1.2}>
+              {nombreUsuario(item)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ wordBreak: "break-word" }}>
+              {item.email || "-"}
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Divider />
+
+        <Grid container spacing={1}>
+          <Grid item xs={6}>
+            <Typography variant="caption" color="text.secondary">
+              Código
+            </Typography>
+            <Typography fontWeight={800}>{item.codigo_ref || "-"}</Typography>
+          </Grid>
+
+          <Grid item xs={6}>
+            <Typography variant="caption" color="text.secondary">
+              Último referido
+            </Typography>
+            <Typography fontWeight={800}>{formatoFecha(item.ultimo_referido)}</Typography>
+          </Grid>
+
+          <Grid item xs={4}>
+            <Typography variant="caption" color="text.secondary">
+              Referidos
+            </Typography>
+            <Typography fontWeight={900}>{toNumber(item.cantidad_referidos)}</Typography>
+          </Grid>
+
+          <Grid item xs={4}>
+            <Typography variant="caption" color="text.secondary">
+              Confirmados
+            </Typography>
+            <Typography color="primary.main" fontWeight={900}>
+              {toNumber(item.confirmados)}
+            </Typography>
+          </Grid>
+
+          <Grid item xs={4}>
+            <Typography variant="caption" color="text.secondary">
+              Pendientes
+            </Typography>
+            <Typography color="warning.main" fontWeight={900}>
+              {toNumber(item.pendientes)}
+            </Typography>
+          </Grid>
+        </Grid>
+
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDetails(item);
+          }}
+          sx={{ textTransform: "none" }}
+        >
+          Detalles
+        </Button>
+      </Stack>
+    </Paper>
   );
 }
 
@@ -504,7 +775,7 @@ function DetalleRegistroDialog({
   if (!item) return null;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={false}>
       <DialogTitle>
         <Stack direction="row" justifyContent="space-between" spacing={2}>
           <Box>
@@ -513,7 +784,7 @@ function DetalleRegistroDialog({
               Información general del movimiento seleccionado.
             </Typography>
           </Box>
-          <SistemaChip sistema={item.sistema} />
+          <SistemaLogo sistema={item.sistema} size={38} />
         </Stack>
       </DialogTitle>
 
@@ -526,11 +797,13 @@ function DetalleRegistroDialog({
             <Grid container spacing={2}>
               <DetailRow label="ID referido" value={item.id} />
               <DetailRow label="ID ganancia" value={item.ganancia_id || "-"} />
-              <DetailRow label="Usuario TAE" value={usuarioSeleccionado ? nombreUsuario(usuarioSeleccionado) : "-"} />
+              <DetailRow
+                label="Usuario TAE"
+                value={usuarioSeleccionado ? nombreUsuario(usuarioSeleccionado) : "-"}
+              />
               <DetailRow label="User ID" value={item.user_id} />
               <DetailRow label="Nombre referido" value={nombreUsuarioReferido(item)} />
               <DetailRow label="Referido User ID" value={item.referido_user_id || "-"} />
-              <DetailRow label="External ID" value={item.external_id || "-"} />
               <DetailRow label="Código usado" value={item.codigo_ref_usado || "-"} />
             </Grid>
           </Box>
@@ -542,7 +815,15 @@ function DetalleRegistroDialog({
               Producto y ganancia
             </Typography>
             <Grid container spacing={2}>
-              <DetailRow label="Sistema" value={<SistemaChip sistema={item.sistema} />} />
+              <DetailRow
+                label="Sistema"
+                value={
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <SistemaLogo sistema={item.sistema} size={28} />
+                    <span>{nombreSistema(item.sistema)}</span>
+                  </Stack>
+                }
+              />
               <DetailRow label="Producto" value={item.nombre_producto || "-"} />
               <DetailRow label="Tipo" value={item.tipo || "-"} />
               <DetailRow label="Costo producto" value={formatoMoneda(item.costo_producto)} />
@@ -557,13 +838,12 @@ function DetalleRegistroDialog({
 
           <Box>
             <Typography variant="subtitle1" fontWeight={900} mb={1}>
-              Fechas y origen
+              Fechas
             </Typography>
             <Grid container spacing={2}>
               <DetailRow label="Fecha registro" value={formatoFechaHora(item.fecha_registro)} />
               <DetailRow label="Fecha confirmación" value={formatoFechaHora(item.fecha_confirmacion)} />
               <DetailRow label="Fecha pago" value={formatoFechaHora(item.fecha_pago)} />
-              <DetailRow label="Origen" value={item.origen || "-"} />
               <DetailRow label="Creado" value={formatoFechaHora(item.created_at)} />
               <DetailRow label="Actualizado" value={formatoFechaHora(item.updated_at)} />
             </Grid>
@@ -575,7 +855,7 @@ function DetalleRegistroDialog({
             <Typography variant="subtitle1" fontWeight={900} mb={1}>
               Observaciones
             </Typography>
-            <Typography color="text.secondary">
+            <Typography color="text.secondary" sx={{ wordBreak: "break-word" }}>
               {item.observaciones || "-"}
             </Typography>
           </Box>
@@ -590,6 +870,8 @@ function DetalleRegistroDialog({
 }
 
 export default function TeaTeDaMas() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const now = new Date();
 
   const [data, setData] = useState<TeaReferidosDashboardResponse | null>(null);
@@ -659,7 +941,7 @@ export default function TeaTeDaMas() {
     detalleMes,
     detalleAnio,
     detalleOrden,
-    usuarioSeleccionado,
+    usuarioSeleccionado?.user_id,
     usuariosPage,
     referidosPage,
   ]);
@@ -710,6 +992,22 @@ export default function TeaTeDaMas() {
     });
   }, [data?.usuarios_tea?.data, busquedaUsuario]);
 
+  const nuevos = useMemo(
+    () => (data?.nuevos || []) as TeaReferidoConGanancia[],
+    [data?.nuevos],
+  );
+
+  const recientes = useMemo(
+    () => (data?.recientes_mes_actual || []) as TeaReferidoConGanancia[],
+    [data?.recientes_mes_actual],
+  );
+
+  const referidosDetalle = useMemo(
+    () =>
+      (data?.referidos_mes_seleccionado?.data || []) as TeaReferidoConGanancia[],
+    [data?.referidos_mes_seleccionado?.data],
+  );
+
   const abrirVistaUsuarios = () => {
     setVista("usuarios");
     setUsuarioSeleccionado(null);
@@ -748,7 +1046,7 @@ export default function TeaTeDaMas() {
 
   if (vista === "usuarios") {
     return (
-      <Box sx={{ p: { xs: 2, md: 3 } }}>
+      <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", overflowX: "hidden" }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           justifyContent="space-between"
@@ -767,12 +1065,12 @@ export default function TeaTeDaMas() {
             </Button>
 
             <Box>
-              <Typography variant="h4" fontWeight={900}>
+              <Typography variant={isMobile ? "h5" : "h4"} fontWeight={900}>
                 Usuarios TAE
               </Typography>
 
               <Typography color="text.secondary">
-                Selecciona un usuario para consultar su detalle sin salir de /superadmin.
+                Selecciona un usuario para consultar su detalle.
               </Typography>
             </Box>
           </Stack>
@@ -788,7 +1086,7 @@ export default function TeaTeDaMas() {
           </Alert>
         )}
 
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 4 }}>
+        <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, borderRadius: 4 }}>
           <Stack
             direction={{ xs: "column", md: "row" }}
             justifyContent="space-between"
@@ -797,17 +1095,17 @@ export default function TeaTeDaMas() {
           >
             <Box>
               <Typography variant="h6" fontWeight={900}>
-                Tabla de usuarios
+                Usuarios
               </Typography>
 
               <Typography variant="body2" color="text.secondary">
-                La tabla no depende de los filtros de la vista principal.
+                La consulta no depende de los filtros principales.
               </Typography>
             </Box>
 
             <TextField
               size="small"
-              placeholder="Buscar por nombre, correo, teléfono o código"
+              placeholder="Buscar"
               value={busquedaUsuario}
               onChange={(e) => setBusquedaUsuario(e.target.value)}
               InputProps={{
@@ -815,7 +1113,7 @@ export default function TeaTeDaMas() {
                   <ManageSearch sx={{ mr: 1, color: "text.secondary" }} />
                 ),
               }}
-              sx={{ minWidth: { xs: "100%", md: 380 } }}
+              sx={{ width: { xs: "100%", md: 380 } }}
             />
           </Stack>
 
@@ -823,13 +1121,29 @@ export default function TeaTeDaMas() {
             <Box display="flex" justifyContent="center" py={8}>
               <CircularProgress />
             </Box>
+          ) : isMobile ? (
+            <Stack spacing={1.25}>
+              {usuariosFiltrados.map((item) => (
+                <UsuarioTeaCard
+                  key={item.user_id}
+                  item={item}
+                  onDetails={abrirDetalleUsuario}
+                />
+              ))}
+
+              {usuariosFiltrados.length === 0 && (
+                <Typography color="text.secondary" align="center" py={3}>
+                  Sin usuarios TAE.
+                </Typography>
+              )}
+            </Stack>
           ) : (
             <>
               <TableContainer
                 sx={{
                   maxHeight: 560,
                   overflowY: "auto",
-                  overflowX: "auto",
+                  overflowX: "hidden",
                   pr: 1,
                 }}
               >
@@ -855,11 +1169,7 @@ export default function TeaTeDaMas() {
                         onClick={() => abrirDetalleUsuario(item)}
                       >
                         <TableCell>
-                          <Stack
-                            direction="row"
-                            spacing={1.5}
-                            alignItems="center"
-                          >
+                          <Stack direction="row" spacing={1.5} alignItems="center">
                             <Avatar sx={{ width: 34, height: 34 }}>
                               {iniciales(nombreUsuario(item))}
                             </Avatar>
@@ -869,10 +1179,7 @@ export default function TeaTeDaMas() {
                                 {nombreUsuario(item)}
                               </Typography>
 
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
+                              <Typography variant="caption" color="text.secondary">
                                 {item.email || "-"}
                               </Typography>
                             </Box>
@@ -909,8 +1216,9 @@ export default function TeaTeDaMas() {
                               e.stopPropagation();
                               abrirDetalleUsuario(item);
                             }}
+                            sx={{ textTransform: "none" }}
                           >
-                            Ver detalle
+                            Detalles
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -947,7 +1255,7 @@ export default function TeaTeDaMas() {
       String(data?.filters?.user_id ?? "") === String(usuarioSeleccionado.user_id);
 
     return (
-      <Box sx={{ p: { xs: 2, md: 3 } }}>
+      <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", overflowX: "hidden" }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           justifyContent="space-between"
@@ -966,7 +1274,7 @@ export default function TeaTeDaMas() {
             </Button>
 
             <Box>
-              <Typography variant="h4" fontWeight={900}>
+              <Typography variant={isMobile ? "h5" : "h4"} fontWeight={900}>
                 Detalle del usuario
               </Typography>
 
@@ -987,18 +1295,21 @@ export default function TeaTeDaMas() {
           </Alert>
         )}
 
-        <Paper variant="outlined" sx={{ p: 3, borderRadius: 4, mb: 3 }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
-            <Avatar sx={{ width: 72, height: 72, fontSize: 24 }}>
+        <Paper
+          variant="outlined"
+          sx={{ p: { xs: 1.5, md: 3 }, borderRadius: 4, mb: 3 }}
+        >
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <Avatar sx={{ width: 64, height: 64, fontSize: 22 }}>
               {iniciales(nombreUsuario(usuarioSeleccionado))}
             </Avatar>
 
-            <Box flex={1}>
-              <Typography variant="h5" fontWeight={900}>
+            <Box flex={1} minWidth={0}>
+              <Typography variant="h5" fontWeight={900} sx={{ wordBreak: "break-word" }}>
                 {nombreUsuario(usuarioSeleccionado)}
               </Typography>
 
-              <Typography color="text.secondary">
+              <Typography color="text.secondary" sx={{ wordBreak: "break-word" }}>
                 {usuarioSeleccionado.email || "-"}
               </Typography>
 
@@ -1050,7 +1361,7 @@ export default function TeaTeDaMas() {
         ) : (
           <>
             <Grid container spacing={2} mb={3}>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} sm={6} md={4}>
                 <KpiCard
                   title="Total referidos"
                   value={toNumber(resumen?.referidos_mes_seleccionado)}
@@ -1059,7 +1370,7 @@ export default function TeaTeDaMas() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} sm={6} md={4}>
                 <KpiCard
                   title="Confirmados"
                   value={toNumber(resumen?.confirmados_mes_seleccionado)}
@@ -1068,7 +1379,7 @@ export default function TeaTeDaMas() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} sm={6} md={4}>
                 <KpiCard
                   title="Pendientes"
                   value={toNumber(resumen?.pendientes_mes_seleccionado)}
@@ -1077,7 +1388,7 @@ export default function TeaTeDaMas() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} sm={6} md={4}>
                 <KpiCard
                   title="Ganancia total"
                   value={formatoMoneda((resumen as any)?.ganancia_mes_seleccionado)}
@@ -1086,7 +1397,7 @@ export default function TeaTeDaMas() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} sm={6} md={4}>
                 <KpiCard
                   title="Ganancia confirmada"
                   value={formatoMoneda((resumen as any)?.ganancia_confirmada_mes_seleccionado)}
@@ -1095,7 +1406,7 @@ export default function TeaTeDaMas() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} sm={6} md={4}>
                 <KpiCard
                   title="Ganancia pendiente"
                   value={formatoMoneda((resumen as any)?.ganancia_pendiente_mes_seleccionado)}
@@ -1105,7 +1416,7 @@ export default function TeaTeDaMas() {
               </Grid>
             </Grid>
 
-            <Paper variant="outlined" sx={{ p: 2, borderRadius: 4 }}>
+            <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, borderRadius: 4 }}>
               <Stack
                 direction={{ xs: "column", md: "row" }}
                 justifyContent="space-between"
@@ -1123,68 +1434,95 @@ export default function TeaTeDaMas() {
                 </Box>
               </Stack>
 
-              <TableContainer sx={{ overflowX: "auto" }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Cuenta referida</TableCell>
-                      <TableCell>Producto</TableCell>
-                      <TableCell>Ganancia</TableCell>
-                      <TableCell>Estado</TableCell>
-                      <TableCell>Fechas</TableCell>
-                      <TableCell>Origen</TableCell>
-                      <TableCell align="right">Acción</TableCell>
-                    </TableRow>
-                  </TableHead>
+              {isMobile ? (
+                <Stack spacing={1.25}>
+                  {referidosDetalle.map((item) => (
+                    <MovimientoCard
+                      key={item.id}
+                      item={item}
+                      usuarioSeleccionado={usuarioSeleccionado}
+                      showAction
+                      onDetails={setRegistroDetalle}
+                    />
+                  ))}
 
-                  <TableBody>
-                    {(data?.referidos_mes_seleccionado?.data || []).map(
-                      (itemOriginal) => {
-                        const item = itemOriginal as TeaReferidoConGanancia;
+                  {referidosDetalle.length === 0 && (
+                    <Typography color="text.secondary" align="center" py={3}>
+                      Sin referidos para este usuario.
+                    </Typography>
+                  )}
+                </Stack>
+              ) : (
+                <>
+                  <TableContainer
+                    sx={{
+                      width: "100%",
+                      overflowX: "hidden",
+                    }}
+                  >
+                    <Table
+                      size="small"
+                      sx={{
+                        tableLayout: "fixed",
+                        width: "100%",
+                        "& td, & th": {
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                          verticalAlign: "top",
+                        },
+                        "& th:last-of-type, & td:last-of-type": {
+                          whiteSpace: "nowrap",
+                          wordBreak: "normal",
+                          overflow: "visible",
+                        },
+                      }}
+                    >
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ width: "34%" }}>
+                            Referido / Producto
+                          </TableCell>
+                          <TableCell sx={{ width: "13%" }}>Ganancia</TableCell>
+                          <TableCell
+                            sx={{
+                              width: "15%",
+                              minWidth: 130,
+                              whiteSpace: "nowrap",
+                              wordBreak: "normal",
+                            }}
+                          >
+                            Estado
+                          </TableCell>
+                          <TableCell sx={{ width: "24%" }}>Fechas</TableCell>
+                          <TableCell sx={{ width: "14%", minWidth: 120 }} align="right">
+                            Acción
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
 
-                        return (
+                      <TableBody>
+                        {referidosDetalle.map((item) => (
                           <TableRow key={item.id}>
-                            <TableCell sx={{ minWidth: 260 }}>
-                              <Stack
-                                direction="row"
-                                alignItems="center"
-                                spacing={1}
-                                flexWrap="wrap"
-                              >
-                                <SistemaChip sistema={item.sistema} />
-                                <Typography fontWeight={900}>
-                                  {nombreUsuarioReferido(item)}
+                            <TableCell>
+                              <NombreConSistema item={item} />
+
+                              <Box mt={0.8}>
+                                <Typography fontWeight={800} lineHeight={1.25}>
+                                  {item.nombre_producto || "-"}
                                 </Typography>
-                              </Stack>
 
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                External ID: {item.external_id || "-"}
-                              </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  display="block"
+                                >
+                                  Costo: {formatoMoneda(item.costo_producto)}
+                                </Typography>
+                              </Box>
                             </TableCell>
 
-                            <TableCell sx={{ minWidth: 220 }}>
-                              <Typography fontWeight={800}>
-                                {item.nombre_producto || "-"}
-                              </Typography>
-
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                Costo: {formatoMoneda(item.costo_producto)}
-                              </Typography>
-                            </TableCell>
-
-                            <TableCell sx={{ minWidth: 190 }}>
-                              <Stack
-                                direction="row"
-                                spacing={1}
-                                alignItems="center"
-                                flexWrap="wrap"
-                              >
+                            <TableCell>
+                              <Stack direction="column" spacing={0.6} alignItems="flex-start">
                                 <Typography fontWeight={900}>
                                   {formatoMoneda(item.monto)}
                                 </Typography>
@@ -1197,7 +1535,7 @@ export default function TeaTeDaMas() {
                               <StatusChip status={item.status} />
                             </TableCell>
 
-                            <TableCell sx={{ minWidth: 220 }}>
+                            <TableCell>
                               <Typography variant="caption" display="block">
                                 Registro: {formatoFechaHora(item.fecha_registro)}
                               </Typography>
@@ -1211,43 +1549,45 @@ export default function TeaTeDaMas() {
                               </Typography>
                             </TableCell>
 
-                            <TableCell>{item.origen || "-"}</TableCell>
-
                             <TableCell align="right">
                               <Button
                                 size="small"
                                 variant="outlined"
-                                startIcon={<InfoOutlined />}
                                 onClick={() => setRegistroDetalle(item)}
+                                sx={{
+                                  minWidth: 92,
+                                  whiteSpace: "nowrap",
+                                  textTransform: "none",
+                                  px: 1.5,
+                                }}
                               >
                                 Detalles
                               </Button>
                             </TableCell>
                           </TableRow>
-                        );
-                      },
-                    )}
+                        ))}
 
-                    {(data?.referidos_mes_seleccionado?.data || []).length ===
-                      0 && (
-                      <TableRow>
-                        <TableCell colSpan={7} align="center">
-                          Sin referidos para este usuario.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                        {referidosDetalle.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} align="center">
+                              Sin referidos para este usuario.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
 
-              <TablePagination
-                component="div"
-                count={data?.referidos_mes_seleccionado?.total || 0}
-                page={referidosPage}
-                onPageChange={(_, newPage) => setReferidosPage(newPage)}
-                rowsPerPage={data?.referidos_mes_seleccionado?.per_page || 20}
-                rowsPerPageOptions={[20]}
-              />
+                  <TablePagination
+                    component="div"
+                    count={data?.referidos_mes_seleccionado?.total || 0}
+                    page={referidosPage}
+                    onPageChange={(_, newPage) => setReferidosPage(newPage)}
+                    rowsPerPage={data?.referidos_mes_seleccionado?.per_page || 20}
+                    rowsPerPageOptions={[20]}
+                  />
+                </>
+              )}
             </Paper>
           </>
         )}
@@ -1263,7 +1603,7 @@ export default function TeaTeDaMas() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", overflowX: "hidden" }}>
       <Stack
         direction={{ xs: "column", md: "row" }}
         justifyContent="space-between"
@@ -1272,7 +1612,7 @@ export default function TeaTeDaMas() {
         mb={3}
       >
         <Box>
-          <Typography variant="h4" fontWeight={900}>
+          <Typography variant={isMobile ? "h5" : "h4"} fontWeight={900}>
             TEA te da más
           </Typography>
 
@@ -1288,7 +1628,7 @@ export default function TeaTeDaMas() {
 
       <FiltrosTea
         titulo="Filtros de movimientos"
-        subtitulo="Aplican solo a Usuarios nuevos y Recientes del mes."
+        subtitulo="Aplican solo a Nuevos Referidos y Recientes del mes."
         sistema={sistema}
         status={status}
         mes={mes}
@@ -1329,12 +1669,12 @@ export default function TeaTeDaMas() {
       ) : (
         <>
           <Grid container spacing={2} mb={3}>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={3}>
               <Paper
                 variant="outlined"
                 onClick={abrirVistaUsuarios}
                 sx={{
-                  p: 2.5,
+                  p: 2,
                   borderRadius: 4,
                   height: "100%",
                   cursor: "pointer",
@@ -1350,28 +1690,28 @@ export default function TeaTeDaMas() {
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Avatar
                     sx={{
-                      width: 56,
-                      height: 56,
+                      width: 50,
+                      height: 50,
                       bgcolor: "rgba(255,255,255,0.18)",
                     }}
                   >
                     <PersonSearch />
                   </Avatar>
 
-                  <Box flex={1}>
-                    <Typography fontWeight={900} fontSize={18}>
+                  <Box flex={1} minWidth={0}>
+                    <Typography fontWeight={900} fontSize={17}>
                       Consultar por usuario
                     </Typography>
 
                     <Typography fontSize={13} sx={{ opacity: 0.9 }}>
-                      Abre la tabla de Usuarios TAE dentro del mismo módulo.
+                      Abre la tabla de Usuarios TAE.
                     </Typography>
                   </Box>
                 </Stack>
               </Paper>
             </Grid>
 
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={3}>
               <KpiCard
                 title="Confirmados"
                 value={toNumber(resumen?.confirmados_mes_seleccionado)}
@@ -1380,7 +1720,7 @@ export default function TeaTeDaMas() {
               />
             </Grid>
 
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={3}>
               <KpiCard
                 title="Ganancia confirmada"
                 value={formatoMoneda((resumen as any)?.ganancia_confirmada_mes_seleccionado)}
@@ -1389,188 +1729,310 @@ export default function TeaTeDaMas() {
               />
             </Grid>
 
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} sm={6} md={3}>
               <KpiCard
                 title="Mes seleccionado"
                 value={toNumber(resumen?.referidos_mes_seleccionado)}
-                subtitle={`${toNumber(
-                  resumen?.confirmados_mes_seleccionado,
-                )} confirmados`}
+                subtitle={`${toNumber(resumen?.confirmados_mes_seleccionado)} confirmados`}
                 icon={<TrendingUp />}
               />
             </Grid>
           </Grid>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} lg={5}>
-              <Paper variant="outlined" sx={{ p: 2, borderRadius: 4 }}>
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  mb={1}
-                >
-                  <Box>
-                    <Typography variant="h6" fontWeight={900}>
-                      Usuarios nuevos
-                    </Typography>
-
-                    <Typography variant="caption" color="text.secondary">
-                      {nombreMes(mes)} {anio}
-                    </Typography>
-                  </Box>
+          <Stack spacing={2}>
+            <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, borderRadius: 4 }}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                alignItems={{ xs: "stretch", sm: "center" }}
+                justifyContent="space-between"
+                spacing={1}
+                mb={2}
+              >
+                <Box>
+                  <Typography variant="h6" fontWeight={900}>
+                    Nuevos Referidos
+                  </Typography>
 
                   <Typography variant="caption" color="text.secondary">
-                    Mostrando {data?.nuevos?.length || 0}
+                    {nombreMes(mes)} {anio}
                   </Typography>
-                </Stack>
+                </Box>
 
-                <Box
+                <Typography variant="caption" color="text.secondary">
+               Mostrando {Math.min(3, data?.nuevos?.length || 0)} visibles de{" "}
+               {data?.nuevos?.length || 0}
+              </Typography>
+              </Stack>
+
+              {isMobile ? (
+                <Stack
+                  spacing={1.25}
                   sx={{
-                    maxHeight: 300,
+                    maxHeight: 390,
                     overflowY: "auto",
-                    pr: 1,
+                    pr: 0.5,
                   }}
                 >
-                  {(data?.nuevos || []).map((itemOriginal) => {
-                    const item = itemOriginal as TeaReferidoConGanancia;
+                  {nuevos.map((item) => (
+                    <MovimientoCard
+                      key={item.id}
+                      item={item}
+                      mostrarUsuarioTae
+                    />
+                  ))}
 
-                    return (
-                      <Paper
-                        key={item.id}
-                        variant="outlined"
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 3,
-                          mb: 1,
-                        }}
-                      >
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Avatar sx={{ width: 36, height: 36 }}>
-                            {iniciales(nombreUsuarioReferido(item))}
-                          </Avatar>
-
-                          <Box flex={1} minWidth={0}>
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              alignItems="center"
-                              flexWrap="wrap"
-                            >
-                              <SistemaChip sistema={item.sistema} />
-                              <Typography fontWeight={800} noWrap>
-                                {nombreUsuarioReferido(item)}
-                              </Typography>
-                            </Stack>
-
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              noWrap
-                            >
-                              {item.usuario
-                                ? `Refirió: ${nombreUsuario(item.usuario)}`
-                                : "-"}
-                            </Typography>
-                          </Box>
-
-                          <StatusChip status={item.status} />
-                        </Stack>
-                      </Paper>
-                    );
-                  })}
-
-                  {(data?.nuevos || []).length === 0 && (
+                  {nuevos.length === 0 && (
                     <Typography color="text.secondary" align="center" py={3}>
                       Sin usuarios nuevos.
                     </Typography>
                   )}
-                </Box>
-              </Paper>
-            </Grid>
-
-            <Grid item xs={12} lg={7}>
-              <Paper variant="outlined" sx={{ p: 2, borderRadius: 4 }}>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  justifyContent="space-between"
-                  spacing={1}
-                  mb={2}
-                >
-                  <Box>
-                    <Typography variant="h6" fontWeight={900}>
-                      Recientes del mes
-                    </Typography>
-
-                    <Typography variant="caption" color="text.secondary">
-                      {nombreMes(mes)} {anio}
-                    </Typography>
-                  </Box>
                 </Stack>
-
-                <TableContainer sx={{ overflowX: "auto" }}>
-                  <Table size="small">
+              ) : (
+                <TableContainer
+                  sx={{
+                    maxHeight: 230,
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    pr: 1,
+                    scrollbarGutter: "stable",
+                  }}
+                >
+                  <Table
+                    size="small"
+                    stickyHeader
+                    sx={{
+                      tableLayout: "fixed",
+                      width: "100%",
+                      "& td, & th": {
+                        whiteSpace: "normal",
+                        wordBreak: "break-word",
+                        verticalAlign: "top",
+                      },
+                      "& td:last-of-type, & th:last-of-type": {
+                        whiteSpace: "nowrap",
+                        wordBreak: "normal",
+                        overflow: "visible",
+                      },
+                    }}
+                  >
                     <TableHead>
                       <TableRow>
-                        <TableCell>Fecha</TableCell>
-                        <TableCell>Usuario TAE</TableCell>
-                        <TableCell>Cuenta referida</TableCell>
-                        <TableCell>Producto</TableCell>
-                        <TableCell>Ganancia</TableCell>
-                        <TableCell>Estado</TableCell>
+                        <TableCell sx={{ width: "12%" }}>Fecha</TableCell>
+                        <TableCell sx={{ width: "27%" }}>Cuenta referida</TableCell>
+                        <TableCell sx={{ width: "19%" }}>Refirió</TableCell>
+                        <TableCell sx={{ width: "15%" }}>Producto</TableCell>
+                        <TableCell sx={{ width: "13%" }}>Ganancia</TableCell>
+                        <TableCell
+                          sx={{
+                            width: "14%",
+                            minWidth: 130,
+                            whiteSpace: "nowrap",
+                            wordBreak: "normal",
+                          }}
+                        >
+                          Estado
+                        </TableCell>
                       </TableRow>
                     </TableHead>
 
                     <TableBody>
-                      {(data?.recientes_mes_actual || []).map((itemOriginal) => {
-                        const item = itemOriginal as TeaReferidoConGanancia;
+                      {nuevos.map((item) => (
+                        <TableRow key={item.id} hover>
+                          <TableCell>{formatoFecha(item.fecha_registro)}</TableCell>
 
-                        return (
-                          <TableRow key={item.id}>
-                            <TableCell>{formatoFecha(item.fecha_registro)}</TableCell>
+                          <TableCell>
+                            <NombreConSistema item={item} compact />
+                          </TableCell>
 
-                            <TableCell>
-                              {item.usuario ? nombreUsuario(item.usuario) : "-"}
-                            </TableCell>
+                          <TableCell>
+                            {item.usuario ? nombreUsuario(item.usuario) : "-"}
+                          </TableCell>
 
-                            <TableCell sx={{ minWidth: 220 }}>
-                              <Stack
-                                direction="row"
-                                spacing={1}
-                                alignItems="center"
-                                flexWrap="wrap"
-                              >
-                                <SistemaChip sistema={item.sistema} />
-                                <Typography fontWeight={800}>
-                                  {nombreUsuarioReferido(item)}
-                                </Typography>
-                              </Stack>
-                            </TableCell>
+                          <TableCell>
+                            <Typography fontWeight={700} lineHeight={1.25}>
+                              {item.nombre_producto || "-"}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Costo: {formatoMoneda(item.costo_producto)}
+                            </Typography>
+                          </TableCell>
 
-                            <TableCell>{item.nombre_producto || "-"}</TableCell>
+                          <TableCell>
+                            <Typography fontWeight={900}>
+                              {formatoMoneda(item.monto)}
+                            </Typography>
+                            <Box mt={0.5}>
+                              <GananciaChip item={item} />
+                            </Box>
+                          </TableCell>
 
-                            <TableCell sx={{ minWidth: 170 }}>
-                              <Stack
-                                direction="row"
-                                spacing={1}
-                                alignItems="center"
-                                flexWrap="wrap"
-                              >
-                                <Typography fontWeight={900}>
-                                  {formatoMoneda(item.monto)}
-                                </Typography>
-                                <GananciaChip item={item} />
-                              </Stack>
-                            </TableCell>
+                          <TableCell
+                            sx={{
+                              width: 130,
+                              minWidth: 130,
+                              whiteSpace: "nowrap",
+                              wordBreak: "normal",
+                              overflow: "visible",
+                            }}
+                          >
+                            <StatusChip status={item.status} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
 
-                            <TableCell>
-                              <StatusChip status={item.status} />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                      {nuevos.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} align="center">
+                            Sin usuarios nuevos.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Paper>
 
-                      {(data?.recientes_mes_actual || []).length === 0 && (
+            <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, borderRadius: 4 }}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                justifyContent="space-between"
+                spacing={1}
+                mb={2}
+              >
+                <Box>
+                  <Typography variant="h6" fontWeight={900}>
+                    Recientes del mes
+                  </Typography>
+
+                  <Typography variant="caption" color="text.secondary">
+                    {nombreMes(mes)} {anio}
+                  </Typography>
+                </Box>
+
+                <Typography variant="caption" color="text.secondary">
+                    Se muestran {Math.min(7, data?.recientes_mes_actual?.length || 0)} visibles de{" "}
+                   {data?.recientes_mes_actual?.length || 0}
+                  </Typography>
+              </Stack>
+
+              {isMobile ? (
+                <Stack
+                  spacing={1.25}
+                  sx={{
+                    maxHeight: 620,
+                    overflowY: "auto",
+                    pr: 0.5,
+                  }}
+                >
+                  {recientes.map((item) => (
+                    <MovimientoCard
+                      key={item.id}
+                      item={item}
+                      mostrarUsuarioTae
+                    />
+                  ))}
+
+                  {recientes.length === 0 && (
+                    <Typography color="text.secondary" align="center" py={3}>
+                      Sin recientes del mes.
+                    </Typography>
+                  )}
+                </Stack>
+              ) : (
+                <TableContainer
+                  sx={{
+                    maxHeight: 520,
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    pr: 1,
+                    scrollbarGutter: "stable",
+                  }}
+                >
+                  <Table
+                    size="small"
+                    stickyHeader
+                    sx={{
+                      tableLayout: "fixed",
+                      width: "100%",
+                      "& td, & th": {
+                        whiteSpace: "normal",
+                        wordBreak: "break-word",
+                        verticalAlign: "top",
+                      },
+                      "& td:last-of-type, & th:last-of-type": {
+                        whiteSpace: "nowrap",
+                        wordBreak: "normal",
+                        overflow: "visible",
+                      },
+                    }}
+                  >
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ width: "13%" }}>Fecha</TableCell>
+                        <TableCell sx={{ width: "18%" }}>Usuario TAE</TableCell>
+                        <TableCell sx={{ width: "25%" }}>Cuenta referida</TableCell>
+                        <TableCell sx={{ width: "15%" }}>Producto</TableCell>
+                        <TableCell sx={{ width: "13%" }}>Ganancia</TableCell>
+                        <TableCell
+                          sx={{
+                            width: "16%",
+                            minWidth: 130,
+                            whiteSpace: "nowrap",
+                            wordBreak: "normal",
+                          }}
+                        >
+                          Estado
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+
+                    <TableBody>
+                      {recientes.map((item) => (
+                        <TableRow key={item.id} hover>
+                          <TableCell>{formatoFechaHora(item.fecha_registro)}</TableCell>
+
+                          <TableCell>
+                            {item.usuario ? nombreUsuario(item.usuario) : "-"}
+                          </TableCell>
+
+                          <TableCell>
+                            <NombreConSistema item={item} compact />
+                          </TableCell>
+
+                          <TableCell>
+                            <Typography fontWeight={700} lineHeight={1.25}>
+                              {item.nombre_producto || "-"}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Costo: {formatoMoneda(item.costo_producto)}
+                            </Typography>
+                          </TableCell>
+
+                          <TableCell>
+                            <Typography fontWeight={900}>
+                              {formatoMoneda(item.monto)}
+                            </Typography>
+                            <Box mt={0.5}>
+                              <GananciaChip item={item} />
+                            </Box>
+                          </TableCell>
+
+                          <TableCell
+                            sx={{
+                              width: 130,
+                              minWidth: 130,
+                              whiteSpace: "nowrap",
+                              wordBreak: "normal",
+                              overflow: "visible",
+                            }}
+                          >
+                            <StatusChip status={item.status} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                      {recientes.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={6} align="center">
                             Sin recientes del mes.
@@ -1580,9 +2042,9 @@ export default function TeaTeDaMas() {
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </Paper>
-            </Grid>
-          </Grid>
+              )}
+            </Paper>
+          </Stack>
         </>
       )}
     </Box>

@@ -11,7 +11,7 @@ export type TeaReferidoSistema =
   | "taeconta"
   | "clicmenu"
   | "telorecargo"
-  | "chatingbot";
+  
 
 export type TeaReferidoOrden = "asc" | "desc";
 
@@ -47,7 +47,6 @@ export type TeaReferido = {
   status: TeaReferidoStatus | string;
   fecha_registro: string;
   fecha_confirmacion?: string | null;
-  origen?: string | null;
   observaciones?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
