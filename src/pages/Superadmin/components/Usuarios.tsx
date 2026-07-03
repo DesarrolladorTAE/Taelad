@@ -60,6 +60,7 @@ export default function Usuarios() {
     email: "",
     phone: "",
     role: "1",
+    password: "",
     codigo_ref: "",
   };
 
@@ -157,9 +158,23 @@ export default function Usuarios() {
     }));
   };
 
-  const validate = () => {
+  const validate = (mode: "create" | "edit") => {
     if (!form.name || !form.email) {
       Swal.fire("Error", "Nombre y email son obligatorios", "error");
+      return false;
+    }
+
+    if (mode === "create" && !form.password) {
+      Swal.fire("Error", "La contraseña es obligatoria", "error");
+      return false;
+    }
+
+    if (mode === "create" && String(form.password).length < 8) {
+      Swal.fire(
+        "Error",
+        "La contraseña debe tener mínimo 8 caracteres",
+        "error",
+      );
       return false;
     }
 
@@ -172,12 +187,16 @@ export default function Usuarios() {
   };
 
   const handleCreate = async () => {
-    if (!validate()) return;
+    if (!validate("create")) return;
 
     try {
       await createUser({
-        ...form,
+        name: form.name,
+        apellidos: form.apellidos,
+        email: form.email,
+        phone: form.phone,
         role: normalizeRoleValue(form.role),
+        password: form.password,
       });
 
       Swal.fire("Éxito", "Usuario creado correctamente", "success");
@@ -207,6 +226,7 @@ export default function Usuarios() {
       email: user?.email || "",
       phone: user?.phone || "",
       role: normalizeRoleValue(user?.role),
+      password: "",
       codigo_ref: user?.codigo_ref || "",
     });
 
@@ -219,11 +239,14 @@ export default function Usuarios() {
       return;
     }
 
-    if (!validate()) return;
+    if (!validate("edit")) return;
 
     try {
       await updateUser(editingId, {
-        ...form,
+        name: form.name,
+        apellidos: form.apellidos,
+        email: form.email,
+        phone: form.phone,
         role: normalizeRoleValue(form.role),
       });
 
@@ -569,16 +592,18 @@ export default function Usuarios() {
             onChange={handleChange}
           />
 
-          {renderRoleSelect()}
-
           <TextField
-            name="codigo_ref"
-            label="Código Ref"
-            value={form.codigo_ref}
+            name="password"
+            label="Contraseña"
+            type="password"
+            value={form.password || ""}
             fullWidth
             margin="dense"
             onChange={handleChange}
+            helperText="Mínimo 8 caracteres."
           />
+
+          {renderRoleSelect()}
         </DialogContent>
 
         <DialogActions>
