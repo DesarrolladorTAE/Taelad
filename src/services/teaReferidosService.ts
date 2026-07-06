@@ -3,6 +3,7 @@ import axios from "axios";
 const API_BASE_URL = "https://api.tecnologiasadministrativas.com/api";
 
 const TEA_REFERIDOS_DASHBOARD_URL = `${API_BASE_URL}/tea-referidos/dashboard`;
+const TEA_HISTORIAL_GLOBAL_USUARIO_URL = `${API_BASE_URL}/superadmin/users`;
 
 export type TeaReferidoStatus = "pendiente" | "confirmado" | "rechazado";
 
@@ -11,7 +12,7 @@ export type TeaReferidoSistema =
   | "taeconta"
   | "clicmenu"
   | "telorecargo"
-  
+  | "chatingbot";
 
 export type TeaReferidoOrden = "asc" | "desc";
 
@@ -24,6 +25,11 @@ export type TeaReferidoDashboardParams = {
   user_id?: number | string;
   usuarios_page?: number;
   referidos_page?: number;
+};
+
+export type TeaHistorialGlobalUsuarioParams = {
+  page?: number;
+  per_page?: number;
 };
 
 export type TeaUsuario = {
@@ -193,6 +199,34 @@ export type TeaReferidosDashboardResponse = {
   por_mes: TeaPorMesItem[];
 };
 
+export type TeaHistorialGlobalUsuarioItem = {
+  anio: number;
+  mes: number;
+  mes_nombre: string;
+  periodo: string;
+  total_referidos: number;
+  confirmados: number;
+  pendientes: number;
+  ganancia_total: number;
+};
+
+export type TeaHistorialGlobalUsuarioTotales = {
+  total_referidos: number;
+  confirmados: number;
+  pendientes: number;
+  ganancia_total: number;
+};
+
+export type TeaHistorialGlobalUsuarioResponse = {
+  ok?: boolean;
+  data: TeaHistorialGlobalUsuarioItem[];
+  totales?: TeaHistorialGlobalUsuarioTotales;
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+};
+
 function getToken(): string | null {
   return (
     localStorage.getItem("token") ||
@@ -212,7 +246,9 @@ function getHeaders() {
   };
 }
 
-function limpiarParams(params?: TeaReferidoDashboardParams) {
+function limpiarParams(
+  params?: TeaReferidoDashboardParams | TeaHistorialGlobalUsuarioParams,
+) {
   const cleanParams: Record<string, string | number> = {};
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -238,6 +274,22 @@ export async function obtenerTeaReferidosDashboard(
   return response.data;
 }
 
+export async function obtenerTeaHistorialGlobalUsuario(
+  userId: number | string,
+  params: TeaHistorialGlobalUsuarioParams = {},
+): Promise<TeaHistorialGlobalUsuarioResponse> {
+  const response = await axios.get<TeaHistorialGlobalUsuarioResponse>(
+    `${TEA_HISTORIAL_GLOBAL_USUARIO_URL}/${userId}/historial-global`,
+    {
+      headers: getHeaders(),
+      params: limpiarParams(params),
+    },
+  );
+
+  return response.data;
+}
+
 export const teaReferidosService = {
   obtenerDashboard: obtenerTeaReferidosDashboard,
+  obtenerHistorialGlobalUsuario: obtenerTeaHistorialGlobalUsuario,
 };

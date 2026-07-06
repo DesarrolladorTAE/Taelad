@@ -49,6 +49,24 @@ export default function SideNav({
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    const savedDarkMode = localStorage.getItem("darkMode");
+
+    if (savedTheme === "dark" || savedDarkMode === "true") {
+      setDarkMode(true);
+      localStorage.setItem("theme", "dark");
+      localStorage.setItem("darkMode", "true");
+      return;
+    }
+
+    if (savedTheme === "light" || savedDarkMode === "false") {
+      setDarkMode(false);
+      localStorage.setItem("theme", "light");
+      localStorage.setItem("darkMode", "false");
+    }
+  }, [setDarkMode]);
+
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("TOKEN");
@@ -60,6 +78,18 @@ export default function SideNav({
   const cambiarVista = (view: string) => {
     localStorage.setItem("superadmin_view", view);
     setView(view);
+
+    if (view === "tea-te-da-mas") {
+      window.setTimeout(() => {
+        window.dispatchEvent(new Event("tea-te-da-mas:reset"));
+      }, 0);
+    }
+  };
+
+  const cambiarModoOscuro = (value: boolean) => {
+    setDarkMode(value);
+    localStorage.setItem("theme", value ? "dark" : "light");
+    localStorage.setItem("darkMode", value ? "true" : "false");
   };
 
   const nombreCompleto =
@@ -211,13 +241,9 @@ export default function SideNav({
         </Typography>
 
         <Switch
-          checked={darkMode}
-          onChange={(e) => {
-            const value = e.target.checked;
-
-            setDarkMode(value);
-            localStorage.setItem("theme", value ? "dark" : "light");
-          }}
+          checked={Boolean(darkMode)}
+          color="primary"
+          onChange={(e) => cambiarModoOscuro(e.target.checked)}
         />
       </Box>
 

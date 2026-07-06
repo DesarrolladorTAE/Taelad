@@ -279,7 +279,7 @@ export default function MiTiendaVentas({ setView }: Props) {
 
                 <Box>
                   <Typography fontSize={13} color="text.secondary">
-                    Pendientes
+                    Pendientes por facturar
                   </Typography>
                   <Typography fontSize={26} fontWeight={900}>
                     {pendientes}
@@ -329,7 +329,7 @@ export default function MiTiendaVentas({ setView }: Props) {
 
             <Stack direction="row" spacing={1}>
               <Chip label={`Facturadas: ${facturadas}`} color="success" />
-              <Chip label={`Sin facturar: ${pendientes}`} color="warning" />
+              <Chip label={`Pendientes por facturar: ${pendientes}`} color="warning" />
             </Stack>
           </Stack>
         </CardContent>

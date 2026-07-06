@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert,
   Avatar,
@@ -45,6 +45,7 @@ import {
   type TeaReferidosDashboardResponse,
   type TeaUsuarioTeaItem,
 } from "../../../services/teaReferidosService";
+import TeaHistorialGlobalUsuario from "./TeaHistorialGlobalUsuario";
 
 const sistemas = [
   { value: "", label: "Todos los sistemas" },
@@ -78,6 +79,10 @@ const meses = [
 ];
 
 type VistaTea = "principal" | "usuarios" | "detalle";
+
+type TeaTeDaMasProps = {
+  resetKey?: number;
+};
 
 type TeaReferidoConGanancia = TeaReferido & {
   ganancia_id?: number | string | null;
@@ -869,7 +874,7 @@ function DetalleRegistroDialog({
   );
 }
 
-export default function TeaTeDaMas() {
+export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const now = new Date();
@@ -879,6 +884,7 @@ export default function TeaTeDaMas() {
   const [error, setError] = useState("");
 
   const [vista, setVista] = useState<VistaTea>("principal");
+  const [modoDetalle, setModoDetalle] = useState<"mensual" | "historico">("mensual");
   const [usuarioSeleccionado, setUsuarioSeleccionado] =
     useState<TeaUsuarioTeaItem | null>(null);
   const [registroDetalle, setRegistroDetalle] =
@@ -1008,8 +1014,33 @@ export default function TeaTeDaMas() {
     [data?.referidos_mes_seleccionado?.data],
   );
 
+  const resetearDashboardPrincipal = useCallback(() => {
+    setVista("principal");
+    setModoDetalle("mensual");
+    setUsuarioSeleccionado(null);
+    setRegistroDetalle(null);
+    setUsuariosPage(0);
+    setReferidosPage(0);
+    setBusquedaUsuario("");
+  }, []);
+
+  useEffect(() => {
+    resetearDashboardPrincipal();
+  }, [resetKey, resetearDashboardPrincipal]);
+
+  useEffect(() => {
+    const handler = () => resetearDashboardPrincipal();
+
+    window.addEventListener("tea-te-da-mas:reset", handler);
+
+    return () => {
+      window.removeEventListener("tea-te-da-mas:reset", handler);
+    };
+  }, [resetearDashboardPrincipal]);
+
   const abrirVistaUsuarios = () => {
     setVista("usuarios");
+    setModoDetalle("mensual");
     setUsuarioSeleccionado(null);
     setRegistroDetalle(null);
     setUsuariosPage(0);
@@ -1026,19 +1057,17 @@ export default function TeaTeDaMas() {
     setDetalleAnio(anio);
     setDetalleOrden(orden);
     setReferidosPage(0);
+    setModoDetalle("mensual");
     setVista("detalle");
   };
 
   const regresarAPrincipal = () => {
-    setVista("principal");
-    setUsuarioSeleccionado(null);
-    setRegistroDetalle(null);
-    setUsuariosPage(0);
-    setReferidosPage(0);
+    resetearDashboardPrincipal();
   };
 
   const regresarAUsuarios = () => {
     setVista("usuarios");
+    setModoDetalle("mensual");
     setUsuarioSeleccionado(null);
     setRegistroDetalle(null);
     setReferidosPage(0);
@@ -1324,6 +1353,13 @@ export default function TeaTeDaMas() {
           </Stack>
         </Paper>
 
+        {modoDetalle === "historico" ? (
+          <TeaHistorialGlobalUsuario
+            userId={usuarioSeleccionado.user_id}
+            onBack={() => setModoDetalle("mensual")}
+          />
+        ) : (
+          <>
         <FiltrosTea
           titulo="Filtros del usuario"
           subtitulo="Estos filtros solo afectan el detalle de este usuario."
@@ -1398,21 +1434,73 @@ export default function TeaTeDaMas() {
               </Grid>
 
               <Grid item xs={12} sm={6} md={4}>
-                <KpiCard
-                  title="Ganancia confirmada"
-                  value={formatoMoneda((resumen as any)?.ganancia_confirmada_mes_seleccionado)}
-                  subtitle="Comisiones confirmadas"
-                  icon={<AttachMoney />}
-                />
-              </Grid>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: { xs: 1.5, md: 2 },
+                    borderRadius: 4,
+                    height: "100%",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+                    <Avatar
+                      sx={{
+                        width: { xs: 40, md: 48 },
+                        height: { xs: 40, md: 48 },
+                        bgcolor: "primary.main",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <CalendarMonth />
+                    </Avatar>
 
-              <Grid item xs={12} sm={6} md={4}>
-                <KpiCard
-                  title="Ganancia pendiente"
-                  value={formatoMoneda((resumen as any)?.ganancia_pendiente_mes_seleccionado)}
-                  subtitle="Comisiones pendientes"
-                  icon={<AttachMoney />}
-                />
+                    <Box minWidth={0} flex={1}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        fontWeight={800}
+                        lineHeight={1.2}
+                      >
+                        Historial total
+                      </Typography>
+
+                      <Typography
+                        fontWeight={900}
+                        lineHeight={1.1}
+                        sx={{
+                          fontSize: "clamp(1.25rem, 6vw, 2rem)",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        Global
+                      </Typography>
+
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", lineHeight: 1.25, mb: 1 }}
+                      >
+                        Acumulado por mes desde el inicio.
+                      </Typography>
+
+                      <Button
+                        fullWidth
+                        size="small"
+                        variant="contained"
+                        onClick={() => {
+                          setRegistroDetalle(null);
+                          setModoDetalle("historico");
+                        }}
+                        sx={{ textTransform: "none" }}
+                      >
+                        Ver histórica
+                      </Button>
+                    </Box>
+                  </Stack>
+                </Paper>
               </Grid>
             </Grid>
 
@@ -1589,6 +1677,8 @@ export default function TeaTeDaMas() {
                 </>
               )}
             </Paper>
+          </>
+        )}
           </>
         )}
 

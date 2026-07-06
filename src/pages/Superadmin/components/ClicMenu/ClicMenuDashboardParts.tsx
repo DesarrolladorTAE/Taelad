@@ -137,6 +137,35 @@ function formatMoney(value: any) {
   });
 }
 
+const CLICMENU_PLAN_LABELS_BY_ID: Record<string, string> = {
+  "1": "Plan Demo",
+  "2": "Plan Digital",
+  "3": "Plan Gestión",
+  "4": "Plan Total",
+};
+
+function getPlanLabelFromSale(sale: any) {
+  const planName =
+    sale?.plan?.name ||
+    sale?.plan_name ||
+    sale?.subscription?.plan?.name ||
+    sale?.subscription?.plan_name ||
+    sale?.current_subscription?.plan?.name ||
+    sale?.current_subscription?.plan_name;
+
+  if (planName) return planName;
+
+  const planId =
+    sale?.plan_id ||
+    sale?.plan?.id ||
+    sale?.subscription?.plan_id ||
+    sale?.subscription?.plan?.id ||
+    sale?.current_subscription?.plan_id ||
+    sale?.current_subscription?.plan?.id;
+
+  return CLICMENU_PLAN_LABELS_BY_ID[String(planId || "")] || "Sin plan";
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "--";
 
@@ -614,15 +643,44 @@ export function EntityListCard<T>({
         </Stack>
 
         <Stack
-          spacing={1}
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            maxHeight: 320,
-            overflowY: "auto",
-            pr: 0.5,
-          }}
-        >
+  spacing={1}
+  sx={(theme) => ({
+    flex: 1,
+    minHeight: 0,
+    maxHeight: 320,
+    overflowY: "auto",
+    pr: 0.5,
+
+    scrollbarWidth: "thin",
+    scrollbarColor:
+      theme.palette.mode === "dark"
+        ? "#334155 transparent"
+        : "#CBD5E1 transparent",
+
+    "&::-webkit-scrollbar": {
+      width: 8,
+      height: 8,
+    },
+
+    "&::-webkit-scrollbar-track": {
+      background: "transparent",
+      borderRadius: 8,
+    },
+
+    "&::-webkit-scrollbar-thumb": {
+      backgroundColor:
+        theme.palette.mode === "dark" ? "#334155" : "#CBD5E1",
+      borderRadius: 8,
+      border: "2px solid transparent",
+      backgroundClip: "padding-box",
+    },
+
+    "&::-webkit-scrollbar-thumb:hover": {
+      backgroundColor:
+        theme.palette.mode === "dark" ? "#475569" : "#94A3B8",
+    },
+  })}
+>
           {items.length === 0 && (
             <Box
               sx={{
@@ -1256,7 +1314,7 @@ export function SalesTableCard({
                         .join(" ") || "Sin propietario"}
                     </TableCell>
 
-                    <TableCell>{sale?.plan?.name || "Sin plan"}</TableCell>
+                    <TableCell>{getPlanLabelFromSale(sale)}</TableCell>
 
                     <TableCell>{sale?.provider || "Sin proveedor"}</TableCell>
 
@@ -1984,6 +2042,12 @@ type ClicMenuBillingOption = {
 };
 
 const CLICMENU_PLAN_OPTIONS: ClicMenuPlanOption[] = [
+  {
+    id: "1",
+    name: "Plan Demo",
+    monthlyPrice: 0,
+    description: "Acceso demo de prueba. No debe sumarse como venta pagada.",
+  },
   {
     id: "2",
     name: "Plan Digital",

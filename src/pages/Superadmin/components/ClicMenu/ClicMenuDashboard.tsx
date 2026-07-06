@@ -57,6 +57,14 @@ const emptyOwnerForm: OwnerFormState = {
   status: "active",
 };
 
+const planFilters = [
+  { value: "todos", label: "Todos los planes" },
+  { value: "demo", label: "Plan Demo" },
+  { value: "digital", label: "Plan Digital" },
+  { value: "gestion", label: "Plan Gestión" },
+  { value: "total", label: "Plan Total" },
+];
+
 function createEmptySalesFilters(): SalesFiltersState {
   return {
     q: "",
@@ -195,6 +203,168 @@ function cleanText(value?: string | null) {
   return String(value || "").trim();
 }
 
+function getPlanFilterLabel(value?: string | null) {
+  return (
+    planFilters.find((item) => item.value === value)?.label ||
+    "Todos los planes"
+  );
+}
+
+function getPlanFilterId(value?: string | null) {
+  const normalized = String(value || "").toLowerCase();
+
+  const map: Record<string, number> = {
+    demo: 1,
+    digital: 2,
+    gestion: 3,
+    total: 4,
+  };
+
+  return map[normalized] || null;
+}
+
+function getSalePlanId(sale: any) {
+  const possibleValues = [
+    sale?.plan_id,
+    sale?.plan?.id,
+    sale?.subscription_plan_id,
+    sale?.subscription?.plan_id,
+    sale?.subscription?.plan?.id,
+    sale?.current_subscription?.plan_id,
+    sale?.current_subscription?.plan?.id,
+  ];
+
+  for (const value of possibleValues) {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function getSalePlanText(sale: any) {
+  return normalizeText(
+    [
+      sale?.plan_id,
+      sale?.plan?.id,
+      sale?.plan?.slug,
+      sale?.plan?.name,
+      sale?.plan?.code,
+      sale?.plan_name,
+      sale?.plan_slug,
+      sale?.plan_type,
+      sale?.subscription_type,
+      sale?.subscription?.plan_id,
+      sale?.subscription?.plan?.id,
+      sale?.subscription?.plan?.slug,
+      sale?.subscription?.plan?.name,
+      sale?.subscription?.plan_name,
+      sale?.current_subscription?.plan_id,
+      sale?.current_subscription?.plan?.id,
+      sale?.current_subscription?.plan?.slug,
+      sale?.current_subscription?.plan?.name,
+      sale?.product_name,
+      sale?.nombre_producto,
+      sale?.type,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function isDemoSale(sale: any) {
+  const rawFlags = [
+    sale?.is_demo,
+    sale?.demo,
+    sale?.subscription?.is_demo,
+    sale?.current_subscription?.is_demo,
+  ];
+
+  if (rawFlags.some((value) => value === true || value === 1 || value === "1")) {
+    return true;
+  }
+
+  const text = getSalePlanText(sale);
+
+  return (
+    text.includes("demo") ||
+    text.includes("prueba") ||
+    text.includes("trial")
+  );
+}
+
+function saleMatchesPlanFilter(sale: any, planFilter: string) {
+  if (!planFilter || planFilter === "todos") return true;
+
+  const planId = getSalePlanId(sale);
+  const expectedPlanId = getPlanFilterId(planFilter);
+
+  if (expectedPlanId && planId === expectedPlanId) {
+    return true;
+  }
+
+  if (planFilter === "demo") {
+    return isDemoSale(sale);
+  }
+
+  const text = getSalePlanText(sale);
+
+  if (planFilter === "digital") {
+    return text.includes("digital") || text.includes("plan 2");
+  }
+
+  if (planFilter === "gestion") {
+    return text.includes("gestion") || text.includes("gestión") || text.includes("plan 3");
+  }
+
+  if (planFilter === "total") {
+    return text.includes("total") || text.includes("plan 4");
+  }
+
+  return true;
+}
+
+function getSaleAmount(sale: any) {
+  const possibleValues = [
+    sale?.paid_price,
+    sale?.amount,
+    sale?.total,
+    sale?.price,
+    sale?.monto,
+    sale?.subscription?.paid_price,
+    sale?.subscription?.amount,
+    sale?.payment?.amount,
+  ];
+
+  for (const value of possibleValues) {
+    const amount = Number(value ?? 0);
+
+    if (Number.isFinite(amount) && amount > 0) {
+      return amount;
+    }
+  }
+
+  return 0;
+}
+
+function isPaidSubscriptionSale(sale: any) {
+  if (isDemoSale(sale)) return false;
+
+  const status = normalizeText(sale?.status);
+
+  return (
+    getSaleAmount(sale) > 0 ||
+    status.includes("paid") ||
+    status.includes("pagad") ||
+    status.includes("active") ||
+    status.includes("activo") ||
+    status.includes("confirm")
+  );
+}
+
 function getSaleOwnerName(sale: any) {
   return (
     [
@@ -232,9 +402,11 @@ export default function ClicMenuDashboard() {
 
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
+  const [planFilter, setPlanFilter] = useState("todos");
 
   const [consultedYear, setConsultedYear] = useState(now.getFullYear());
   const [consultedMonth, setConsultedMonth] = useState(now.getMonth() + 1);
+  const [consultedPlanFilter, setConsultedPlanFilter] = useState("todos");
 
   const [dashboard, setDashboard] = useState<any>(null);
 
@@ -293,6 +465,30 @@ export default function ClicMenuDashboard() {
   const monthlySales = useMemo<any[]>(() => {
     return getArray<any>(dashboard?.monthly_sales);
   }, [dashboard]);
+
+  const monthlySalesByPlan = useMemo(() => {
+    return monthlySales.filter((sale) =>
+      saleMatchesPlanFilter(sale, consultedPlanFilter)
+    );
+  }, [monthlySales, consultedPlanFilter]);
+
+  const visibleSalesSummary = useMemo(() => {
+    if (!consultedPlanFilter || consultedPlanFilter === "todos") {
+      return salesSummary;
+    }
+
+    return {
+      ...salesSummary,
+      total_subscriptions: monthlySalesByPlan.length,
+      paid_subscriptions: monthlySalesByPlan.filter(isPaidSubscriptionSale).length,
+      demo_subscriptions: monthlySalesByPlan.filter(isDemoSale).length,
+      total_sales: monthlySalesByPlan.reduce((total, sale) => {
+        if (isDemoSale(sale)) return total;
+
+        return total + getSaleAmount(sale);
+      }, 0),
+    };
+  }, [salesSummary, monthlySalesByPlan, consultedPlanFilter]);
 
   const ownersTotal = useMemo(() => {
     return getTotal(dashboard?.owners, owners.length);
@@ -379,9 +575,9 @@ export default function ClicMenuDashboard() {
   const filteredSales = useMemo(() => {
     const q = normalizeText(salesFilters.q);
 
-    if (!q) return monthlySales;
+    if (!q) return monthlySalesByPlan;
 
-    return monthlySales.filter((sale) => {
+    return monthlySalesByPlan.filter((sale) => {
       const text = normalizeText(
         [
           sale?.restaurant?.trade_name,
@@ -389,7 +585,10 @@ export default function ClicMenuDashboard() {
           sale?.restaurant?.owner?.last_name_paternal,
           sale?.restaurant?.owner?.last_name_maternal,
           sale?.restaurant?.owner?.email,
+          sale?.plan_id,
+          sale?.plan?.id,
           sale?.plan?.name,
+          sale?.plan_name,
           sale?.provider,
           sale?.status,
           sale?.paid_price,
@@ -400,12 +599,13 @@ export default function ClicMenuDashboard() {
 
       return text.includes(q);
     });
-  }, [monthlySales, salesFilters.q]);
+  }, [monthlySalesByPlan, salesFilters.q]);
 
   const buildSalesParams = (
     targetYear: number,
     targetMonth: number,
-    targetFilters: SalesFiltersState = salesFilters
+    targetFilters: SalesFiltersState = salesFilters,
+    targetPlanFilter: string = planFilter
   ) => {
     const params: Record<string, any> = {
       year: targetYear,
@@ -413,6 +613,21 @@ export default function ClicMenuDashboard() {
       per_page: 100,
       include_internal: false,
     };
+
+    if (targetPlanFilter && targetPlanFilter !== "todos") {
+      const planId = getPlanFilterId(targetPlanFilter);
+
+      params.plan = targetPlanFilter;
+      params.plan_filter = targetPlanFilter;
+      params.plan_slug = targetPlanFilter;
+      params.plan_type = targetPlanFilter;
+      params.plan_key = targetPlanFilter;
+      params.subscription_type = targetPlanFilter === "demo" ? "demo" : "paid";
+
+      if (planId) {
+        params.plan_id = planId;
+      }
+    }
 
     if (cleanText(targetFilters.q)) params.q = cleanText(targetFilters.q);
     if (targetFilters.owner_id) params.owner_id = targetFilters.owner_id;
@@ -437,13 +652,13 @@ export default function ClicMenuDashboard() {
   };
 
   const aplicarFiltrosVentas = () => {
-    cargarDashboard(Number(year), Number(month), false, salesFilters);
+    cargarDashboard(Number(year), Number(month), false, salesFilters, planFilter);
   };
 
   const limpiarFiltrosVentas = () => {
     const emptyFilters = createEmptySalesFilters();
     setSalesFilters(emptyFilters);
-    cargarDashboard(Number(year), Number(month), false, emptyFilters);
+    cargarDashboard(Number(year), Number(month), false, emptyFilters, planFilter);
   };
 
   const exportarVentasCsv = () => {
@@ -478,9 +693,11 @@ export default function ClicMenuDashboard() {
       .map((row) => row.map(toCsvValue).join(","))
       .join("\n");
 
+    const planSlug = consultedPlanFilter || "todos";
+
     const fileName = `clicmenu_ventas_${consultedYear}_${String(
       consultedMonth
-    ).padStart(2, "0")}.csv`;
+    ).padStart(2, "0")}_${planSlug}.csv`;
 
     const blob = new Blob([`\uFEFF${csv}`], {
       type: "text/csv;charset=utf-8;",
@@ -499,7 +716,8 @@ export default function ClicMenuDashboard() {
     targetYear: number = year,
     targetMonth: number = month,
     silent = false,
-    targetFilters: SalesFiltersState = salesFilters
+    targetFilters: SalesFiltersState = salesFilters,
+    targetPlanFilter: string = planFilter
   ) => {
     try {
       if (!silent) setLoading(true);
@@ -508,7 +726,8 @@ export default function ClicMenuDashboard() {
       const salesParams = buildSalesParams(
         targetYear,
         targetMonth,
-        targetFilters
+        targetFilters,
+        targetPlanFilter
       );
 
       const [dashboardResponse, monthlySalesResponse, salesSummaryResponse] =
@@ -517,6 +736,18 @@ export default function ClicMenuDashboard() {
             year: targetYear,
             month: targetMonth,
             per_page: 15,
+            ...(targetPlanFilter && targetPlanFilter !== "todos"
+              ? {
+                  plan: targetPlanFilter,
+                  plan_filter: targetPlanFilter,
+                  plan_slug: targetPlanFilter,
+                  plan_type: targetPlanFilter,
+                  plan_key: targetPlanFilter,
+                  plan_id: getPlanFilterId(targetPlanFilter),
+                  subscription_type:
+                    targetPlanFilter === "demo" ? "demo" : "paid",
+                }
+              : {}),
           }),
           clicMenuService.monthlySales(salesParams),
           clicMenuService.salesSummary(salesParams),
@@ -529,6 +760,7 @@ export default function ClicMenuDashboard() {
       });
       setConsultedYear(targetYear);
       setConsultedMonth(targetMonth);
+      setConsultedPlanFilter(targetPlanFilter);
     } catch (err: any) {
       setError(getErrorMessage(err, "No fue posible cargar ClicMenu."));
     } finally {
@@ -632,7 +864,7 @@ export default function ClicMenuDashboard() {
     const emptyFilters = createEmptySalesFilters();
     setSalesFilters(emptyFilters);
 
-    cargarDashboard(targetYear, targetMonth, false, emptyFilters);
+    cargarDashboard(targetYear, targetMonth, false, emptyFilters, planFilter);
   };
 
   const seleccionarOwner = (ownerId: number) => {
@@ -1274,7 +1506,7 @@ export default function ClicMenuDashboard() {
             <SummaryCard
               icon={<PaymentsIcon />}
               title="Ventas"
-              value={formatMoney(salesSummary?.total_sales)}
+              value={formatMoney(visibleSalesSummary?.total_sales)}
               subtitle="Total vendido en el periodo"
               money
             />
@@ -1284,114 +1516,140 @@ export default function ClicMenuDashboard() {
         <Paper
           elevation={0}
           sx={{
-            p: 2,
+            p: { xs: 1.5, md: 2 },
             borderRadius: 4,
             border: "1px solid",
             borderColor: "divider",
             bgcolor: "background.paper",
           }}
         >
-          <Grid container spacing={2} alignItems="stretch">
-            <Grid item xs={12} lg={4}>
-              <Stack spacing={1.5}>
-                <Box>
-                  <Typography variant="h6" fontWeight={900}>
-                    Consultar información
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Filtra el periodo de ventas y suscripciones.
-                  </Typography>
-                </Box>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h6" fontWeight={900}>
+                Consultar información
+              </Typography>
+              <Typography color="text.secondary">
+                Filtra el periodo de ventas y suscripciones.
+              </Typography>
+            </Box>
 
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                  <TextField
-                    label="Año"
-                    size="small"
-                    type="number"
-                    value={year}
-                    onChange={(event) => setYear(Number(event.target.value))}
-                    sx={{ width: { xs: "100%", sm: 130 } }}
-                  />
+            <Grid container spacing={1.5} alignItems="center">
+              <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  fullWidth
+                  label="Año"
+                  size="small"
+                  type="number"
+                  value={year}
+                  onChange={(event) => setYear(Number(event.target.value))}
+                />
+              </Grid>
 
-                  <TextField
-                    label="Mes"
-                    select
-                    size="small"
-                    value={month}
-                    onChange={(event) => setMonth(Number(event.target.value))}
-                    sx={{ width: { xs: "100%", sm: 170 } }}
-                  >
-                    <MenuItem value={1}>Enero</MenuItem>
-                    <MenuItem value={2}>Febrero</MenuItem>
-                    <MenuItem value={3}>Marzo</MenuItem>
-                    <MenuItem value={4}>Abril</MenuItem>
-                    <MenuItem value={5}>Mayo</MenuItem>
-                    <MenuItem value={6}>Junio</MenuItem>
-                    <MenuItem value={7}>Julio</MenuItem>
-                    <MenuItem value={8}>Agosto</MenuItem>
-                    <MenuItem value={9}>Septiembre</MenuItem>
-                    <MenuItem value={10}>Octubre</MenuItem>
-                    <MenuItem value={11}>Noviembre</MenuItem>
-                    <MenuItem value={12}>Diciembre</MenuItem>
-                  </TextField>
+              <Grid item xs={12} sm={6} md={2.2}>
+                <TextField
+                  fullWidth
+                  label="Mes"
+                  select
+                  size="small"
+                  value={month}
+                  onChange={(event) => setMonth(Number(event.target.value))}
+                >
+                  <MenuItem value={1}>Enero</MenuItem>
+                  <MenuItem value={2}>Febrero</MenuItem>
+                  <MenuItem value={3}>Marzo</MenuItem>
+                  <MenuItem value={4}>Abril</MenuItem>
+                  <MenuItem value={5}>Mayo</MenuItem>
+                  <MenuItem value={6}>Junio</MenuItem>
+                  <MenuItem value={7}>Julio</MenuItem>
+                  <MenuItem value={8}>Agosto</MenuItem>
+                  <MenuItem value={9}>Septiembre</MenuItem>
+                  <MenuItem value={10}>Octubre</MenuItem>
+                  <MenuItem value={11}>Noviembre</MenuItem>
+                  <MenuItem value={12}>Diciembre</MenuItem>
+                </TextField>
+              </Grid>
 
-                  <Button
-                    variant="contained"
-                    onClick={consultar}
-                    sx={{
-                      height: 40,
-                      px: 3,
-                      borderRadius: 2,
-                      fontWeight: 800,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Consultar
-                  </Button>
-                </Stack>
-              </Stack>
-            </Grid>
+              <Grid item xs={12} sm={8} md={5.2}>
+                <TextField
+                  fullWidth
+                  label="Plan"
+                  select
+                  size="small"
+                  value={planFilter}
+                  onChange={(event) => setPlanFilter(event.target.value)}
+                >
+                  {planFilters.map((item) => (
+                    <MenuItem key={item.value} value={item.value}>
+                      {item.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
 
-            <Grid item xs={12} lg={8}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} xl={3}>
-                  <MetricCard
-                    title="Suscripciones"
-                    value={salesSummary?.total_subscriptions ?? 0}
-                    subtitle="Total suscripciones"
-                    icon={<SubscriptionsIcon />}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} xl={3}>
-                  <MetricCard
-                    title="Pagadas"
-                    value={salesSummary?.paid_subscriptions ?? 0}
-                    subtitle="Suscripciones pagadas"
-                    icon={<PaymentsIcon />}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} xl={3}>
-                  <MetricCard
-                    title="Demos"
-                    value={salesSummary?.demo_subscriptions ?? 0}
-                    subtitle="Suscripciones demo"
-                    icon={<StorefrontIcon />}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} xl={3}>
-                  <MetricCard
-                    title="Total vendido"
-                    value={formatMoney(salesSummary?.total_sales)}
-                    subtitle="Total en el periodo"
-                    icon={<PaymentsIcon />}
-                  />
-                </Grid>
+              <Grid item xs={12} sm={4} md={2.6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={consultar}
+                  sx={{
+                    minHeight: 40,
+                    px: 2,
+                    borderRadius: 2.5,
+                    fontWeight: 900,
+                    whiteSpace: "nowrap",
+                    textTransform: "none",
+                  }}
+                >
+                  Consultar
+                </Button>
               </Grid>
             </Grid>
-          </Grid>
+
+            <Typography variant="body2" color="text.secondary">
+              Plan consultado:{" "}
+              <Typography component="span" fontWeight={900} color="text.primary">
+                {getPlanFilterLabel(consultedPlanFilter)}
+              </Typography>
+            </Typography>
+
+            <Grid container spacing={1.5} alignItems="stretch">
+              <Grid item xs={12} sm={6} md={3}>
+                <MetricCard
+                  title="Suscripciones"
+                  value={visibleSalesSummary?.total_subscriptions ?? 0}
+                  subtitle="Total suscripciones"
+                  icon={<SubscriptionsIcon />}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <MetricCard
+                  title="Pagadas"
+                  value={visibleSalesSummary?.paid_subscriptions ?? 0}
+                  subtitle="Suscripciones pagadas"
+                  icon={<PaymentsIcon />}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <MetricCard
+                  title="Demos"
+                  value={visibleSalesSummary?.demo_subscriptions ?? 0}
+                  subtitle="Suscripciones demo"
+                  icon={<StorefrontIcon />}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <MetricCard
+                  title="Total vendido"
+                  value={formatMoney(visibleSalesSummary?.total_sales)}
+                  subtitle="Total en el periodo"
+                  icon={<PaymentsIcon />}
+                />
+              </Grid>
+            </Grid>
+          </Stack>
         </Paper>
 
         <Grid container spacing={2} alignItems="stretch">
@@ -1563,7 +1821,7 @@ export default function ClicMenuDashboard() {
             consultedMonth
           )} ${consultedYear})`}
           sales={filteredSales}
-          totalSales={monthlySales.length}
+          totalSales={monthlySalesByPlan.length}
           salesFilters={salesFilters}
           ownerOptions={owners}
           restaurantOptions={restaurants}

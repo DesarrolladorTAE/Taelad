@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  InputAdornment,
   MenuItem,
   Stack,
   Table,
@@ -16,6 +17,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Typography,
@@ -35,6 +37,7 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import SearchIcon from "@mui/icons-material/Search";
 
 const ROLE_OPTIONS = [
   { value: "1", label: "Usuario" },
@@ -42,12 +45,21 @@ const ROLE_OPTIONS = [
   { value: "3", label: "Superadministrador" },
 ];
 
+function normalizarTexto(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export default function Usuarios() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState("");
 
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
@@ -75,6 +87,10 @@ export default function Usuarios() {
     per_page: 16,
     total: 0,
   });
+
+  const handlePageChange = (_event: unknown, newPage: number) => {
+    setPage(newPage + 1);
+  };
 
   const getUserId = (user: any) => {
     return user?.id ?? user?.user_id ?? user?.id_user ?? null;
@@ -126,20 +142,21 @@ export default function Usuarios() {
     cargarUsuarios();
   }, [page]);
 
-  const cargarUsuarios = () => {
+  const cargarUsuarios = (targetPage = page) => {
     setLoading(true);
 
-    getSuperAdminUsers(page, perPage)
+    getSuperAdminUsers(targetPage, perPage)
       .then((response) => {
         const data = Array.isArray(response?.data) ? response.data : [];
 
         setUsuarios(data);
 
         setPagination({
-          current_page: response?.current_page || 1,
-          last_page: response?.last_page || 1,
-          per_page: response?.per_page || 16,
-          total: response?.total || 0,
+          current_page: response?.current_page || targetPage,
+          last_page:
+            response?.last_page || Math.max(Math.ceil(data.length / perPage), 1),
+          per_page: response?.per_page || perPage,
+          total: response?.total || data.length,
         });
       })
       .catch((err) => {
@@ -154,13 +171,25 @@ export default function Usuarios() {
 
     setForm((prev: any) => ({
       ...prev,
-      [name]: value,
+      [name]:
+        name === "phone"
+          ? String(value).replace(/\D/g, "").slice(0, 10)
+          : value,
     }));
   };
 
   const validate = (mode: "create" | "edit") => {
-    if (!form.name || !form.email) {
+    const name = String(form.name || "").trim();
+    const email = String(form.email || "").trim();
+    const phone = String(form.phone || "").trim();
+
+    if (!name || !email) {
       Swal.fire("Error", "Nombre y email son obligatorios", "error");
+      return false;
+    }
+
+    if (phone && phone.length !== 10) {
+      Swal.fire("Error", "El teléfono debe tener 10 dígitos", "error");
       return false;
     }
 
@@ -191,10 +220,10 @@ export default function Usuarios() {
 
     try {
       await createUser({
-        name: form.name,
-        apellidos: form.apellidos,
-        email: form.email,
-        phone: form.phone,
+        name: String(form.name || "").trim(),
+        apellidos: String(form.apellidos || "").trim(),
+        email: String(form.email || "").trim(),
+        phone: String(form.phone || "").trim(),
         role: normalizeRoleValue(form.role),
         password: form.password,
       });
@@ -203,7 +232,12 @@ export default function Usuarios() {
 
       setOpenCreate(false);
       resetForm();
-      cargarUsuarios();
+
+      if (page !== 1) {
+        setPage(1);
+      } else {
+        cargarUsuarios(1);
+      }
     } catch (err) {
       console.log(err);
       Swal.fire("Error", "No se pudo crear usuario", "error");
@@ -243,10 +277,10 @@ export default function Usuarios() {
 
     try {
       await updateUser(editingId, {
-        name: form.name,
-        apellidos: form.apellidos,
-        email: form.email,
-        phone: form.phone,
+        name: String(form.name || "").trim(),
+        apellidos: String(form.apellidos || "").trim(),
+        email: String(form.email || "").trim(),
+        phone: String(form.phone || "").trim(),
         role: normalizeRoleValue(form.role),
       });
 
@@ -285,14 +319,60 @@ export default function Usuarios() {
 
       Swal.fire("Eliminado", "Usuario eliminado correctamente", "success");
 
-      setUsuarios((prev) => prev.filter((u) => getUserId(u) !== id));
+      const isLastItemOnPage = usuarios.length === 1 && page > 1;
 
-      cargarUsuarios();
+      if (isLastItemOnPage) {
+        setPage((prev) => Math.max(prev - 1, 1));
+      } else {
+        cargarUsuarios();
+      }
     } catch (err) {
       console.log(err);
       Swal.fire("Error", "No se pudo eliminar", "error");
     }
   };
+
+  const usuariosFiltrados = useMemo(() => {
+    const q = normalizarTexto(busqueda);
+
+    if (!q) return usuarios;
+
+    return usuarios.filter((user) => {
+      const searchable = [
+        user?.id,
+        user?.user_id,
+        user?.id_user,
+        user?.name,
+        user?.apellidos,
+        user?.email,
+        user?.phone,
+        user?.codigo_ref,
+        user?.role,
+        getRoleName(user?.role),
+      ]
+        .map(normalizarTexto)
+        .join(" ");
+
+      return searchable.includes(q);
+    });
+  }, [usuarios, busqueda]);
+
+  const hayBusqueda = busqueda.trim().length > 0;
+
+  const isServerPaginated =
+    !hayBusqueda && pagination.total > usuarios.length && usuarios.length <= perPage;
+
+  const usuariosVisibles = isServerPaginated
+    ? usuariosFiltrados
+    : usuariosFiltrados.slice((page - 1) * perPage, page * perPage);
+
+  const paginationTotal = isServerPaginated
+    ? pagination.total
+    : usuariosFiltrados.length;
+
+  const tablePage = isServerPaginated
+    ? Math.max((pagination.current_page || page) - 1, 0)
+    : Math.max(page - 1, 0);
 
   const renderRoleSelect = () => (
     <TextField
@@ -303,6 +383,11 @@ export default function Usuarios() {
       fullWidth
       margin="dense"
       onChange={handleChange}
+      SelectProps={{
+        MenuProps: {
+          disablePortal: true,
+        },
+      }}
     >
       {ROLE_OPTIONS.map((option) => (
         <MenuItem key={option.value} value={option.value}>
@@ -329,7 +414,7 @@ export default function Usuarios() {
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
-            onClick={cargarUsuarios}
+            onClick={() => cargarUsuarios()}
           >
             Actualizar
           </Button>
@@ -361,11 +446,40 @@ export default function Usuarios() {
             },
           }}
         >
+          <Box
+            sx={{
+              mb: 2,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <TextField
+              fullWidth
+              size="small"
+              value={busqueda}
+              placeholder="Buscar por nombre, email, teléfono, rol o referencia"
+              onChange={(e) => {
+                setBusqueda(e.target.value);
+                setPage(1);
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                maxWidth: { xs: "100%", md: 460 },
+              }}
+            />
+          </Box>
+
           {loading ? (
             <CircularProgress />
           ) : isMobile ? (
             <Stack spacing={1.5}>
-              {usuarios.map((u, index) => {
+              {usuariosVisibles.map((u, index) => {
                 const id = getUserId(u);
 
                 return (
@@ -419,6 +533,14 @@ export default function Usuarios() {
                   </Card>
                 );
               })}
+
+              {usuariosVisibles.length === 0 && (
+                <Typography color="text.secondary" align="center" py={3}>
+                  {hayBusqueda
+                    ? "No hay usuarios que coincidan con la búsqueda."
+                    : "No hay usuarios."}
+                </Typography>
+              )}
             </Stack>
           ) : (
             <TableContainer
@@ -459,7 +581,7 @@ export default function Usuarios() {
                     <TableCell sx={{ width: "11%" }}>Nombre</TableCell>
                     <TableCell sx={{ width: "13%" }}>Apellidos</TableCell>
                     <TableCell sx={{ width: "23%" }}>Email</TableCell>
-                    <TableCell sx={{ width: "11%" }}>Phone</TableCell>
+                    <TableCell sx={{ width: "11%" }}>Teléfono</TableCell>
                     <TableCell sx={{ width: "13%" }}>Rol</TableCell>
                     <TableCell sx={{ width: "9%" }}>Ref</TableCell>
                     <TableCell sx={{ width: "15%" }}>Acciones</TableCell>
@@ -467,7 +589,7 @@ export default function Usuarios() {
                 </TableHead>
 
                 <TableBody>
-                  {usuarios.map((u, index) => {
+                  {usuariosVisibles.map((u, index) => {
                     const id = getUserId(u);
 
                     return (
@@ -540,9 +662,55 @@ export default function Usuarios() {
                       </TableRow>
                     );
                   })}
+
+                  {usuariosVisibles.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center">
+                        {hayBusqueda
+                          ? "No hay usuarios que coincidan con la búsqueda."
+                          : "No hay usuarios."}
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
+          )}
+
+          {!loading && (
+            <TablePagination
+              component="div"
+              count={paginationTotal}
+              page={tablePage}
+              onPageChange={handlePageChange}
+              rowsPerPage={perPage}
+              rowsPerPageOptions={[16]}
+              labelRowsPerPage="Filas por página"
+              labelDisplayedRows={({ from, to, count }) =>
+                `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+              }
+              sx={{
+                borderTop: "1px solid",
+                borderColor: "divider",
+                mt: 1,
+                "& .MuiTablePagination-toolbar": {
+                  px: { xs: 0, sm: 2 },
+                  flexWrap: "wrap",
+                  justifyContent: { xs: "center", sm: "flex-end" },
+                  gap: { xs: 0.5, sm: 1 },
+                },
+                "& .MuiTablePagination-spacer": {
+                  display: { xs: "none", sm: "block" },
+                },
+                "& .MuiTablePagination-selectLabel": {
+                  display: { xs: "none", sm: "block" },
+                },
+                "& .MuiTablePagination-displayedRows": {
+                  m: 0,
+                  fontSize: { xs: 12, sm: 14 },
+                },
+              }}
+            />
           )}
         </CardContent>
       </Card>
@@ -563,6 +731,7 @@ export default function Usuarios() {
             fullWidth
             margin="dense"
             onChange={handleChange}
+            autoComplete="off"
           />
 
           <TextField
@@ -572,24 +741,34 @@ export default function Usuarios() {
             fullWidth
             margin="dense"
             onChange={handleChange}
+            autoComplete="off"
           />
 
           <TextField
             name="email"
             label="Email"
+            type="email"
             value={form.email}
             fullWidth
             margin="dense"
             onChange={handleChange}
+            autoComplete="new-email"
           />
 
           <TextField
             name="phone"
-            label="Phone"
+            label="Teléfono"
+            type="tel"
             value={form.phone}
             fullWidth
             margin="dense"
             onChange={handleChange}
+            autoComplete="new-tel"
+            inputProps={{
+              inputMode: "numeric",
+              pattern: "[0-9]*",
+              maxLength: 10,
+            }}
           />
 
           <TextField
@@ -600,6 +779,7 @@ export default function Usuarios() {
             fullWidth
             margin="dense"
             onChange={handleChange}
+            autoComplete="new-password"
             helperText="Mínimo 8 caracteres."
           />
 
@@ -630,6 +810,7 @@ export default function Usuarios() {
             fullWidth
             margin="dense"
             onChange={handleChange}
+            autoComplete="off"
           />
 
           <TextField
@@ -639,24 +820,34 @@ export default function Usuarios() {
             fullWidth
             margin="dense"
             onChange={handleChange}
+            autoComplete="off"
           />
 
           <TextField
             name="email"
             label="Email"
+            type="email"
             value={form.email}
             fullWidth
             margin="dense"
             onChange={handleChange}
+            autoComplete="new-email"
           />
 
           <TextField
             name="phone"
-            label="Phone"
+            label="Teléfono"
+            type="tel"
             value={form.phone}
             fullWidth
             margin="dense"
             onChange={handleChange}
+            autoComplete="new-tel"
+            inputProps={{
+              inputMode: "numeric",
+              pattern: "[0-9]*",
+              maxLength: 10,
+            }}
           />
 
           {renderRoleSelect()}
@@ -668,6 +859,7 @@ export default function Usuarios() {
             fullWidth
             margin="dense"
             disabled
+            autoComplete="off"
             helperText="El código de referido no se puede modificar."
           />
         </DialogContent>
