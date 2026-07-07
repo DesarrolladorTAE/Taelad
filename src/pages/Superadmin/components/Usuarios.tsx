@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   InputAdornment,
   MenuItem,
   Stack,
@@ -38,6 +39,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 const ROLE_OPTIONS = [
   { value: "1", label: "Usuario" },
@@ -53,6 +56,16 @@ function normalizarTexto(value: unknown) {
     .trim();
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function normalizarEmail(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function normalizarTelefono(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "").slice(0, 10);
+}
+
 export default function Usuarios() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -60,6 +73,7 @@ export default function Usuarios() {
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
+  const [roleFilter, setRoleFilter] = useState("todos");
 
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
@@ -77,6 +91,8 @@ export default function Usuarios() {
   };
 
   const [form, setForm] = useState<any>(initialForm);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   const [page, setPage] = useState(1);
   const [perPage] = useState(16);
@@ -145,7 +161,7 @@ export default function Usuarios() {
   const cargarUsuarios = (targetPage = page) => {
     setLoading(true);
 
-    getSuperAdminUsers(targetPage, perPage)
+    getSuperAdminUsers(1, 1000)
       .then((response) => {
         const data = Array.isArray(response?.data) ? response.data : [];
 
@@ -173,35 +189,87 @@ export default function Usuarios() {
       ...prev,
       [name]:
         name === "phone"
-          ? String(value).replace(/\D/g, "").slice(0, 10)
+          ? normalizarTelefono(value)
+          : name === "email"
+          ? String(value).replace(/\s/g, "").toLowerCase()
           : value,
     }));
   };
 
   const validate = (mode: "create" | "edit") => {
     const name = String(form.name || "").trim();
-    const email = String(form.email || "").trim();
-    const phone = String(form.phone || "").trim();
+    const email = normalizarEmail(form.email);
+    const phone = normalizarTelefono(form.phone);
+    const password = String(form.password || "").trim();
+    const currentId = mode === "edit" ? Number(editingId || 0) : 0;
 
     if (!name || !email) {
       Swal.fire("Error", "Nombre y email son obligatorios", "error");
       return false;
     }
 
-    if (phone && phone.length !== 10) {
-      Swal.fire("Error", "El teléfono debe tener 10 dígitos", "error");
+    if (!EMAIL_REGEX.test(email)) {
+      Swal.fire("Error", "Ingresa un correo electrónico válido", "error");
       return false;
     }
 
-    if (mode === "create" && !form.password) {
+    if (phone && !/^\d{10}$/.test(phone)) {
+      Swal.fire(
+        "Error",
+        "El teléfono debe tener exactamente 10 dígitos numéricos",
+        "error",
+      );
+      return false;
+    }
+
+    const correoDuplicado = usuarios.some((user) => {
+      const userId = Number(getUserId(user) || 0);
+      return normalizarEmail(user?.email) === email && userId !== currentId;
+    });
+
+    if (correoDuplicado) {
+      Swal.fire(
+        "Error",
+        "Este correo electrónico ya está registrado en otro usuario",
+        "error",
+      );
+      return false;
+    }
+
+    const telefonoDuplicado = phone
+      ? usuarios.some((user) => {
+          const userId = Number(getUserId(user) || 0);
+          return normalizarTelefono(user?.phone) === phone && userId !== currentId;
+        })
+      : false;
+
+    if (telefonoDuplicado) {
+      Swal.fire(
+        "Error",
+        "Este número de teléfono ya está registrado en otro usuario",
+        "error",
+      );
+      return false;
+    }
+
+    if (mode === "create" && !password) {
       Swal.fire("Error", "La contraseña es obligatoria", "error");
       return false;
     }
 
-    if (mode === "create" && String(form.password).length < 8) {
+    if (mode === "create" && password.length < 8) {
       Swal.fire(
         "Error",
         "La contraseña debe tener mínimo 8 caracteres",
+        "error",
+      );
+      return false;
+    }
+
+    if (mode === "edit" && password && password.length < 8) {
+      Swal.fire(
+        "Error",
+        "La nueva contraseña debe tener mínimo 8 caracteres",
         "error",
       );
       return false;
@@ -213,6 +281,8 @@ export default function Usuarios() {
   const resetForm = () => {
     setForm(initialForm);
     setEditingId(null);
+    setShowCreatePassword(false);
+    setShowEditPassword(false);
   };
 
   const handleCreate = async () => {
@@ -222,10 +292,10 @@ export default function Usuarios() {
       await createUser({
         name: String(form.name || "").trim(),
         apellidos: String(form.apellidos || "").trim(),
-        email: String(form.email || "").trim(),
-        phone: String(form.phone || "").trim(),
+        email: normalizarEmail(form.email),
+        phone: normalizarTelefono(form.phone),
         role: normalizeRoleValue(form.role),
-        password: form.password,
+        password: String(form.password || "").trim(),
       });
 
       Swal.fire("Éxito", "Usuario creado correctamente", "success");
@@ -264,6 +334,7 @@ export default function Usuarios() {
       codigo_ref: user?.codigo_ref || "",
     });
 
+    setShowEditPassword(false);
     setOpenEdit(true);
   };
 
@@ -275,14 +346,22 @@ export default function Usuarios() {
 
     if (!validate("edit")) return;
 
+    const payload: any = {
+      name: String(form.name || "").trim(),
+      apellidos: String(form.apellidos || "").trim(),
+      email: normalizarEmail(form.email),
+      phone: normalizarTelefono(form.phone),
+      role: normalizeRoleValue(form.role),
+    };
+
+    const nuevaPassword = String(form.password || "").trim();
+
+    if (nuevaPassword) {
+      payload.password = nuevaPassword;
+    }
+
     try {
-      await updateUser(editingId, {
-        name: String(form.name || "").trim(),
-        apellidos: String(form.apellidos || "").trim(),
-        email: String(form.email || "").trim(),
-        phone: String(form.phone || "").trim(),
-        role: normalizeRoleValue(form.role),
-      });
+      await updateUser(editingId, payload);
 
       Swal.fire("Actualizado", "Usuario actualizado", "success");
 
@@ -334,33 +413,52 @@ export default function Usuarios() {
 
   const usuariosFiltrados = useMemo(() => {
     const q = normalizarTexto(busqueda);
+    const rolSeleccionado = String(roleFilter || "todos");
 
-    if (!q) return usuarios;
+    return [...usuarios]
+      .filter((user) => {
+        if (rolSeleccionado === "todos") return true;
 
-    return usuarios.filter((user) => {
-      const searchable = [
-        user?.id,
-        user?.user_id,
-        user?.id_user,
-        user?.name,
-        user?.apellidos,
-        user?.email,
-        user?.phone,
-        user?.codigo_ref,
-        user?.role,
-        getRoleName(user?.role),
-      ]
-        .map(normalizarTexto)
-        .join(" ");
+        return normalizeRoleValue(user?.role) === rolSeleccionado;
+      })
+      .filter((user) => {
+        if (!q) return true;
 
-      return searchable.includes(q);
-    });
-  }, [usuarios, busqueda]);
+        const searchable = [
+          user?.id,
+          user?.user_id,
+          user?.id_user,
+          user?.name,
+          user?.apellidos,
+          user?.email,
+          user?.phone,
+          user?.codigo_ref,
+          user?.role,
+          getRoleName(user?.role),
+        ]
+          .map(normalizarTexto)
+          .join(" ");
+
+        return searchable.includes(q);
+      })
+      .sort((a, b) => {
+        const nombreA = normalizarTexto(
+          `${a?.name || ""} ${a?.apellidos || ""}`,
+        );
+        const nombreB = normalizarTexto(
+          `${b?.name || ""} ${b?.apellidos || ""}`,
+        );
+
+        return nombreA.localeCompare(nombreB, "es");
+      });
+  }, [usuarios, busqueda, roleFilter]);
 
   const hayBusqueda = busqueda.trim().length > 0;
+  const hayFiltroRol = roleFilter !== "todos";
+  const hayFiltros = hayBusqueda || hayFiltroRol;
 
   const isServerPaginated =
-    !hayBusqueda && pagination.total > usuarios.length && usuarios.length <= perPage;
+    !hayFiltros && pagination.total > usuarios.length && usuarios.length <= perPage;
 
   const usuariosVisibles = isServerPaginated
     ? usuariosFiltrados
@@ -449,10 +547,40 @@ export default function Usuarios() {
           <Box
             sx={{
               mb: 2,
-              display: "flex",
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "240px minmax(280px, 460px)",
+              },
+              gap: 1.5,
               justifyContent: "flex-end",
+              alignItems: "center",
             }}
           >
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Filtrar por rol"
+              value={roleFilter}
+              onChange={(e) => {
+                setRoleFilter(e.target.value);
+                setPage(1);
+              }}
+              SelectProps={{
+                MenuProps: {
+                  disablePortal: true,
+                },
+              }}
+            >
+              <MenuItem value="todos">Todos los roles</MenuItem>
+              {ROLE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+
             <TextField
               fullWidth
               size="small"
@@ -468,9 +596,6 @@ export default function Usuarios() {
                     <SearchIcon fontSize="small" color="action" />
                   </InputAdornment>
                 ),
-              }}
-              sx={{
-                maxWidth: { xs: "100%", md: 460 },
               }}
             />
           </Box>
@@ -536,8 +661,8 @@ export default function Usuarios() {
 
               {usuariosVisibles.length === 0 && (
                 <Typography color="text.secondary" align="center" py={3}>
-                  {hayBusqueda
-                    ? "No hay usuarios que coincidan con la búsqueda."
+                  {hayFiltros
+                    ? "No hay usuarios que coincidan con los filtros."
                     : "No hay usuarios."}
                 </Typography>
               )}
@@ -666,8 +791,8 @@ export default function Usuarios() {
                   {usuariosVisibles.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={8} align="center">
-                        {hayBusqueda
-                          ? "No hay usuarios que coincidan con la búsqueda."
+                        {hayFiltros
+                          ? "No hay usuarios que coincidan con los filtros."
                           : "No hay usuarios."}
                       </TableCell>
                     </TableRow>
@@ -717,7 +842,10 @@ export default function Usuarios() {
 
       <Dialog
         open={openCreate}
-        onClose={() => setOpenCreate(false)}
+        onClose={() => {
+          setOpenCreate(false);
+          resetForm();
+        }}
         fullWidth
         maxWidth="sm"
       >
@@ -753,6 +881,9 @@ export default function Usuarios() {
             margin="dense"
             onChange={handleChange}
             autoComplete="new-email"
+            inputProps={{
+              inputMode: "email",
+            }}
           />
 
           <TextField
@@ -774,20 +905,44 @@ export default function Usuarios() {
           <TextField
             name="password"
             label="Contraseña"
-            type="password"
+            type={showCreatePassword ? "text" : "password"}
             value={form.password || ""}
             fullWidth
             margin="dense"
             onChange={handleChange}
             autoComplete="new-password"
             helperText="Mínimo 8 caracteres."
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="Mostrar u ocultar contraseña"
+                    edge="end"
+                    onClick={() => setShowCreatePassword((prev) => !prev)}
+                  >
+                    {showCreatePassword ? (
+                      <VisibilityOffIcon />
+                    ) : (
+                      <VisibilityIcon />
+                    )}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
 
           {renderRoleSelect()}
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setOpenCreate(false)}>Cancelar</Button>
+          <Button
+            onClick={() => {
+              setOpenCreate(false);
+              resetForm();
+            }}
+          >
+            Cancelar
+          </Button>
           <Button variant="contained" onClick={handleCreate}>
             Crear
           </Button>
@@ -796,7 +951,10 @@ export default function Usuarios() {
 
       <Dialog
         open={openEdit}
-        onClose={() => setOpenEdit(false)}
+        onClose={() => {
+          setOpenEdit(false);
+          resetForm();
+        }}
         fullWidth
         maxWidth="sm"
       >
@@ -832,6 +990,9 @@ export default function Usuarios() {
             margin="dense"
             onChange={handleChange}
             autoComplete="new-email"
+            inputProps={{
+              inputMode: "email",
+            }}
           />
 
           <TextField
@@ -853,19 +1014,44 @@ export default function Usuarios() {
           {renderRoleSelect()}
 
           <TextField
-            name="codigo_ref"
-            label="Código Ref"
-            value={form.codigo_ref || ""}
+            name="password"
+            label="Nueva contraseña"
+            type={showEditPassword ? "text" : "password"}
+            value={form.password || ""}
             fullWidth
             margin="dense"
-            disabled
-            autoComplete="off"
-            helperText="El código de referido no se puede modificar."
+            onChange={handleChange}
+            autoComplete="new-password"
+            helperText="Déjala vacía si no deseas cambiarla. Mínimo 8 caracteres."
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="Mostrar u ocultar nueva contraseña"
+                    edge="end"
+                    onClick={() => setShowEditPassword((prev) => !prev)}
+                  >
+                    {showEditPassword ? (
+                      <VisibilityOffIcon />
+                    ) : (
+                      <VisibilityIcon />
+                    )}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setOpenEdit(false)}>Cancelar</Button>
+          <Button
+            onClick={() => {
+              setOpenEdit(false);
+              resetForm();
+            }}
+          >
+            Cancelar
+          </Button>
           <Button variant="contained" onClick={handleUpdate}>
             Guardar
           </Button>

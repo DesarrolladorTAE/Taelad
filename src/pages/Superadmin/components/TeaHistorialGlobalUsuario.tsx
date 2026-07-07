@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
-  Button,
   CircularProgress,
   Divider,
   Paper,
@@ -18,8 +17,6 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import ArrowBack from "@mui/icons-material/ArrowBack";
-
 import {
   obtenerTeaHistorialGlobalUsuario,
   type TeaHistorialGlobalUsuarioItem,
@@ -39,7 +36,7 @@ function formatoMoneda(value?: unknown) {
 
 type Props = {
   userId: number | string;
-  onBack: () => void;
+  onSelectPeriodo?: (row: TeaHistorialGlobalUsuarioItem) => void;
 };
 
 type HistorialTotales = {
@@ -95,7 +92,10 @@ function MobileInfoRow({
   );
 }
 
-export default function TeaHistorialGlobalUsuario({ userId, onBack }: Props) {
+export default function TeaHistorialGlobalUsuario({
+  userId,
+  onSelectPeriodo,
+}: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -208,46 +208,6 @@ export default function TeaHistorialGlobalUsuario({ userId, onBack }: Props) {
         overflow: "hidden",
       }}
     >
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "stretch", md: "center" }}
-        spacing={1.5}
-        mb={2}
-      >
-        <Box minWidth={0}>
-          <Typography
-            variant={isMobile ? "subtitle1" : "h6"}
-            fontWeight={900}
-            sx={{ wordBreak: "break-word" }}
-          >
-            Historial total
-          </Typography>
-
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ wordBreak: "break-word" }}
-          >
-            Referidos y ganancias acumuladas por mes desde el inicio.
-          </Typography>
-        </Box>
-
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBack />}
-          onClick={onBack}
-          size={isMobile ? "small" : "medium"}
-          sx={{
-            width: { xs: "100%", md: "fit-content" },
-            textTransform: "none",
-            flexShrink: 0,
-          }}
-        >
-          Regresar a mensual
-        </Button>
-      </Stack>
-
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -266,12 +226,18 @@ export default function TeaHistorialGlobalUsuario({ userId, onBack }: Props) {
                 <Paper
                   key={`${row.anio}-${row.mes}`}
                   variant="outlined"
+                  onClick={() => onSelectPeriodo?.(row)}
                   sx={{
                     p: 1.25,
                     borderRadius: 2.5,
                     width: "100%",
                     maxWidth: "100%",
                     overflow: "hidden",
+                    cursor: onSelectPeriodo ? "pointer" : "default",
+                    transition: "0.15s ease",
+                    "&:hover": onSelectPeriodo
+                      ? { borderColor: "primary.main", bgcolor: "action.hover" }
+                      : undefined,
                   }}
                 >
                   <Stack spacing={0.85}>
@@ -307,13 +273,24 @@ export default function TeaHistorialGlobalUsuario({ userId, onBack }: Props) {
                       value={formatoMoneda(row.ganancia_total)}
                       bold
                     />
+
+                    {onSelectPeriodo && (
+                      <Typography
+                        variant="caption"
+                        color="primary"
+                        fontWeight={800}
+                        textAlign="right"
+                      >
+                        Ver detalle mensual
+                      </Typography>
+                    )}
                   </Stack>
                 </Paper>
               ))}
 
               {rows.length === 0 && (
                 <Typography color="text.secondary" align="center" py={3}>
-                  No hay historial global para este usuario.
+                  No hay historial para este usuario.
                 </Typography>
               )}
             </Stack>
@@ -361,7 +338,12 @@ export default function TeaHistorialGlobalUsuario({ userId, onBack }: Props) {
 
                 <TableBody>
                   {rows.map((row) => (
-                    <TableRow key={`${row.anio}-${row.mes}`}>
+                    <TableRow
+                      key={`${row.anio}-${row.mes}`}
+                      hover={Boolean(onSelectPeriodo)}
+                      onClick={() => onSelectPeriodo?.(row)}
+                      sx={{ cursor: onSelectPeriodo ? "pointer" : "default" }}
+                    >
                       <TableCell>
                         <Typography fontWeight={800}>
                           {row.periodo || `${row.mes_nombre} ${row.anio}`}
@@ -391,7 +373,7 @@ export default function TeaHistorialGlobalUsuario({ userId, onBack }: Props) {
                   {rows.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} align="center">
-                        No hay historial global para este usuario.
+                        No hay historial para este usuario.
                       </TableCell>
                     </TableRow>
                   )}

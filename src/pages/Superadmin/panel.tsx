@@ -61,9 +61,11 @@ export default function SuperAdminPanel() {
 
           case "clicmenu":
             return <ClicMenuDashboard />;
-
+type Props = {
+  darkMode?: boolean;
+};
           default:
-            return <Dashboard />;
+          return <Dashboard darkMode={darkMode} />;
         }
       }}
     </Shell>

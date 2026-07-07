@@ -21,10 +21,21 @@ import {
   CircularProgress,
   DialogActions,
 } from "@mui/material";
-import { Email, Lock, Close, Phone } from "@mui/icons-material";
+import {
+  Email,
+  Lock,
+  Close,
+  Phone,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
-import { authSession, requestResetCode, resetPasswordByCodeAndLogin } from "../../services/api/index";
+import {
+  authSession,
+  requestResetCode,
+  resetPasswordByCodeAndLogin,
+} from "../../services/api/index";
 
 const brandBlue = "#1577CE";
 const brandOrange = "#C77B1C";
@@ -41,11 +52,19 @@ const theme = createTheme({
   shape: { borderRadius: 14 },
   components: {
     MuiDialog: { styleOverrides: { paper: { borderRadius: 20 } } },
-    MuiButton: { styleOverrides: { root: { textTransform: "none", fontWeight: 600 } } },
+    MuiButton: {
+      styleOverrides: { root: { textTransform: "none", fontWeight: 600 } },
+    },
   },
 });
 
-function GoogleButton({ onClick, disabled = false }: { onClick: () => void; disabled?: boolean }) {
+function GoogleButton({
+  onClick,
+  disabled = false,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <Button fullWidth onClick={onClick} disabled={disabled} variant="outlined">
       Continuar con Google
@@ -57,7 +76,13 @@ export default function Login() {
   const navigate = useNavigate();
   const [open, setOpen] = React.useState(true);
 
-  const [values, setValues] = React.useState({ email_or_phone: "", password: "" });
+  const [values, setValues] = React.useState({
+    email_or_phone: "",
+    password: "",
+  });
+
+  const [showPassword, setShowPassword] = React.useState(false);
+
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [loading, setLoading] = React.useState(false);
 
@@ -120,7 +145,8 @@ export default function Login() {
       const isPhone = /^\d{10}$/.test(numericOnly);
 
       if (!isEmail && !isPhone) {
-        e.email_or_phone = "Ingresa un correo válido o un teléfono de 10 dígitos";
+        e.email_or_phone =
+          "Ingresa un correo válido o un teléfono de 10 dígitos";
       }
     }
 
@@ -194,11 +220,18 @@ export default function Login() {
     try {
       setSendingCode(true);
       await requestResetCode(fp.phone.replace(/\D/g, "").slice(0, 10));
-      setSnack({ open: true, msg: "Código enviado por WhatsApp", type: "success" });
+      setSnack({
+        open: true,
+        msg: "Código enviado por WhatsApp",
+        type: "success",
+      });
       setForgotStep(2);
       setCountdown(60);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "No se pudo enviar el código.";
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "No se pudo enviar el código.";
       setSnack({ open: true, msg, type: "error" });
     } finally {
       setSendingCode(false);
@@ -215,7 +248,8 @@ export default function Login() {
 
     if (!/^\d{6}$/.test(fp.code)) e.code = "Código de 6 dígitos requerido";
     if (!fp.new_password) e.new_password = "Contraseña obligatoria";
-    else if (fp.new_password.length < 8) e.new_password = "Mínimo 8 caracteres";
+    else if (fp.new_password.length < 8)
+      e.new_password = "Mínimo 8 caracteres";
     if (fp.confirm_password !== fp.new_password) e.confirm_password = "No coincide";
 
     setFpErr(e);
@@ -236,7 +270,11 @@ export default function Login() {
         new_password: fp.new_password,
       });
 
-      setSnack({ open: true, msg: "Contraseña actualizada. Sesión iniciada.", type: "success" });
+      setSnack({
+        open: true,
+        msg: "Contraseña actualizada. Sesión iniciada.",
+        type: "success",
+      });
       setForgotOpen(false);
       navigate("/panel");
     } catch (err: any) {
@@ -254,7 +292,11 @@ export default function Login() {
   };
 
   const handleGoogleClick = () => {
-    setSnack({ open: true, msg: "Integración con Google pendiente", type: "info" });
+    setSnack({
+      open: true,
+      msg: "Integración con Google pendiente",
+      type: "info",
+    });
   };
 
   const isOnlyDigits = /^\d+$/.test(values.email_or_phone || "");
@@ -279,7 +321,8 @@ export default function Login() {
         }}
         BackdropProps={{
           sx: {
-            background: "linear-gradient(115deg, rgba(21,119,206,.25), rgba(199,123,28,.25))",
+            background:
+              "linear-gradient(115deg, rgba(21,119,206,.25), rgba(199,123,28,.25))",
             backdropFilter: "blur(3px)",
           },
         }}
@@ -294,7 +337,12 @@ export default function Login() {
             pt: 5,
           }}
         >
-          <Box component="img" src="/logo/tae.png" alt="Logo TAE" sx={{ width: 96, height: "auto" }} />
+          <Box
+            component="img"
+            src="/logo/tae.png"
+            alt="Logo TAE"
+            sx={{ width: 96, height: "auto" }}
+          />
 
           <Button
             onClick={handleClose}
@@ -325,13 +373,20 @@ export default function Login() {
             </Typography>
           </Box>
 
-          <Box component="form" noValidate onSubmit={onSubmit} mt={3}>
+          <Box
+            component="form"
+            noValidate
+            autoComplete="off"
+            onSubmit={onSubmit}
+            mt={3}
+          >
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
                   fullWidth
                   label="Correo o teléfono (10 dígitos)"
                   placeholder="correo@dominio.com o 7441234567"
+                  name="tae_login_identifier"
                   value={values.email_or_phone}
                   onChange={onChange("email_or_phone")}
                   error={!!errors.email_or_phone}
@@ -343,34 +398,61 @@ export default function Login() {
                       </InputAdornment>
                     ),
                   }}
-                  autoComplete="username"
+                  autoComplete="off"
                   autoFocus
-                  inputProps={{ inputMode: isOnlyDigits ? "numeric" : "text" }}
+                  inputProps={{
+                    inputMode: isOnlyDigits ? "numeric" : "text",
+                    autoComplete: "off",
+                  }}
                 />
               </Grid>
 
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   label="Contraseña"
+                  name="tae_login_password"
                   value={values.password}
                   onChange={onChange("password")}
                   error={!!errors.password}
                   helperText={errors.password}
+                  autoComplete="new-password"
+                  inputProps={{
+                    autoComplete: "new-password",
+                  }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
                         <Lock />
                       </InputAdornment>
                     ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword((prev) => !prev)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          edge="end"
+                          aria-label={
+                            showPassword
+                              ? "Ocultar contraseña"
+                              : "Mostrar contraseña"
+                          }
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
                   }}
-                  autoComplete="current-password"
                 />
               </Grid>
 
               <Grid item xs={12}>
-                <Box display="flex" alignItems="center" justifyContent="flex-end">
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="flex-end"
+                >
                   <MLink
                     component="button"
                     type="button"
@@ -400,7 +482,11 @@ export default function Login() {
                       backgroundImage: `linear-gradient(135deg, ${brandBlue}, ${brandOrange})`,
                     },
                   }}
-                  startIcon={loading ? <CircularProgress size={18} sx={{ color: "#fff" }} /> : null}
+                  startIcon={
+                    loading ? (
+                      <CircularProgress size={18} sx={{ color: "#fff" }} />
+                    ) : null
+                  }
                 >
                   {loading ? "Ingresando..." : "Iniciar sesión"}
                 </Button>
@@ -424,7 +510,10 @@ export default function Login() {
                     py: 1.3,
                     borderColor: brandBlack,
                     color: brandBlack,
-                    ":hover": { borderColor: brandBlack, bgcolor: "rgba(0,0,0,.04)" },
+                    ":hover": {
+                      borderColor: brandBlack,
+                      bgcolor: "rgba(0,0,0,.04)",
+                    },
                   }}
                 >
                   ¿No tienes cuenta? Crear cuenta
@@ -435,7 +524,12 @@ export default function Login() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={forgotOpen} onClose={() => setForgotOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={forgotOpen}
+        onClose={() => setForgotOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle sx={{ pb: 1 }}>
           Recuperar contraseña
           <IconButton
@@ -451,7 +545,8 @@ export default function Login() {
           {forgotStep === 1 && (
             <>
               <Typography variant="body2" color="text.secondary" mb={2}>
-                Ingresa tu teléfono de 10 dígitos. Te enviaremos un código por WhatsApp.
+                Ingresa tu teléfono de 10 dígitos. Te enviaremos un código por
+                WhatsApp.
               </Typography>
 
               <TextField
@@ -482,7 +577,8 @@ export default function Login() {
           {forgotStep === 2 && (
             <>
               <Typography variant="body2" color="text.secondary" mb={2}>
-                Enviamos un código de 6 dígitos por WhatsApp al <b>{fp.phone}</b>.
+                Enviamos un código de 6 dígitos por WhatsApp al{" "}
+                <b>{fp.phone}</b>.
               </Typography>
 
               <Grid container spacing={2}>
@@ -510,7 +606,12 @@ export default function Login() {
                     type="password"
                     label="Nueva contraseña"
                     value={fp.new_password}
-                    onChange={(e) => setFp((s) => ({ ...s, new_password: e.target.value }))}
+                    onChange={(e) =>
+                      setFp((s) => ({
+                        ...s,
+                        new_password: e.target.value,
+                      }))
+                    }
                     error={!!fpErr.new_password}
                     helperText={fpErr.new_password}
                     autoComplete="new-password"
@@ -523,7 +624,12 @@ export default function Login() {
                     type="password"
                     label="Confirmar contraseña"
                     value={fp.confirm_password}
-                    onChange={(e) => setFp((s) => ({ ...s, confirm_password: e.target.value }))}
+                    onChange={(e) =>
+                      setFp((s) => ({
+                        ...s,
+                        confirm_password: e.target.value,
+                      }))
+                    }
                     error={!!fpErr.confirm_password}
                     helperText={fpErr.confirm_password}
                     autoComplete="new-password"
@@ -531,12 +637,23 @@ export default function Login() {
                 </Grid>
               </Grid>
 
-              <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mt={2}
+              >
                 <Typography variant="caption" color="text.secondary">
-                  {countdown > 0 ? `Puedes reenviar en ${countdown}s` : "¿No recibiste el código?"}
+                  {countdown > 0
+                    ? `Puedes reenviar en ${countdown}s`
+                    : "¿No recibiste el código?"}
                 </Typography>
 
-                <Button onClick={resendCode} disabled={countdown > 0 || sendingCode} size="small">
+                <Button
+                  onClick={resendCode}
+                  disabled={countdown > 0 || sendingCode}
+                  size="small"
+                >
                   Reenviar código
                 </Button>
               </Box>
@@ -552,7 +669,11 @@ export default function Login() {
                 onClick={requestCode}
                 variant="contained"
                 disabled={sendingCode}
-                startIcon={sendingCode ? <CircularProgress size={18} sx={{ color: "#fff" }} /> : null}
+                startIcon={
+                  sendingCode ? (
+                    <CircularProgress size={18} sx={{ color: "#fff" }} />
+                  ) : null
+                }
               >
                 {sendingCode ? "Enviando..." : "Enviar código"}
               </Button>
@@ -563,8 +684,17 @@ export default function Login() {
               <Button
                 onClick={handleReset}
                 variant="contained"
-                disabled={resetting || !fp.code || !fp.new_password || !fp.confirm_password}
-                startIcon={resetting ? <CircularProgress size={18} sx={{ color: "#fff" }} /> : null}
+                disabled={
+                  resetting ||
+                  !fp.code ||
+                  !fp.new_password ||
+                  !fp.confirm_password
+                }
+                startIcon={
+                  resetting ? (
+                    <CircularProgress size={18} sx={{ color: "#fff" }} />
+                  ) : null
+                }
               >
                 {resetting ? "Actualizando..." : "Actualizar y entrar"}
               </Button>

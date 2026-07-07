@@ -33,7 +33,6 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ImageIcon from "@mui/icons-material/Image";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import DownloadIcon from "@mui/icons-material/Download";
 import CloseIcon from "@mui/icons-material/Close";
 
 export type Owner = {
@@ -1023,8 +1022,6 @@ export function SalesTableCard({
   onSalesFilterChange,
   onApplyFilters,
   onClearFilters,
-  onExportCsv,
-  exportDisabled,
 }: {
   title: string;
   sales: any[];
@@ -1058,41 +1055,9 @@ export function SalesTableCard({
       }}
     >
       <Stack spacing={2}>
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          justifyContent="space-between"
-          spacing={1.5}
-          alignItems={{ xs: "stretch", md: "center" }}
-        >
-          <Typography variant="h6" fontWeight={900}>
-            {title}
-          </Typography>
-
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems={{ xs: "stretch", sm: "center" }}
-            sx={{ width: { xs: "100%", md: "auto" } }}
-          >
-            {onExportCsv && (
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<DownloadIcon />}
-                onClick={onExportCsv}
-                disabled={exportDisabled}
-                sx={{
-                  height: 40,
-                  borderRadius: 2,
-                  fontWeight: 900,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Exportar CSV
-              </Button>
-            )}
-          </Stack>
-        </Stack>
+        <Typography variant="h6" fontWeight={900}>
+          {title}
+        </Typography>
 
         <Paper
           elevation={0}
@@ -1114,7 +1079,7 @@ export function SalesTableCard({
               <Box>
                 <Typography fontWeight={900}>Filtros avanzados</Typography>
                 <Typography color="text.secondary" sx={{ fontSize: 13 }}>
-                  Filtra las ventas por propietario, restaurante, plan, estado o proveedor.
+                  Filtra las ventas por propietario, restaurante, estado o proveedor.
                 </Typography>
               </Box>
 
@@ -1142,7 +1107,7 @@ export function SalesTableCard({
                 <TextField
                   size="small"
                   label="Buscar"
-                  placeholder="Restaurante, propietario, plan..."
+                  placeholder="Restaurante o propietario..."
                   value={salesFilters.q}
                   onChange={(event) =>
                     onSalesFilterChange("q", event.target.value)
@@ -1203,26 +1168,7 @@ export function SalesTableCard({
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  size="small"
-                  label="Plan"
-                  select
-                  value={salesFilters.plan_id}
-                  onChange={(event) =>
-                    onSalesFilterChange("plan_id", event.target.value)
-                  }
-                  fullWidth
-                >
-                  <MenuItem value="">Todos</MenuItem>
-                  <MenuItem value="1">Plan Demo</MenuItem>
-                  <MenuItem value="2">Plan Digital</MenuItem>
-                  <MenuItem value="3">Plan Gestión</MenuItem>
-                  <MenuItem value="4">Plan Total</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   size="small"
                   label="Estado"
@@ -1242,7 +1188,7 @@ export function SalesTableCard({
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   size="small"
                   label="Proveedor"

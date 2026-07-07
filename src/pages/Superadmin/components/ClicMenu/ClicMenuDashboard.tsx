@@ -223,6 +223,103 @@ function getPlanFilterId(value?: string | null) {
   return map[normalized] || null;
 }
 
+function normalizeAdvancedPlanFilter(value?: string | null) {
+  const normalized = normalizeText(value);
+
+  if (!normalized || normalized === "todos" || normalized === "all") {
+    return "todos";
+  }
+
+  const map: Record<string, string> = {
+    "1": "demo",
+    demo: "demo",
+    "plan demo": "demo",
+    "2": "digital",
+    digital: "digital",
+    "plan digital": "digital",
+    "3": "gestion",
+    gestion: "gestion",
+    "gestión": "gestion",
+    "plan gestion": "gestion",
+    "plan gestión": "gestion",
+    "4": "total",
+    total: "total",
+    "plan total": "total",
+  };
+
+  if (map[normalized]) {
+    return map[normalized];
+  }
+
+  if (normalized.includes("demo")) return "demo";
+  if (normalized.includes("digital")) return "digital";
+  if (normalized.includes("gestion")) return "gestion";
+  if (normalized.includes("total")) return "total";
+
+  return normalized;
+}
+
+function saleMatchesOwnerFilter(sale: any, ownerId: string) {
+  if (!cleanText(ownerId)) return true;
+
+  const expected = cleanText(ownerId);
+
+  const possibleValues = [
+    sale?.owner_id,
+    sale?.restaurant?.owner_id,
+    sale?.restaurant?.owner?.id,
+    sale?.owner?.id,
+    sale?.subscription?.owner_id,
+    sale?.current_subscription?.owner_id,
+  ];
+
+  return possibleValues.some((value) => String(value ?? "") === expected);
+}
+
+function saleMatchesRestaurantFilter(sale: any, restaurantId: string) {
+  if (!cleanText(restaurantId)) return true;
+
+  const expected = cleanText(restaurantId);
+
+  const possibleValues = [
+    sale?.restaurant_id,
+    sale?.restaurant?.id,
+    sale?.subscription?.restaurant_id,
+    sale?.current_subscription?.restaurant_id,
+  ];
+
+  return possibleValues.some((value) => String(value ?? "") === expected);
+}
+
+function saleMatchesStatusFilter(sale: any, statusFilter: string) {
+  const expected = normalizeText(statusFilter);
+
+  if (!expected) return true;
+
+  return normalizeText(sale?.status).includes(expected);
+}
+
+function saleMatchesProviderFilter(sale: any, providerFilter: string) {
+  const expected = normalizeText(providerFilter);
+
+  if (!expected) return true;
+
+  return normalizeText(sale?.provider).includes(expected);
+}
+
+function getSalePlanName(sale: any) {
+  return (
+    sale?.plan?.name ||
+    sale?.plan_name ||
+    sale?.subscription?.plan?.name ||
+    sale?.subscription?.plan_name ||
+    sale?.current_subscription?.plan?.name ||
+    sale?.product_name ||
+    sale?.nombre_producto ||
+    "Sin plan"
+  );
+}
+
 function getSalePlanId(sale: any) {
   const possibleValues = [
     sale?.plan_id,
@@ -574,67 +671,75 @@ export default function ClicMenuDashboard() {
 
   const filteredSales = useMemo(() => {
     const q = normalizeText(salesFilters.q);
-
-    if (!q) return monthlySalesByPlan;
+    const advancedPlanFilter = normalizeAdvancedPlanFilter(salesFilters.plan_id);
 
     return monthlySalesByPlan.filter((sale) => {
-      const text = normalizeText(
-        [
-          sale?.restaurant?.trade_name,
-          sale?.restaurant?.owner?.name,
-          sale?.restaurant?.owner?.last_name_paternal,
-          sale?.restaurant?.owner?.last_name_maternal,
-          sale?.restaurant?.owner?.email,
-          sale?.plan_id,
-          sale?.plan?.id,
-          sale?.plan?.name,
-          sale?.plan_name,
-          sale?.provider,
-          sale?.status,
-          sale?.paid_price,
-        ]
-          .filter(Boolean)
-          .join(" ")
-      );
+      if (q) {
+        const text = normalizeText(
+          [
+            sale?.restaurant?.trade_name,
+            sale?.restaurant?.owner?.name,
+            sale?.restaurant?.owner?.last_name_paternal,
+            sale?.restaurant?.owner?.last_name_maternal,
+            sale?.restaurant?.owner?.email,
+            sale?.plan_id,
+            sale?.plan?.id,
+            sale?.plan?.name,
+            sale?.plan_name,
+            sale?.provider,
+            sale?.status,
+            sale?.paid_price,
+          ]
+            .filter(Boolean)
+            .join(" ")
+        );
 
-      return text.includes(q);
+        if (!text.includes(q)) return false;
+      }
+
+      if (
+        advancedPlanFilter !== "todos" &&
+        !saleMatchesPlanFilter(sale, advancedPlanFilter)
+      ) {
+        return false;
+      }
+
+      if (!saleMatchesOwnerFilter(sale, salesFilters.owner_id)) return false;
+      if (!saleMatchesRestaurantFilter(sale, salesFilters.restaurant_id)) {
+        return false;
+      }
+      if (!saleMatchesStatusFilter(sale, salesFilters.status)) return false;
+      if (!saleMatchesProviderFilter(sale, salesFilters.provider)) return false;
+
+      return true;
     });
-  }, [monthlySalesByPlan, salesFilters.q]);
+  }, [monthlySalesByPlan, salesFilters]);
 
   const buildSalesParams = (
     targetYear: number,
     targetMonth: number,
-    targetFilters: SalesFiltersState = salesFilters,
-    targetPlanFilter: string = planFilter
+    targetFilters: SalesFiltersState = salesFilters
   ) => {
     const params: Record<string, any> = {
       year: targetYear,
       month: targetMonth,
-      per_page: 100,
+      per_page: 50,
       include_internal: false,
     };
 
-    if (targetPlanFilter && targetPlanFilter !== "todos") {
-      const planId = getPlanFilterId(targetPlanFilter);
-
-      params.plan = targetPlanFilter;
-      params.plan_filter = targetPlanFilter;
-      params.plan_slug = targetPlanFilter;
-      params.plan_type = targetPlanFilter;
-      params.plan_key = targetPlanFilter;
-      params.subscription_type = targetPlanFilter === "demo" ? "demo" : "paid";
-
-      if (planId) {
-        params.plan_id = planId;
-      }
-    }
+    /*
+      Importante:
+      No se manda plan_id, plan, plan_filter ni plan_slug al backend.
+      El endpoint externo devuelve 0 registros con algunos filtros de plan,
+      aunque "Todos los planes" sí traiga ventas. Por eso el plan se filtra
+      localmente con monthlySalesByPlan y filteredSales.
+    */
 
     if (cleanText(targetFilters.q)) params.q = cleanText(targetFilters.q);
     if (targetFilters.owner_id) params.owner_id = targetFilters.owner_id;
     if (targetFilters.restaurant_id) {
       params.restaurant_id = targetFilters.restaurant_id;
     }
-    if (targetFilters.plan_id) params.plan_id = targetFilters.plan_id;
     if (targetFilters.status) params.status = targetFilters.status;
     if (targetFilters.provider) params.provider = targetFilters.provider;
 
@@ -683,7 +788,7 @@ export default function ClicMenuDashboard() {
       sale?.restaurant?.trade_name || "Restaurante",
       getSaleOwnerName(sale),
       sale?.restaurant?.owner?.email || "",
-      sale?.plan?.name || "Sin plan",
+      getSalePlanName(sale),
       sale?.provider || "Sin proveedor",
       sale?.status || "Sin estado",
       getRawAmount(sale?.paid_price),
@@ -726,38 +831,45 @@ export default function ClicMenuDashboard() {
       const salesParams = buildSalesParams(
         targetYear,
         targetMonth,
-        targetFilters,
-        targetPlanFilter
+        targetFilters
       );
 
-      const [dashboardResponse, monthlySalesResponse, salesSummaryResponse] =
-        await Promise.all([
-          clicMenuService.dashboard({
-            year: targetYear,
-            month: targetMonth,
-            per_page: 15,
-            ...(targetPlanFilter && targetPlanFilter !== "todos"
-              ? {
-                  plan: targetPlanFilter,
-                  plan_filter: targetPlanFilter,
-                  plan_slug: targetPlanFilter,
-                  plan_type: targetPlanFilter,
-                  plan_key: targetPlanFilter,
-                  plan_id: getPlanFilterId(targetPlanFilter),
-                  subscription_type:
-                    targetPlanFilter === "demo" ? "demo" : "paid",
-                }
-              : {}),
-          }),
-          clicMenuService.monthlySales(salesParams),
-          clicMenuService.salesSummary(salesParams),
-        ]);
+      const dashboardResponse = await clicMenuService.dashboard({
+        year: targetYear,
+        month: targetMonth,
+        per_page: 15,
+      });
+
+      let monthlySalesData = dashboardResponse.data?.monthly_sales || {
+        data: [],
+      };
+
+      let salesSummaryData = dashboardResponse.data?.sales_summary || {};
+
+      try {
+        const monthlySalesResponse = await clicMenuService.monthlySales(
+          salesParams
+        );
+
+        monthlySalesData = monthlySalesResponse.data;
+      } catch (monthlyErr: any) {
+        console.error("Error cargando ventas mensuales ClicMenu:", monthlyErr);
+
+        const fallbackSales = getArray<any>(monthlySalesData);
+
+        if (fallbackSales.length === 0) {
+          setError(
+            "No fue posible cargar el detalle de ventas mensuales. Intenta consultar nuevamente."
+          );
+        }
+      }
 
       setDashboard({
         ...dashboardResponse.data,
-        monthly_sales: monthlySalesResponse.data,
-        sales_summary: salesSummaryResponse.data,
+        monthly_sales: monthlySalesData,
+        sales_summary: salesSummaryData,
       });
+
       setConsultedYear(targetYear);
       setConsultedMonth(targetMonth);
       setConsultedPlanFilter(targetPlanFilter);
@@ -1652,6 +1764,22 @@ export default function ClicMenuDashboard() {
           </Stack>
         </Paper>
 
+        <SalesTableCard
+          title={`Ventas del periodo (${getMonthName(
+            consultedMonth
+          )} ${consultedYear})`}
+          sales={filteredSales}
+          totalSales={monthlySalesByPlan.length}
+          salesFilters={salesFilters}
+          ownerOptions={owners}
+          restaurantOptions={restaurants}
+          onSalesFilterChange={cambiarSalesFilter}
+          onApplyFilters={aplicarFiltrosVentas}
+          onClearFilters={limpiarFiltrosVentas}
+          onExportCsv={exportarVentasCsv}
+          exportDisabled={filteredSales.length === 0}
+        />
+
         <Grid container spacing={2} alignItems="stretch">
           <Grid item xs={12}>
             <EntityListCard<Owner>
@@ -1816,21 +1944,7 @@ export default function ClicMenuDashboard() {
           <Alert severity="info">Cargando detalle seleccionado...</Alert>
         )}
 
-        <SalesTableCard
-          title={`Ventas del periodo (${getMonthName(
-            consultedMonth
-          )} ${consultedYear})`}
-          sales={filteredSales}
-          totalSales={monthlySalesByPlan.length}
-          salesFilters={salesFilters}
-          ownerOptions={owners}
-          restaurantOptions={restaurants}
-          onSalesFilterChange={cambiarSalesFilter}
-          onApplyFilters={aplicarFiltrosVentas}
-          onClearFilters={limpiarFiltrosVentas}
-          onExportCsv={exportarVentasCsv}
-          exportDisabled={filteredSales.length === 0}
-        />
+
       </Stack>
 
       <OwnerFormDialog

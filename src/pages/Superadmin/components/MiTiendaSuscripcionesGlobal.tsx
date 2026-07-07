@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  alpha,
   Box,
   Button,
   Card,
@@ -156,10 +157,10 @@ function normalizarTiendaSeleccionada(tienda: Tienda): Tienda {
   };
 }
 
-
 export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isDark = theme.palette.mode === "dark";
 
   const [tiendas, setTiendas] = useState<Tienda[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -172,6 +173,38 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
 
   const [openAgregar, setOpenAgregar] = useState<boolean>(false);
   const [openHistorial, setOpenHistorial] = useState<boolean>(false);
+
+  const actionIconSx = {
+    width: 34,
+    height: 34,
+    border: `1px solid ${theme.palette.divider}`,
+    color: theme.palette.text.secondary,
+    bgcolor: isDark
+      ? alpha(theme.palette.common.white, 0.04)
+      : alpha(theme.palette.common.black, 0.03),
+    transition: "all 0.2s ease",
+    "&:hover": {
+      color: theme.palette.primary.main,
+      borderColor: alpha(theme.palette.primary.main, 0.55),
+      bgcolor: alpha(theme.palette.primary.main, isDark ? 0.16 : 0.08),
+    },
+  };
+
+  const mobileActionButtonSx = {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: 2,
+    textTransform: "none",
+    color: theme.palette.text.primary,
+    borderColor: theme.palette.divider,
+    bgcolor: isDark
+      ? alpha(theme.palette.common.white, 0.04)
+      : alpha(theme.palette.common.black, 0.02),
+    "&:hover": {
+      borderColor: alpha(theme.palette.primary.main, 0.55),
+      bgcolor: alpha(theme.palette.primary.main, isDark ? 0.16 : 0.08),
+    },
+  };
 
   const cargarTiendas = async () => {
     try {
@@ -275,8 +308,13 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          sx={{ width: { xs: "100%", sm: "auto" } }}
+        >
           <Button
+            fullWidth={isMobile}
             variant="outlined"
             startIcon={<ArrowBackIcon />}
             onClick={() => setView?.("mitienda-dashboard")}
@@ -285,6 +323,7 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
           </Button>
 
           <Button
+            fullWidth={isMobile}
             variant="contained"
             startIcon={<RefreshIcon />}
             onClick={cargarTiendas}
@@ -303,11 +342,16 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
 
       <Card
         sx={{
-          borderRadius: 5,
-          boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+          borderRadius: { xs: 3, md: 5 },
+          bgcolor: "background.paper",
+          color: "text.primary",
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: isDark
+            ? "0 10px 30px rgba(0,0,0,0.35)"
+            : "0 10px 30px rgba(0,0,0,0.08)",
         }}
       >
-        <CardContent>
+        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
           <Stack
             direction={{ xs: "column", md: "row" }}
             justifyContent="space-between"
@@ -327,11 +371,13 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                 setSearch(event.target.value);
                 setPage(0);
               }}
-              sx={(theme) => ({
+              sx={{
                 width: { xs: "100%", md: 360 },
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
-                  bgcolor: theme.palette.background.paper,
+                  bgcolor: isDark
+                    ? alpha(theme.palette.common.white, 0.04)
+                    : theme.palette.background.paper,
                   color: theme.palette.text.primary,
                   "& fieldset": {
                     borderColor: theme.palette.divider,
@@ -354,7 +400,7 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                     opacity: 1,
                   },
                 },
-              })}
+              }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -380,22 +426,36 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                   <Card
                     key={tienda.id}
                     variant="outlined"
-                    sx={{ borderRadius: 3 }}
+                    sx={{
+                      borderRadius: 3,
+                      bgcolor: isDark
+                        ? alpha(theme.palette.common.white, 0.035)
+                        : theme.palette.background.paper,
+                      color: "text.primary",
+                      borderColor: theme.palette.divider,
+                    }}
                   >
-                    <CardContent>
-                      <Stack spacing={1}>
+                    <CardContent sx={{ p: 2 }}>
+                      <Stack spacing={1.5}>
                         <Stack
                           direction="row"
                           justifyContent="space-between"
                           alignItems="flex-start"
                           spacing={2}
                         >
-                          <Box>
+                          <Box sx={{ minWidth: 0 }}>
                             <Typography fontSize={12} color="text.secondary">
                               #{numero}
                             </Typography>
 
-                            <Typography fontWeight={900} fontSize={16}>
+                            <Typography
+                              fontWeight={900}
+                              fontSize={16}
+                              sx={{
+                                wordBreak: "break-word",
+                                color: "text.primary",
+                              }}
+                            >
                               {tienda.name}
                             </Typography>
                           </Box>
@@ -404,6 +464,7 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                             size="small"
                             label={obtenerEstadoPlanLabel(tienda)}
                             color={obtenerEstadoPlanColor(tienda)}
+                            sx={{ flexShrink: 0 }}
                           />
                         </Stack>
 
@@ -427,12 +488,17 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                           </Grid>
                         </Grid>
 
-                        <Stack direction="row" spacing={1} pt={1}>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                          pt={1}
+                        >
                           <Button
                             size="small"
                             variant="outlined"
                             startIcon={<AddCircleOutlineIcon />}
                             onClick={() => abrirAgregar(tienda)}
+                            sx={mobileActionButtonSx}
                           >
                             Agregar
                           </Button>
@@ -442,6 +508,7 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                             variant="outlined"
                             startIcon={<HistoryIcon />}
                             onClick={() => abrirHistorial(tienda)}
+                            sx={mobileActionButtonSx}
                           >
                             Historial
                           </Button>
@@ -469,6 +536,16 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                 labelDisplayedRows={({ from, to, count }) =>
                   `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
                 }
+                sx={{
+                  color: "text.primary",
+                  ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows":
+                    {
+                      color: "text.secondary",
+                    },
+                  ".MuiIconButton-root": {
+                    color: "text.primary",
+                  },
+                }}
               />
             </Stack>
           ) : (
@@ -476,19 +553,47 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
               component={Paper}
               variant="outlined"
               sx={{
+                width: "100%",
                 borderRadius: 3,
-                overflowX: "hidden",
+                overflowX: "auto",
+                bgcolor: "background.paper",
+                borderColor: theme.palette.divider,
+                WebkitOverflowScrolling: "touch",
               }}
             >
-              <Table size="small" sx={{ tableLayout: "fixed", width: "100%" }}>
+              <Table
+                size="small"
+                sx={{
+                  minWidth: 920,
+                  tableLayout: "fixed",
+                  width: "100%",
+                  "& .MuiTableCell-root": {
+                    borderColor: theme.palette.divider,
+                    color: theme.palette.text.primary,
+                  },
+                  "& .MuiTableHead-root .MuiTableCell-root": {
+                    bgcolor: isDark
+                      ? alpha(theme.palette.common.white, 0.045)
+                      : alpha(theme.palette.common.black, 0.035),
+                    color: theme.palette.text.secondary,
+                    fontWeight: 900,
+                  },
+                  "& .MuiTableBody-root .MuiTableRow-root:hover": {
+                    bgcolor: alpha(
+                      theme.palette.primary.main,
+                      isDark ? 0.12 : 0.05
+                    ),
+                  },
+                }}
+              >
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ width: 48 }}>No.</TableCell>
                     <TableCell>Tienda</TableCell>
-                    <TableCell sx={{ width: 130 }}>Plan</TableCell>
-                    <TableCell sx={{ width: 150 }}>Vencimiento</TableCell>
-                    <TableCell sx={{ width: 92 }}>Estado</TableCell>
-                    <TableCell align="center" sx={{ width: 96 }}>
+                    <TableCell sx={{ width: 150 }}>Plan</TableCell>
+                    <TableCell sx={{ width: 170 }}>Vencimiento</TableCell>
+                    <TableCell sx={{ width: 110 }}>Estado</TableCell>
+                    <TableCell align="center" sx={{ width: 120 }}>
                       Acciones
                     </TableCell>
                   </TableRow>
@@ -498,7 +603,8 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                   {tiendasPaginadas.map((tienda, index) => {
                     const numero = page * ROWS_PER_PAGE + index + 1;
                     const fechaVencimiento = obtenerFechaVencimiento(tienda);
-                    const etiquetaVencimiento = obtenerEtiquetaVencimiento(tienda);
+                    const etiquetaVencimiento =
+                      obtenerEtiquetaVencimiento(tienda);
 
                     return (
                       <TableRow hover key={tienda.id}>
@@ -513,6 +619,7 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                                 maxWidth: "100%",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
+                                color: "text.primary",
                               }}
                             >
                               {tienda.name}
@@ -520,7 +627,16 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                           </Tooltip>
                         </TableCell>
 
-                        <TableCell>{formatPlan(tienda.plan_id)}</TableCell>
+                        <TableCell>
+                          <Typography
+                            fontSize={13}
+                            fontWeight={700}
+                            color="text.primary"
+                            noWrap
+                          >
+                            {formatPlan(tienda.plan_id)}
+                          </Typography>
+                        </TableCell>
 
                         <TableCell>
                           <Typography fontSize={12} fontWeight={800}>
@@ -541,23 +657,32 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                         </TableCell>
 
                         <TableCell align="center">
-                          <Tooltip title="Agregar suscripción o complemento">
-                            <IconButton
-                              size="small"
-                              onClick={() => abrirAgregar(tienda)}
-                            >
-                              <AddCircleOutlineIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            alignItems="center"
+                            justifyContent="center"
+                          >
+                            <Tooltip title="Agregar suscripción o complemento">
+                              <IconButton
+                                size="small"
+                                onClick={() => abrirAgregar(tienda)}
+                                sx={actionIconSx}
+                              >
+                                <AddCircleOutlineIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
 
-                          <Tooltip title="Ver historial">
-                            <IconButton
-                              size="small"
-                              onClick={() => abrirHistorial(tienda)}
-                            >
-                              <HistoryIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                            <Tooltip title="Ver historial">
+                              <IconButton
+                                size="small"
+                                onClick={() => abrirHistorial(tienda)}
+                                sx={actionIconSx}
+                              >
+                                <HistoryIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     );
@@ -584,6 +709,17 @@ export default function MiTiendaSuscripcionesGlobal({ setView }: Props) {
                 labelDisplayedRows={({ from, to, count }) =>
                   `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
                 }
+                sx={{
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  color: "text.primary",
+                  ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows":
+                    {
+                      color: "text.secondary",
+                    },
+                  ".MuiIconButton-root": {
+                    color: "text.primary",
+                  },
+                }}
               />
             </TableContainer>
           )}

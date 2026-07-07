@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import {
   Alert,
+  alpha,
   Box,
   Button,
   Chip,
@@ -311,6 +312,7 @@ export default function SuscripcionHistorialModal({
 }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isDark = theme.palette.mode === "dark";
 
   const [historial, setHistorial] = useState<Suscripcion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -372,8 +374,17 @@ export default function SuscripcionHistorialModal({
       maxWidth="md"
       PaperProps={{
         sx: {
+          m: { xs: 0, sm: 2 },
+          width: { xs: "100%", sm: "min(900px, calc(100vw - 32px))" },
+          maxWidth: "100%",
           borderRadius: { xs: 0, sm: 4 },
           overflow: "hidden",
+          bgcolor: "background.paper",
+          color: "text.primary",
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: isDark
+            ? "0 22px 70px rgba(0,0,0,0.75)"
+            : "0 22px 70px rgba(15,23,42,0.22)",
         },
       }}
     >
@@ -381,8 +392,11 @@ export default function SuscripcionHistorialModal({
         sx={{
           px: { xs: 2, sm: 3 },
           py: 2,
-          borderBottom: "1px solid",
-          borderColor: "divider",
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          bgcolor: isDark
+            ? alpha(theme.palette.common.white, 0.055)
+            : alpha(theme.palette.common.black, 0.035),
+          color: "text.primary",
         }}
       >
         <Typography fontWeight={900} fontSize={{ xs: 20, sm: 24 }}>
@@ -393,7 +407,8 @@ export default function SuscripcionHistorialModal({
       <DialogContent
         sx={{
           p: { xs: 2, sm: 3 },
-          bgcolor: "#fbfcfe",
+          bgcolor: "background.paper",
+          color: "text.primary",
         }}
       >
         <Stack spacing={2.5}>
@@ -402,7 +417,11 @@ export default function SuscripcionHistorialModal({
             sx={{
               p: 2,
               borderRadius: 3,
-              bgcolor: "#fff",
+              bgcolor: isDark
+                ? alpha(theme.palette.common.white, 0.035)
+                : theme.palette.background.paper,
+              color: "text.primary",
+              borderColor: theme.palette.divider,
             }}
           >
             <Stack direction="row" spacing={1.5} alignItems="center">
@@ -411,7 +430,7 @@ export default function SuscripcionHistorialModal({
                   width: 44,
                   height: 44,
                   borderRadius: 2.5,
-                  bgcolor: "#eaf3ff",
+                  bgcolor: alpha(theme.palette.primary.main, isDark ? 0.18 : 0.1),
                   color: "primary.main",
                   display: "grid",
                   placeItems: "center",
@@ -425,7 +444,7 @@ export default function SuscripcionHistorialModal({
                 <Typography
                   fontSize={12}
                   fontWeight={800}
-                  color="primary"
+                  color="primary.main"
                   textTransform="uppercase"
                   letterSpacing={0.4}
                 >
@@ -441,6 +460,7 @@ export default function SuscripcionHistorialModal({
                       maxWidth: { xs: "calc(100vw - 110px)", sm: 560 },
                       overflow: "hidden",
                       textOverflow: "ellipsis",
+                      color: "text.primary",
                     }}
                   >
                     {tienda?.name || "N/A"}
@@ -471,11 +491,17 @@ export default function SuscripcionHistorialModal({
                     sx={{
                       p: { xs: 1.8, sm: 2 },
                       borderRadius: 3,
-                      bgcolor: "#fff",
+                      bgcolor: isDark
+                        ? alpha(theme.palette.common.white, 0.035)
+                        : theme.palette.background.paper,
+                      color: "text.primary",
+                      borderColor: theme.palette.divider,
                       transition: "0.2s ease",
                       "&:hover": {
-                        borderColor: "primary.light",
-                        boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
+                        borderColor: alpha(theme.palette.primary.main, 0.55),
+                        boxShadow: isDark
+                          ? "0 8px 24px rgba(0,0,0,0.35)"
+                          : "0 8px 24px rgba(15,23,42,0.08)",
                       },
                     }}
                   >
@@ -511,6 +537,7 @@ export default function SuscripcionHistorialModal({
                               maxWidth: "100%",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
+                              color: "text.primary",
                             }}
                           >
                             {concepto}
@@ -577,15 +604,19 @@ export default function SuscripcionHistorialModal({
                 <Paper
                   variant="outlined"
                   sx={{
-                    p: 4,
+                    p: { xs: 3, sm: 4 },
                     borderRadius: 3,
                     textAlign: "center",
-                    bgcolor: "#fff",
+                    bgcolor: isDark
+                      ? alpha(theme.palette.common.white, 0.035)
+                      : theme.palette.background.paper,
+                    color: "text.primary",
+                    borderColor: theme.palette.divider,
                   }}
                 >
                   <CheckCircleIcon color="disabled" sx={{ fontSize: 42 }} />
 
-                  <Typography mt={1} fontWeight={800}>
+                  <Typography mt={1} fontWeight={800} color="text.primary">
                     No hay historial registrado.
                   </Typography>
                 </Paper>
@@ -599,12 +630,15 @@ export default function SuscripcionHistorialModal({
         sx={{
           px: { xs: 2, sm: 3 },
           py: 2,
-          borderTop: "1px solid",
-          borderColor: "divider",
-          bgcolor: "#fff",
+          borderTop: `1px solid ${theme.palette.divider}`,
+          bgcolor: "background.paper",
         }}
       >
-        <Button onClick={handleClose} disabled={loading} sx={{ fontWeight: 800 }}>
+        <Button
+          onClick={handleClose}
+          disabled={loading}
+          sx={{ fontWeight: 800 }}
+        >
           Cerrar
         </Button>
       </DialogActions>
@@ -626,14 +660,21 @@ type InfoBlockProps = {
 };
 
 function InfoBlock({ icon, title, rows }: InfoBlockProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   return (
     <Stack
       spacing={1}
       sx={{
         p: 1.5,
         borderRadius: 2.5,
-        bgcolor: "#f8fafc",
+        bgcolor: isDark
+          ? alpha(theme.palette.common.white, 0.04)
+          : alpha(theme.palette.common.black, 0.025),
+        color: "text.primary",
         minHeight: 104,
+        border: `1px solid ${theme.palette.divider}`,
       }}
     >
       <Stack direction="row" spacing={1} alignItems="center">
@@ -642,7 +683,7 @@ function InfoBlock({ icon, title, rows }: InfoBlockProps) {
             width: 28,
             height: 28,
             borderRadius: 2,
-            bgcolor: "#eaf3ff",
+            bgcolor: alpha(theme.palette.primary.main, isDark ? 0.18 : 0.1),
             color: "primary.main",
             display: "grid",
             placeItems: "center",
@@ -652,12 +693,12 @@ function InfoBlock({ icon, title, rows }: InfoBlockProps) {
           {icon}
         </Box>
 
-        <Typography fontWeight={900} fontSize={14}>
+        <Typography fontWeight={900} fontSize={14} color="text.primary">
           {title}
         </Typography>
       </Stack>
 
-      <Divider />
+      <Divider sx={{ borderColor: theme.palette.divider }} />
 
       <Stack spacing={0.7}>
         {rows.map((row) => (
@@ -680,7 +721,10 @@ function InfoBlock({ icon, title, rows }: InfoBlockProps) {
                   height: 22,
                   fontSize: 11,
                   fontWeight: 700,
-                  bgcolor: "#eef2f7",
+                  color: "text.primary",
+                  bgcolor: isDark
+                    ? alpha(theme.palette.common.white, 0.08)
+                    : alpha(theme.palette.common.black, 0.06),
                 }}
               />
             ) : (
@@ -688,6 +732,7 @@ function InfoBlock({ icon, title, rows }: InfoBlockProps) {
                 fontSize={13}
                 fontWeight={row.strong ? 900 : 800}
                 textAlign="right"
+                color="text.primary"
               >
                 {row.value}
               </Typography>

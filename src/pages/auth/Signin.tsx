@@ -23,12 +23,19 @@ import {
   Alert,
   IconButton,
 } from "@mui/material";
-import { Email, Lock, Person, Phone, Close } from "@mui/icons-material";
+import {
+  Email,
+  Lock,
+  Person,
+  Phone,
+  Close,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../../services/api";
 import { setAuthToken } from "../../services/axiosClient";
 
-// Paleta basada en tu logo
 const brandBlue = "#1577CE";
 const brandOrange = "#C77B1C";
 const brandBlack = "#0B0B0B";
@@ -52,7 +59,6 @@ const theme = createTheme({
   },
 });
 
-// Botón Google (UI)
 function GoogleButton({
   onClick,
   disabled = false,
@@ -82,7 +88,6 @@ function GoogleButton({
         sx={{ display: "inline-flex", width: 20, height: 20 }}
         aria-hidden
       >
-        {/* Logo Google (SVG simple) */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="20"
@@ -116,7 +121,6 @@ export default function Signin() {
   const navigate = useNavigate();
   const [open, setOpen] = React.useState(true);
 
-  // Form state
   const [values, setValues] = React.useState({
     firstName: "",
     lastName: "",
@@ -125,17 +129,18 @@ export default function Signin() {
     password: "",
     accept: false,
   });
+
+  const [showPassword, setShowPassword] = React.useState(false);
+
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [submitting, setSubmitting] = React.useState(false);
 
-  // OTP modal state
   const [otpOpen, setOtpOpen] = React.useState(false);
   const [otp, setOtp] = React.useState("");
   const [otpError, setOtpError] = React.useState("");
   const [sendingCode, setSendingCode] = React.useState(false);
-  const [countdown, setCountdown] = React.useState(60); // seg para reenviar
+  const [countdown, setCountdown] = React.useState(60);
 
-  // Feedback
   const [snack, setSnack] = React.useState<{
     open: boolean;
     msg: string;
@@ -146,10 +151,10 @@ export default function Signin() {
     type: "success",
   });
 
-  // Countdown para "Reenviar código"
   React.useEffect(() => {
     if (!otpOpen) return;
     if (countdown <= 0) return;
+
     const t = setTimeout(() => setCountdown((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [otpOpen, countdown]);
@@ -158,20 +163,38 @@ export default function Signin() {
     (field: keyof typeof values) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       let v = e.target.value;
-      if (field === "phone") v = v.replace(/\D/g, "").slice(0, 10);
+
+      if (field === "phone") {
+        v = v.replace(/\D/g, "").slice(0, 10);
+      }
+
       setValues((s) => ({ ...s, [field]: v }));
     };
 
   const validate = () => {
     const e: Record<string, string> = {};
+
     if (!values.firstName.trim()) e.firstName = "Nombre obligatorio";
     if (!values.lastName.trim()) e.lastName = "Apellido obligatorio";
-    if (!values.email.trim()) e.email = "Correo obligatorio";
-    else if (!/^\S+@\S+\.\S+$/.test(values.email)) e.email = "Correo inválido";
-    if (values.phone.length !== 10)
+
+    if (!values.email.trim()) {
+      e.email = "Correo obligatorio";
+    } else if (!/^\S+@\S+\.\S+$/.test(values.email)) {
+      e.email = "Correo inválido";
+    }
+
+    if (values.phone.length !== 10) {
       e.phone = "El teléfono debe tener 10 dígitos";
-    if (!values.password) e.password = "Contraseña obligatoria";
-    if (!values.accept) e.accept = "Debes aceptar términos";
+    }
+
+    if (!values.password) {
+      e.password = "Contraseña obligatoria";
+    }
+
+    if (!values.accept) {
+      e.accept = "Debes aceptar términos";
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -182,53 +205,56 @@ export default function Signin() {
   };
 
   const handleGoogleClick = () => {
-    // TODO: Integra tu flujo OAuth Google (redirect/popup).
     setSnack({
       open: true,
-      msg: "Integración con Google pendiente ✨",
+      msg: "Integración con Google pendiente",
       type: "info",
     });
   };
 
-  // 1) Solicita código y abre modal
   const requestOtp = async () => {
     try {
       setSendingCode(true);
+
       const { data } = await authApi.requestCode(values.phone);
+
       setSnack({
         open: true,
         msg: data?.message || "Código enviado por WhatsApp.",
         type: "success",
       });
+
       setOtpOpen(true);
       setOtp("");
       setOtpError("");
-      setCountdown(60); // reinicia countdown
+      setCountdown(60);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
         "No se pudo enviar el código. Intenta más tarde.";
+
       setSnack({ open: true, msg, type: "error" });
     } finally {
       setSendingCode(false);
     }
   };
 
-  // 2) Submit del paso 1: valida y solicita código
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!validate()) return;
+
     await requestOtp();
   };
 
-  // 3) Confirmar registro con código
   const handleConfirmRegister = async () => {
     try {
       if (!/^\d{6}$/.test(otp)) {
         setOtpError("Ingresa el código de 6 dígitos.");
         return;
       }
+
       setOtpError("");
       setSubmitting(true);
 
@@ -250,11 +276,10 @@ export default function Signin() {
         localStorage.setItem("token", res.token);
         localStorage.setItem("auth_user", JSON.stringify(res.user));
 
-        // 🔔 notifica al resto de la app (SideNav, etc.)
         window.dispatchEvent(new Event("auth-updated"));
       }
 
-      setSnack({ open: true, msg: "Registro exitoso 🎉", type: "success" });
+      setSnack({ open: true, msg: "Registro exitoso", type: "success" });
       setOtpOpen(false);
       navigate("/panel");
     } catch (err: any) {
@@ -262,6 +287,7 @@ export default function Signin() {
         err?.response?.data?.message ||
         err?.message ||
         "No se pudo completar el registro.";
+
       setSnack({ open: true, msg, type: "error" });
     } finally {
       setSubmitting(false);
@@ -270,6 +296,7 @@ export default function Signin() {
 
   const handleResend = async () => {
     if (countdown > 0) return;
+
     await requestOtp();
   };
 
@@ -277,10 +304,8 @@ export default function Signin() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
 
-      {/* Fondo opcional */}
       <Container maxWidth={false} disableGutters sx={{ minHeight: "100vh" }} />
 
-      {/* ======= DIALOG REGISTRO ======= */}
       <Dialog
         open={open}
         onClose={handleClose}
@@ -290,7 +315,7 @@ export default function Signin() {
           sx: {
             overflow: "visible",
             boxShadow: "0 24px 60px rgba(0,0,0,.15)",
-            border: `1px solid rgba(0,0,0,.06)`,
+            border: "1px solid rgba(0,0,0,.06)",
           },
         }}
         BackdropProps={{
@@ -301,7 +326,6 @@ export default function Signin() {
           },
         }}
       >
-        {/* Header */}
         <DialogTitle
           sx={{
             p: 0,
@@ -318,6 +342,7 @@ export default function Signin() {
             alt="Logo TAE"
             sx={{ width: 96, height: "auto" }}
           />
+
           <IconButton
             onClick={handleClose}
             aria-label="Cerrar"
@@ -340,6 +365,7 @@ export default function Signin() {
             <Typography variant="h5" fontWeight={700}>
               Crear cuenta
             </Typography>
+
             <Typography color="text.secondary">
               Regístrate para empezar con TAE
             </Typography>
@@ -426,20 +452,39 @@ export default function Signin() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   label="Contraseña"
                   value={values.password}
                   onChange={onChange("password")}
                   error={!!errors.password}
                   helperText={errors.password}
+                  autoComplete="new-password"
+                  inputProps={{
+                    autoComplete: "new-password",
+                  }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
                         <Lock />
                       </InputAdornment>
                     ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword((prev) => !prev)}
+                          onMouseDown={(event) => event.preventDefault()}
+                          edge="end"
+                          aria-label={
+                            showPassword
+                              ? "Ocultar contraseña"
+                              : "Mostrar contraseña"
+                          }
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
                   }}
-                  autoComplete="new-password"
                 />
               </Grid>
 
@@ -468,6 +513,7 @@ export default function Signin() {
                     </Typography>
                   }
                 />
+
                 {!!errors.accept && (
                   <Typography color="error" variant="caption">
                     {errors.accept}
@@ -537,7 +583,6 @@ export default function Signin() {
         </DialogContent>
       </Dialog>
 
-      {/* ======= DIALOG OTP ======= */}
       <Dialog
         open={otpOpen}
         onClose={() => setOtpOpen(false)}
@@ -547,6 +592,7 @@ export default function Signin() {
       >
         <DialogTitle sx={{ pb: 1 }}>
           Verifica tu teléfono
+
           <IconButton
             onClick={() => setOtpOpen(false)}
             aria-label="Cerrar"
@@ -555,11 +601,13 @@ export default function Signin() {
             <Close fontSize="small" />
           </IconButton>
         </DialogTitle>
+
         <DialogContent sx={{ pt: 0 }}>
           <Typography variant="body2" color="text.secondary" mb={2}>
             Enviamos un código de 6 dígitos por WhatsApp al{" "}
             <b>{values.phone}</b>.
           </Typography>
+
           <TextField
             fullWidth
             label="Código de verificación"
@@ -585,6 +633,7 @@ export default function Signin() {
                 ? `Puedes reenviar en ${countdown}s`
                 : "¿No recibiste el código?"}
             </Typography>
+
             <Button
               onClick={handleResend}
               disabled={countdown > 0 || sendingCode}
@@ -594,8 +643,10 @@ export default function Signin() {
             </Button>
           </Box>
         </DialogContent>
+
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setOtpOpen(false)}>Cancelar</Button>
+
           <Button
             onClick={handleConfirmRegister}
             variant="contained"

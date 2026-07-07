@@ -30,7 +30,6 @@ import {
 import {
   ArrowBack,
   AttachMoney,
-  CalendarMonth,
   CheckCircle,
   HourglassTop,
   InfoOutlined,
@@ -77,6 +76,8 @@ const meses = [
   { value: 11, label: "Noviembre" },
   { value: 12, label: "Diciembre" },
 ];
+
+const REFERIDOS_DETALLE_PER_PAGE = 16;
 
 type VistaTea = "principal" | "usuarios" | "detalle";
 
@@ -294,46 +295,55 @@ function tipoGananciaLabel(item: TeaReferidoConGanancia) {
   const porcentaje = toNumber(item.porcentaje_comision);
 
   if (tipo.includes("renov") || porcentaje === 5) {
-    return `Renovación ${porcentaje || 5}%`;
+    return `Ren. ${porcentaje || 5}%`;
   }
 
-  if (tipo.includes("comision") || tipo.includes("comisión") || porcentaje === 20) {
-    return `Comisión ${porcentaje || 20}%`;
+  if (
+    tipo.includes("comision") ||
+    tipo.includes("comisión") ||
+    porcentaje === 20
+  ) {
+    return `Com. ${porcentaje || 20}%`;
   }
 
   if (porcentaje > 0) {
-    return `${item.tipo || "Comisión"} ${porcentaje}%`;
+    return `${porcentaje}%`;
   }
 
-  return item.tipo || "Sin comisión";
+  return "Sin com.";
 }
 
 function tipoGananciaSx(item: TeaReferidoConGanancia) {
-  const label = tipoGananciaLabel(item).toLowerCase();
+  const tipo = String(item.tipo || "").trim().toLowerCase();
+  const porcentaje = toNumber(item.porcentaje_comision);
 
-  if (label.includes("renov")) {
+  if (tipo.includes("renov") || porcentaje === 5) {
     return {
       bgcolor: "rgba(123, 31, 162, 0.12)",
       color: "#7b1fa2",
       borderColor: "rgba(123, 31, 162, 0.35)",
-      fontWeight: 800,
+      fontWeight: 900,
     };
   }
 
-  if (label.includes("comisión") || label.includes("comision")) {
+  if (
+    tipo.includes("comision") ||
+    tipo.includes("comisión") ||
+    porcentaje === 20
+  ) {
     return {
       bgcolor: "rgba(46, 125, 50, 0.12)",
       color: "#2e7d32",
       borderColor: "rgba(46, 125, 50, 0.35)",
-      fontWeight: 800,
+      fontWeight: 900,
     };
   }
 
   return {
-    bgcolor: "action.hover",
-    color: "text.primary",
-    borderColor: "divider",
-    fontWeight: 800,
+    bgcolor: "rgba(46, 125, 50, 0.10)",
+    color: "#2e7d32",
+    borderColor: "rgba(46, 125, 50, 0.30)",
+    fontWeight: 900,
   };
 }
 
@@ -343,7 +353,24 @@ function GananciaChip({ item }: { item: TeaReferidoConGanancia }) {
       size="small"
       variant="outlined"
       label={tipoGananciaLabel(item)}
-      sx={tipoGananciaSx(item)}
+      sx={{
+        ...tipoGananciaSx(item),
+        height: 20,
+        maxWidth: 82,
+        borderRadius: 10,
+        fontSize: 10,
+        lineHeight: 1,
+        "& .MuiChip-label": {
+          px: 0.75,
+          fontSize: 10,
+          fontWeight: 900,
+          lineHeight: 1,
+          maxWidth: 70,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        },
+      }}
     />
   );
 }
@@ -353,27 +380,30 @@ function KpiCard({
   value,
   subtitle,
   icon,
+  compact = false,
 }: {
   title: string;
   value: number | string;
   subtitle?: string;
   icon: ReactNode;
+  compact?: boolean;
 }) {
   return (
     <Paper
       variant="outlined"
       sx={{
-        p: { xs: 1.5, md: 2 },
+        p: compact ? { xs: 1.25, md: 1.5 } : { xs: 1.5, md: 2 },
         borderRadius: 4,
         height: "100%",
+        minHeight: compact ? 100 : undefined,
         overflow: "hidden",
       }}
     >
       <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
         <Avatar
           sx={{
-            width: { xs: 40, md: 48 },
-            height: { xs: 40, md: 48 },
+            width: compact ? { xs: 38, md: 42 } : { xs: 40, md: 48 },
+            height: compact ? { xs: 38, md: 42 } : { xs: 40, md: 48 },
             bgcolor: "primary.main",
             flexShrink: 0,
           }}
@@ -395,7 +425,9 @@ function KpiCard({
             fontWeight={900}
             lineHeight={1.1}
             sx={{
-              fontSize: "clamp(1.25rem, 6vw, 2rem)",
+              fontSize: compact
+                ? "clamp(1.15rem, 4vw, 1.65rem)"
+                : "clamp(1.25rem, 6vw, 2rem)",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -906,7 +938,7 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
   const [usuariosPage, setUsuariosPage] = useState(0);
   const [referidosPage, setReferidosPage] = useState(0);
 
-  const params = useMemo<TeaReferidoDashboardParams>(() => {
+  const params = useMemo<TeaReferidoDashboardParams & Record<string, any>>(() => {
     if (vista === "detalle" && usuarioSeleccionado) {
       return {
         sistema: detalleSistema,
@@ -916,6 +948,7 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
         orden: detalleOrden,
         user_id: usuarioSeleccionado.user_id,
         referidos_page: referidosPage + 1,
+        referidos_per_page: REFERIDOS_DETALLE_PER_PAGE,
       };
     }
 
@@ -1057,8 +1090,16 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
     setDetalleAnio(anio);
     setDetalleOrden(orden);
     setReferidosPage(0);
-    setModoDetalle("mensual");
+    setModoDetalle("historico");
     setVista("detalle");
+  };
+
+  const abrirDetalleMensualDesdeHistorial = (row: any) => {
+    setRegistroDetalle(null);
+    setDetalleMes(Number(row?.mes) || now.getMonth() + 1);
+    setDetalleAnio(Number(row?.anio) || now.getFullYear());
+    setReferidosPage(0);
+    setModoDetalle("mensual");
   };
 
   const regresarAPrincipal = () => {
@@ -1073,6 +1114,11 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
     setReferidosPage(0);
   };
 
+  const regresarAHistorialUsuario = () => {
+    setRegistroDetalle(null);
+    setModoDetalle("historico");
+  };
+
   if (vista === "usuarios") {
     return (
       <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", overflowX: "hidden" }}>
@@ -1083,30 +1129,50 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
           spacing={2}
           mb={3}
         >
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+          <Box minWidth={0}>
+            <Typography variant={isMobile ? "h5" : "h4"} fontWeight={900}>
+              Usuarios TAE
+            </Typography>
+
+           
+          </Box>
+
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ width: { xs: "100%", md: "auto" } }}
+          >
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<ArrowBack />}
               onClick={regresarAPrincipal}
-              sx={{ width: { xs: "100%", sm: "fit-content" } }}
+              disabled={loading}
+              sx={{
+                minHeight: 40,
+                borderRadius: 2.5,
+                fontWeight: 900,
+                textTransform: "none",
+                whiteSpace: "nowrap",
+              }}
             >
               Regresar
             </Button>
 
-            <Box>
-              <Typography variant={isMobile ? "h5" : "h4"} fontWeight={900}>
-                Usuarios TAE
-              </Typography>
-
-              <Typography color="text.secondary">
-                Selecciona un usuario para consultar su detalle.
-              </Typography>
-            </Box>
+            <Button
+              variant="contained"
+              onClick={cargarDatos}
+              disabled={loading}
+              sx={{
+                minHeight: 40,
+                borderRadius: 2.5,
+                fontWeight: 900,
+                textTransform: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Actualizar
+            </Button>
           </Stack>
-
-          <Button variant="contained" onClick={cargarDatos} disabled={loading}>
-            Actualizar
-          </Button>
         </Stack>
 
         {error && (
@@ -1282,6 +1348,7 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
   if (vista === "detalle" && usuarioSeleccionado) {
     const detalleCargado =
       String(data?.filters?.user_id ?? "") === String(usuarioSeleccionado.user_id);
+    const usuarioNombreSeleccionado = nombreUsuario(usuarioSeleccionado);
 
     return (
       <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", overflowX: "hidden" }}>
@@ -1292,30 +1359,73 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
           spacing={2}
           mb={3}
         >
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <Button
-              variant="outlined"
-              startIcon={<ArrowBack />}
-              onClick={regresarAUsuarios}
-              sx={{ width: { xs: "100%", sm: "fit-content" } }}
+          <Box minWidth={0}>
+            <Typography
+              component="h1"
+              fontWeight={900}
+              sx={{
+                wordBreak: "break-word",
+                lineHeight: 1.15,
+                fontSize: {
+                  xs: "1.55rem",
+                  sm: "1.75rem",
+                  md: "1.95rem",
+                  lg: "2.05rem",
+                },
+              }}
             >
-              Regresar
+              {modoDetalle === "historico"
+                ? `Historial de ${usuarioNombreSeleccionado}`
+                : `Detalle de ${usuarioNombreSeleccionado}`}
+            </Typography>
+
+            {modoDetalle === "historico" && (
+              <Typography color="text.secondary" sx={{ wordBreak: "break-word" }}>
+                Referidos y ganancias acumuladas por mes del usuario seleccionado.
+              </Typography>
+            )}
+          </Box>
+
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ width: { xs: "100%", md: "auto" } }}
+          >
+            <Button
+              variant="contained"
+              startIcon={<ArrowBack />}
+              onClick={
+                modoDetalle === "historico"
+                  ? regresarAUsuarios
+                  : regresarAHistorialUsuario
+              }
+              disabled={loading}
+              sx={{
+                minHeight: 40,
+                borderRadius: 2.5,
+                fontWeight: 900,
+                textTransform: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {modoDetalle === "historico" ? "Regresar a usuarios" : "Regresar al historial"}
             </Button>
 
-            <Box>
-              <Typography variant={isMobile ? "h5" : "h4"} fontWeight={900}>
-                Detalle del usuario
-              </Typography>
-
-              <Typography color="text.secondary">
-                Filtros, ganancias y referidos del usuario seleccionado.
-              </Typography>
-            </Box>
+            <Button
+              variant="contained"
+              onClick={cargarDatos}
+              disabled={loading}
+              sx={{
+                minHeight: 40,
+                borderRadius: 2.5,
+                fontWeight: 900,
+                textTransform: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Actualizar
+            </Button>
           </Stack>
-
-          <Button variant="contained" onClick={cargarDatos} disabled={loading}>
-            Actualizar
-          </Button>
         </Stack>
 
         {error && (
@@ -1324,39 +1434,50 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
           </Alert>
         )}
 
-        <Paper
-          variant="outlined"
-          sx={{ p: { xs: 1.5, md: 3 }, borderRadius: 4, mb: 3 }}
-        >
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <Avatar sx={{ width: 64, height: 64, fontSize: 22 }}>
-              {iniciales(nombreUsuario(usuarioSeleccionado))}
-            </Avatar>
+        {modoDetalle === "historico" && (
+          <Paper
+            variant="outlined"
+            sx={{ p: { xs: 1.5, md: 2 }, borderRadius: 4, mb: 3 }}
+          >
+            <Stack spacing={1.5}>
+              <Typography fontWeight={900}>Datos del usuario</Typography>
 
-            <Box flex={1} minWidth={0}>
-              <Typography variant="h5" fontWeight={900} sx={{ wordBreak: "break-word" }}>
-                {nombreUsuario(usuarioSeleccionado)}
-              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={800}>
+                    Email
+                  </Typography>
+                  <Typography fontWeight={800} sx={{ wordBreak: "break-word" }}>
+                    {usuarioSeleccionado.email || "-"}
+                  </Typography>
+                </Grid>
 
-              <Typography color="text.secondary" sx={{ wordBreak: "break-word" }}>
-                {usuarioSeleccionado.email || "-"}
-              </Typography>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={800}>
+                    Teléfono
+                  </Typography>
+                  <Typography fontWeight={800} sx={{ wordBreak: "break-word" }}>
+                    {usuarioSeleccionado.phone || "-"}
+                  </Typography>
+                </Grid>
 
-              <Typography color="text.secondary">
-                Teléfono: {usuarioSeleccionado.phone || "-"}
-              </Typography>
-
-              <Typography color="text.secondary">
-                Código referido: {usuarioSeleccionado.codigo_ref || "-"}
-              </Typography>
-            </Box>
-          </Stack>
-        </Paper>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={800}>
+                    Código referido
+                  </Typography>
+                  <Typography fontWeight={800} sx={{ wordBreak: "break-word" }}>
+                    {usuarioSeleccionado.codigo_ref || "-"}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Stack>
+          </Paper>
+        )}
 
         {modoDetalle === "historico" ? (
           <TeaHistorialGlobalUsuario
             userId={usuarioSeleccionado.user_id}
-            onBack={() => setModoDetalle("mensual")}
+            onSelectPeriodo={abrirDetalleMensualDesdeHistorial}
           />
         ) : (
           <>
@@ -1397,8 +1518,9 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
         ) : (
           <>
             <Grid container spacing={2} mb={3}>
-              <Grid item xs={12} sm={6} md={4}>
+              <Grid item xs={12} sm={6} md={3}>
                 <KpiCard
+                  compact
                   title="Total referidos"
                   value={toNumber(resumen?.referidos_mes_seleccionado)}
                   subtitle={`Referidos de ${nombreMes(detalleMes)} ${detalleAnio}`}
@@ -1406,8 +1528,9 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={4}>
+              <Grid item xs={12} sm={6} md={3}>
                 <KpiCard
+                  compact
                   title="Confirmados"
                   value={toNumber(resumen?.confirmados_mes_seleccionado)}
                   subtitle={`Confirmados de ${nombreMes(detalleMes)} ${detalleAnio}`}
@@ -1415,8 +1538,9 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={4}>
+              <Grid item xs={12} sm={6} md={3}>
                 <KpiCard
+                  compact
                   title="Pendientes"
                   value={toNumber(resumen?.pendientes_mes_seleccionado)}
                   subtitle={`Pendientes de ${nombreMes(detalleMes)} ${detalleAnio}`}
@@ -1424,8 +1548,9 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={4}>
+              <Grid item xs={12} sm={6} md={3}>
                 <KpiCard
+                  compact
                   title="Ganancia total"
                   value={formatoMoneda((resumen as any)?.ganancia_mes_seleccionado)}
                   subtitle={`Ganancia de ${nombreMes(detalleMes)} ${detalleAnio}`}
@@ -1433,75 +1558,6 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={4}>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: { xs: 1.5, md: 2 },
-                    borderRadius: 4,
-                    height: "100%",
-                    overflow: "hidden",
-                  }}
-                >
-                  <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
-                    <Avatar
-                      sx={{
-                        width: { xs: 40, md: 48 },
-                        height: { xs: 40, md: 48 },
-                        bgcolor: "primary.main",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <CalendarMonth />
-                    </Avatar>
-
-                    <Box minWidth={0} flex={1}>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        fontWeight={800}
-                        lineHeight={1.2}
-                      >
-                        Historial total
-                      </Typography>
-
-                      <Typography
-                        fontWeight={900}
-                        lineHeight={1.1}
-                        sx={{
-                          fontSize: "clamp(1.25rem, 6vw, 2rem)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        Global
-                      </Typography>
-
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: "block", lineHeight: 1.25, mb: 1 }}
-                      >
-                        Acumulado por mes desde el inicio.
-                      </Typography>
-
-                      <Button
-                        fullWidth
-                        size="small"
-                        variant="contained"
-                        onClick={() => {
-                          setRegistroDetalle(null);
-                          setModoDetalle("historico");
-                        }}
-                        sx={{ textTransform: "none" }}
-                      >
-                        Ver histórica
-                      </Button>
-                    </Box>
-                  </Stack>
-                </Paper>
-              </Grid>
             </Grid>
 
             <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, borderRadius: 4 }}>
@@ -1671,8 +1727,9 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
                     count={data?.referidos_mes_seleccionado?.total || 0}
                     page={referidosPage}
                     onPageChange={(_, newPage) => setReferidosPage(newPage)}
-                    rowsPerPage={data?.referidos_mes_seleccionado?.per_page || 20}
-                    rowsPerPageOptions={[20]}
+                    rowsPerPage={REFERIDOS_DETALLE_PER_PAGE}
+                    rowsPerPageOptions={[REFERIDOS_DETALLE_PER_PAGE]}
+                    labelRowsPerPage="Filas por página"
                   />
                 </>
               )}

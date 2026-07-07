@@ -1443,3 +1443,97 @@ label.form-label {
   background-color: #e6e9ef;
   color: #343a40;
 }/*# sourceMappingURL=style.css.map */
+/*estilos de scroll*/
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
+
+/* Fondo general según modo */
+html.dark,
+body.dark,
+html.dark #root,
+body.dark #root {
+  background-color: #0b0f19;
+  color-scheme: dark;
+}
+
+html.light,
+body.light,
+html.light #root,
+body.light #root {
+  background-color: #f5f7fb;
+  color-scheme: light;
+}
+
+/* Firefox */
+html.dark,
+body.dark,
+html.dark *,
+body.dark * {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+
+html.light,
+body.light,
+html.light *,
+body.light * {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* Chrome, Edge, Safari */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html.dark::-webkit-scrollbar-thumb,
+body.dark::-webkit-scrollbar-thumb,
+html.dark *::-webkit-scrollbar-thumb,
+body.dark *::-webkit-scrollbar-thumb {
+  background-color: #334155;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+html.dark::-webkit-scrollbar-thumb:hover,
+body.dark::-webkit-scrollbar-thumb:hover,
+html.dark *::-webkit-scrollbar-thumb:hover,
+body.dark *::-webkit-scrollbar-thumb:hover {
+  background-color: #475569;
+}
+
+html.light::-webkit-scrollbar-thumb,
+body.light::-webkit-scrollbar-thumb,
+html.light *::-webkit-scrollbar-thumb,
+body.light *::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+html.light::-webkit-scrollbar-thumb:hover,
+body.light::-webkit-scrollbar-thumb:hover,
+html.light *::-webkit-scrollbar-thumb:hover,
+body.light *::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
