@@ -339,3 +339,4 @@ function StatusChip({ value }: { value?: string }) {
 
   return <Chip size="small" label={normalized} color="default" />;
 }
+export {};

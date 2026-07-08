@@ -21,7 +21,7 @@ import TeaTeDaMas from "./components/TeaTeDaMas";
 export default function SuperAdminPanel() {
   return (
     <Shell>
-      {(_, view, setView) => {
+      {(darkMode, view, setView) => {
         switch (view) {
           case "metricas":
             return <Metricas />;
@@ -61,11 +61,9 @@ export default function SuperAdminPanel() {
 
           case "clicmenu":
             return <ClicMenuDashboard />;
-type Props = {
-  darkMode?: boolean;
-};
+
           default:
-          return <Dashboard darkMode={darkMode} />;
+            return <Dashboard darkMode={darkMode} />;
         }
       }}
     </Shell>
