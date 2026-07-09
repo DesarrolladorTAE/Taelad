@@ -11,7 +11,6 @@ import Configuracion from "./components/Configuracion";
 import MiTiendaDashboard from "./components/MiTiendaDashboard";
 import MiTiendaTiendas from "./components/MiTiendaTiendas";
 import MiTiendaVentas from "./components/MiTiendaVentas";
-import MiTiendaMetricas from "./components/MiTiendaMetricas";
 import MiTiendaSuscripcionesGlobal from "./components/MiTiendaSuscripcionesGlobal";
 
 import ClicMenuDashboard from "./components/ClicMenu/ClicMenuDashboard";
@@ -23,9 +22,8 @@ export default function SuperAdminPanel() {
     <Shell>
       {(darkMode, view, setView) => {
         switch (view) {
-          case "metricas":
-            return <Metricas />;
-
+         case "metricas":
+            return <Metricas darkMode={darkMode} />;
           case "sistemas":
             return <Sistemas setView={setView} />;
 
@@ -52,9 +50,6 @@ export default function SuperAdminPanel() {
 
           case "mitienda-ventas":
             return <MiTiendaVentas setView={setView} />;
-
-          case "mitienda-metricas":
-            return <MiTiendaMetricas setView={setView} />;
 
           case "mitienda-suscripciones":
             return <MiTiendaSuscripcionesGlobal setView={setView} />;

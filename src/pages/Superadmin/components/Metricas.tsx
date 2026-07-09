@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+
 import {
   Alert,
   alpha,
@@ -18,57 +20,50 @@ import {
   useTheme,
 } from "@mui/material";
 
-import StorefrontIcon from "@mui/icons-material/Storefront";
-import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import AppsIcon from "@mui/icons-material/Apps";
+import StorefrontIcon from "@mui/icons-material/Storefront";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
-import api from "../../../services/axiosClient";
+type Props = {
+  darkMode?: boolean;
+};
 
-type SistemaKey = "todos" | "mitienda" | "clicmenu";
+type SystemKey = "todos" | "mitienda" | "clicmenu";
+type ApiSystemKey = "mitienda" | "clicmenu";
 
-type ApiSistemaKey = Exclude<SistemaKey, "todos">;
-
-type ApiSistemaData = {
-  key: ApiSistemaKey;
-  name: string;
-  monthly_income: number[];
-  total_income: number;
-  monthly_companies: number[];
-  total_companies: number;
-  active_subscriptions: number;
-  expired_subscriptions: number;
+type Snapshot = {
+  id: number;
+  system_key: "consolidado" | ApiSystemKey;
+  system_name: string;
+  year: number;
+  month: number;
+  period_key: string;
+  status: string;
+  synced_at?: string | null;
+  kpis?: Record<string, any> | any[];
+  specific_metrics?: Record<string, any> | any[];
+  consolidated?: Record<string, any> | any[];
+  charts?: Record<string, any> | any[];
 };
 
 type MetricasResponse = {
-  ok: boolean;
-  year: number;
-  systems: ApiSistemaData[];
-  summary: {
-    total_income: number;
-    total_companies: number;
-    total_active_subscriptions: number;
-    total_expired_subscriptions: number;
+  success: boolean;
+  message?: string;
+  data?: {
+    snapshots: Snapshot[];
+    alerts?: any[];
+    sync_logs?: any[];
   };
 };
 
-type SistemaData = {
-  key: ApiSistemaKey;
-  label: string;
-  icon: JSX.Element;
-  empresas: number[];
-  ingresos: number[];
-  totalIngresos: number;
-  totalEmpresas: number;
-  activas: number;
-  vencidas: number;
-};
+const API_BASE_URL = "https://api.tecnologiasadministrativas.com/api";
 
-const meses = [
+const MONTHS = [
   "Ene",
   "Feb",
   "Mar",
@@ -83,135 +78,440 @@ const meses = [
   "Dic",
 ];
 
-function normalizeMonthlyValues(values: unknown): number[] {
-  const arrayValues = Array.isArray(values) ? values : [];
+function getAuthToken() {
+  const directKeys = [
+    "token",
+    "auth_token",
+    "access_token",
+    "sanctum_token",
+    "admin_token",
+    "superadmin_token",
+    "user_token",
+  ];
 
-  return Array.from({ length: 12 }, (_, index) => {
-    const value = Number(arrayValues[index] ?? 0);
-
-    return Number.isFinite(value) ? value : 0;
-  });
-}
-
-function getSistemaIcon(key: ApiSistemaKey) {
-  if (key === "mitienda") {
-    return <StorefrontIcon />;
+  for (const key of directKeys) {
+    const value = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (value) return value.replace(/^"|"$/g, "");
   }
 
-  return <RestaurantMenuIcon />;
+  const objectKeys = ["auth", "user", "session", "admin"];
+
+  for (const key of objectKeys) {
+    const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (!raw) continue;
+
+    try {
+      const parsed = JSON.parse(raw);
+      const token =
+        parsed?.token ||
+        parsed?.access_token ||
+        parsed?.auth_token ||
+        parsed?.data?.token ||
+        parsed?.data?.access_token;
+
+      if (token) return String(token);
+    } catch {
+      //
+    }
+  }
+
+  return "";
 }
 
-function getSistemaLabel(key: ApiSistemaKey, fallback: string) {
-  if (key === "mitienda") return "Mi Tienda";
-  if (key === "clicmenu") return "ClicMenu";
+function asObject(value: any): Record<string, any> {
+  if (!value || Array.isArray(value) || typeof value !== "object") {
+    return {};
+  }
+
+  return value;
+}
+
+function readNumber(source: any, keys: string[]): number | null {
+  const object = asObject(source);
+
+  for (const key of keys) {
+    if (!Object.prototype.hasOwnProperty.call(object, key)) continue;
+
+    const value = object[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number(value.replace(/[$,\s]/g, ""));
+      if (Number.isFinite(parsed)) return parsed;
+    }
+
+    if (value === null || value === undefined || value === "") {
+      return 0;
+    }
+  }
+
+  return null;
+}
+
+function firstNumber(
+  sources: Array<{ source: any; keys: string[] }>,
+  fallback = 0
+) {
+  for (const item of sources) {
+    const value = readNumber(item.source, item.keys);
+    if (value !== null) return value;
+  }
 
   return fallback;
 }
 
 function formatMoney(value: number) {
-  return Number(value || 0).toLocaleString("es-MX", {
+  return new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
+    maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("es-MX", {
+    maximumFractionDigits: 0,
+  }).format(Number(value) || 0);
+}
+
+function formatSignedPercent(value: number) {
+  const sign = value > 0 ? "+" : "";
+
+  return `${sign}${new Intl.NumberFormat("es-MX", {
+    maximumFractionDigits: 2,
+  }).format(Number(value) || 0)}%`;
+}
+
+function getSnapshot(
+  snapshots: Snapshot[],
+  key: "consolidado" | ApiSystemKey
+): Snapshot | null {
+  return snapshots.find((item) => item.system_key === key) || null;
+}
+
+function getMonthlySeries(
+  charts: Record<string, any>,
+  systemKey: ApiSystemKey,
+  selectedYear: number,
+  currentYear: number,
+  currentMonth: number
+) {
+  const ingresosPorMes = asObject(charts?.ingresos_por_mes);
+
+  const raw = Array.isArray(ingresosPorMes?.[systemKey])
+    ? ingresosPorMes[systemKey]
+    : [];
+
+  const values = Array.from({ length: 12 }, () => 0);
+
+  raw.forEach((item: any) => {
+    const monthText = String(item?.month || "");
+    const [year, month] = monthText.split("-").map(Number);
+
+    if (year !== selectedYear) return;
+    if (!month || month < 1 || month > 12) return;
+
+    values[month - 1] = Number(item?.value || 0);
   });
-}
 
-function getUltimoValor(values: number[]) {
-  return values[values.length - 1] ?? 0;
-}
+  if (systemKey === "clicmenu" && values.every((value) => value <= 0)) {
+    const ingresosPorSistema = Array.isArray(charts?.ingresos_por_sistema)
+      ? charts.ingresos_por_sistema
+      : [];
 
-function getMaxValue(
-  sistemasFiltrados: SistemaData[],
-  field: "empresas" | "ingresos"
-) {
-  return Math.max(...sistemasFiltrados.flatMap((sistema) => sistema[field]), 1);
-}
+    const clicIncome = ingresosPorSistema.find((item: any) =>
+      String(item?.name || item?.system_name || "")
+        .toLowerCase()
+        .includes("clic")
+    );
 
-function getTotalPorMes(
-  sistemasFiltrados: SistemaData[],
-  index: number,
-  field: "empresas" | "ingresos"
-) {
-  return sistemasFiltrados.reduce((total, sistema) => {
-    return total + (sistema[field][index] ?? 0);
-  }, 0);
-}
+    const fallbackValue = Number(clicIncome?.value || clicIncome?.amount || 0);
 
-function getErrorMessage(error: unknown) {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "response" in error &&
-    typeof (error as any).response?.data?.message === "string"
-  ) {
-    return (error as any).response.data.message;
+    if (fallbackValue > 0 && selectedYear === currentYear) {
+      values[currentMonth - 1] = fallbackValue;
+    }
   }
 
-  if (error instanceof Error) {
-    return error.message;
+  return values;
+}
+
+function sum(values: number[]) {
+  return values.reduce((total, value) => total + Number(value || 0), 0);
+}
+
+function getSystemAccounts(
+  systemKey: ApiSystemKey,
+  snapshot: Snapshot | null,
+  consolidatedSnapshot: Snapshot | null
+) {
+  const specific = asObject(snapshot?.specific_metrics);
+  const consolidated = asObject(consolidatedSnapshot?.consolidated);
+
+  if (systemKey === "mitienda") {
+    return firstNumber([
+      {
+        source: specific,
+        keys: [
+          "cuentas_activas",
+          "cuentas_registradas",
+          "total_cuentas",
+          "tiendas_activas",
+          "tiendas_registradas",
+        ],
+      },
+    ]);
   }
 
-  return "No fue posible cargar las métricas generales.";
+  return firstNumber([
+    {
+      source: specific,
+      keys: ["cuentas_registradas", "total_cuentas", "owners_count"],
+    },
+    {
+      source: consolidated,
+      keys: ["total_cuentas"],
+    },
+  ]);
 }
 
-function normalizeSistemas(apiSystems: ApiSistemaData[]): SistemaData[] {
-  return apiSystems
-    .filter((sistema) => sistema.key === "mitienda" || sistema.key === "clicmenu")
-    .map((sistema) => {
-      const ingresos = normalizeMonthlyValues(sistema.monthly_income);
-      const empresas = normalizeMonthlyValues(sistema.monthly_companies);
+function getSystemPlanActive(snapshot: Snapshot | null) {
+  const kpis = asObject(snapshot?.kpis);
 
-      return {
-        key: sistema.key,
-        label: getSistemaLabel(sistema.key, sistema.name),
-        icon: getSistemaIcon(sistema.key),
-        empresas,
-        ingresos,
-        totalIngresos: Number(sistema.total_income ?? 0),
-        totalEmpresas: Number(sistema.total_companies ?? getUltimoValor(empresas)),
-        activas: Number(sistema.active_subscriptions ?? 0),
-        vencidas: Number(sistema.expired_subscriptions ?? 0),
-      };
-    });
+  return firstNumber([
+    {
+      source: kpis,
+      keys: ["planes_activos", "total_planes_activos", "active_subscriptions"],
+    },
+  ]);
 }
 
-export default function Metricas() {
+function getSystemPlanExpired(snapshot: Snapshot | null) {
+  const kpis = asObject(snapshot?.kpis);
+
+  return firstNumber([
+    {
+      source: kpis,
+      keys: ["planes_vencidos", "total_planes_vencidos", "expired_subscriptions"],
+    },
+  ]);
+}
+
+function StatCard({
+  title,
+  value,
+  icon,
+}: {
+  title: string;
+  value: string;
+  icon: ReactNode;
+}) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
-  const currentYear = new Date().getFullYear();
+  return (
+    <Card
+      sx={{
+        height: "100%",
+        borderRadius: 4,
+        border: `1px solid ${theme.palette.divider}`,
+        bgcolor: "background.paper",
+        boxShadow: isDark
+          ? "0 12px 30px rgba(0,0,0,0.35)"
+          : "0 12px 30px rgba(0,0,0,0.08)",
+      }}
+    >
+      <CardContent>
+        <Stack direction="row" justifyContent="space-between" mb={2}>
+          <Typography variant="body2" color="text.secondary" fontWeight={700}>
+            {title}
+          </Typography>
 
-  const [anio, setAnio] = useState(String(currentYear));
-  const [sistemaFiltro, setSistemaFiltro] = useState<SistemaKey>("todos");
-  const [sistemas, setSistemas] = useState<SistemaData[]>([]);
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 2,
+              display: "grid",
+              placeItems: "center",
+              bgcolor: alpha(theme.palette.primary.main, isDark ? 0.18 : 0.1),
+              color: theme.palette.primary.main,
+            }}
+          >
+            {icon}
+          </Box>
+        </Stack>
+
+        <Typography variant="h4" fontWeight={900}>
+          {value}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function Metricas({ darkMode = false }: Props) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark" || darkMode;
+
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+
+  const [selectedYear, setSelectedYear] = useState(String(currentYear));
+  const [systemFilter, setSystemFilter] = useState<SystemKey>("todos");
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const year = Number(selectedYear);
+  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
+
+  const consolidatedSnapshot = getSnapshot(snapshots, "consolidado");
+  const mitiendaSnapshot = getSnapshot(snapshots, "mitienda");
+  const clicmenuSnapshot = getSnapshot(snapshots, "clicmenu");
+
+  const consolidatedKpis = asObject(consolidatedSnapshot?.kpis);
+  const consolidatedData = asObject(consolidatedSnapshot?.consolidated);
+  const consolidatedCharts = asObject(consolidatedSnapshot?.charts);
+
+  const visibleSystems: ApiSystemKey[] =
+    systemFilter === "todos" ? ["mitienda", "clicmenu"] : [systemFilter];
+
+  const mitiendaSeries = getMonthlySeries(
+    consolidatedCharts,
+    "mitienda",
+    year,
+    currentYear,
+    currentMonth
+  );
+
+  const clicmenuSeries = getMonthlySeries(
+    consolidatedCharts,
+    "clicmenu",
+    year,
+    currentYear,
+    currentMonth
+  );
+
+  const relationSeries = MONTHS.map((month, index) => {
+    const mitienda = visibleSystems.includes("mitienda")
+      ? Number(mitiendaSeries[index] || 0)
+      : 0;
+
+    const clicmenu = visibleSystems.includes("clicmenu")
+      ? Number(clicmenuSeries[index] || 0)
+      : 0;
+
+    return {
+      month,
+      mitienda,
+      clicmenu,
+      total: mitienda + clicmenu,
+    };
+  });
+
+  const maxSeriesValue = Math.max(
+    ...relationSeries.map((item) => item.total),
+    1
+  );
+
+  const ingresosAnuales = visibleSystems.reduce((total, key) => {
+    if (key === "mitienda") return total + sum(mitiendaSeries);
+    return total + sum(clicmenuSeries);
+  }, 0);
+
+  const previousMitiendaSeries = getMonthlySeries(
+    consolidatedCharts,
+    "mitienda",
+    year - 1,
+    currentYear,
+    currentMonth
+  );
+
+  const previousClicMenuSeries = getMonthlySeries(
+    consolidatedCharts,
+    "clicmenu",
+    year - 1,
+    currentYear,
+    currentMonth
+  );
+
+  const ingresosAnualesPrevios = visibleSystems.reduce((total, key) => {
+    if (key === "mitienda") return total + sum(previousMitiendaSeries);
+    return total + sum(previousClicMenuSeries);
+  }, 0);
+
+  const crecimientoAnual =
+    ingresosAnualesPrevios > 0
+      ? ((ingresosAnuales - ingresosAnualesPrevios) / ingresosAnualesPrevios) *
+        100
+      : 0;
+
+  const sistemasActivos = visibleSystems.filter((key) => {
+    const snapshot = key === "mitienda" ? mitiendaSnapshot : clicmenuSnapshot;
+    return snapshot?.status === "ok";
+  }).length;
+
+  const totalEmpresas =
+    systemFilter === "todos"
+      ? firstNumber([{ source: consolidatedData, keys: ["total_cuentas"] }])
+      : getSystemAccounts(
+          systemFilter,
+          systemFilter === "mitienda" ? mitiendaSnapshot : clicmenuSnapshot,
+          consolidatedSnapshot
+        );
+
+  const planesActivos =
+    systemFilter === "todos"
+      ? firstNumber([
+          { source: consolidatedData, keys: ["total_planes_activos"] },
+          { source: consolidatedKpis, keys: ["planes_activos"] },
+        ])
+      : getSystemPlanActive(
+          systemFilter === "mitienda" ? mitiendaSnapshot : clicmenuSnapshot
+        );
+
+  const planesVencidos =
+    systemFilter === "todos"
+      ? firstNumber([
+          { source: consolidatedData, keys: ["total_planes_vencidos"] },
+          { source: consolidatedKpis, keys: ["planes_vencidos"] },
+        ])
+      : getSystemPlanExpired(
+          systemFilter === "mitienda" ? mitiendaSnapshot : clicmenuSnapshot
+        );
+
   const fetchMetricas = async () => {
-    setLoading(true);
-    setError("");
-
     try {
-      const response = await api.get<MetricasResponse>(
-  "/superadmin/metricas-generales",
-  {
-    params: {
-      year: Number(anio),
-      refresh: 1,
-      t: Date.now(),
-    },
-  }
-);
+      setLoading(true);
+      setError("");
 
-      const payload = response.data;
+      const token = getAuthToken();
 
-      if (!payload?.ok) {
-        throw new Error("La respuesta de métricas no fue válida.");
+      const response = await fetch(
+        `${API_BASE_URL}/superadmin/metricas-generales?year=${currentYear}&month=${currentMonth}&system=all`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      const json: MetricasResponse = await response.json();
+
+      if (!response.ok || !json?.success || !json?.data?.snapshots) {
+        throw new Error(json?.message || "La respuesta de métricas no fue válida.");
       }
 
-      setSistemas(normalizeSistemas(payload.systems ?? []));
-    } catch (err) {
-      setSistemas([]);
-      setError(getErrorMessage(err));
+      setSnapshots(json.data.snapshots);
+    } catch (err: any) {
+      setSnapshots([]);
+      setError(err?.message || "No fue posible cargar las métricas generales.");
     } finally {
       setLoading(false);
     }
@@ -220,80 +520,33 @@ export default function Metricas() {
   useEffect(() => {
     fetchMetricas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anio]);
+  }, []);
 
-  const sistemasFiltrados = useMemo(() => {
-    if (sistemaFiltro === "todos") return sistemas;
-
-    return sistemas.filter((sistema) => sistema.key === sistemaFiltro);
-  }, [sistemas, sistemaFiltro]);
-
-  const totalEmpresas = useMemo(() => {
-    return sistemasFiltrados.reduce(
-      (total, sistema) => total + sistema.totalEmpresas,
-      0
-    );
-  }, [sistemasFiltrados]);
-
-  const totalActivas = useMemo(() => {
-    return sistemasFiltrados.reduce(
-      (total, sistema) => total + sistema.activas,
-      0
-    );
-  }, [sistemasFiltrados]);
-
-  const totalVencidas = useMemo(() => {
-    return sistemasFiltrados.reduce(
-      (total, sistema) => total + sistema.vencidas,
-      0
-    );
-  }, [sistemasFiltrados]);
-
-  const ingresosDelAnio = useMemo(() => {
-    return sistemasFiltrados.reduce(
-      (total, sistema) => total + sistema.totalIngresos,
-      0
-    );
-  }, [sistemasFiltrados]);
-
-  const crecimientoAnual = useMemo(() => {
-    return sistemasFiltrados.reduce((total, sistema) => {
-      const primero = sistema.empresas.find((value) => value > 0) ?? 0;
-      const ultimo = sistema.totalEmpresas || getUltimoValor(sistema.empresas);
-
-      return total + Math.max(ultimo - primero, 0);
-    }, 0);
-  }, [sistemasFiltrados]);
-
-  const maxEmpresas = getMaxValue(sistemasFiltrados, "empresas");
-  const maxIngresos = getMaxValue(sistemasFiltrados, "ingresos");
-
-  const years = useMemo(() => {
-    return [currentYear, currentYear - 1, currentYear - 2];
-  }, [currentYear]);
-
-  const cards = [
-    {
-      title: "Sistemas activos",
-      value: sistemasFiltrados.length.toString(),
-      icon: <AppsIcon />,
-    },
-    {
-      title: "Total empresas",
-      value: totalEmpresas.toString(),
-      icon: <StorefrontIcon />,
-    },
-    {
-      title: "Ingresos del año",
-      value: formatMoney(ingresosDelAnio),
-      icon: <ReceiptLongIcon />,
-    },
-    {
-      title: "Crecimiento anual",
-      value: `+${crecimientoAnual}`,
-      icon: <TrendingUpIcon />,
-    },
-  ];
+  const cards = useMemo(
+    () => [
+      {
+        title: "Sistemas activos",
+        value: formatNumber(sistemasActivos),
+        icon: <AppsIcon />,
+      },
+      {
+        title: "Total empresas",
+        value: formatNumber(totalEmpresas),
+        icon: <StorefrontIcon />,
+      },
+      {
+        title: "Ingresos del año",
+        value: formatMoney(ingresosAnuales),
+        icon: <ReceiptLongIcon />,
+      },
+      {
+        title: "Crecimiento anual",
+        value: formatSignedPercent(crecimientoAnual),
+        icon: <TrendingUpIcon />,
+      },
+    ],
+    [sistemasActivos, totalEmpresas, ingresosAnuales, crecimientoAnual]
+  );
 
   return (
     <Box>
@@ -305,12 +558,12 @@ export default function Metricas() {
         mb={4}
       >
         <Box>
-          <Typography variant="h5" fontWeight={900}>
+          <Typography variant="h4" fontWeight={900}>
             Métricas generales
           </Typography>
 
           <Typography color="text.secondary" mt={1}>
-            Comparación mensual real entre Mi Tienda y ClicMenu.
+            Comparación mensual real entre MiTiendaEnLineaMx y Clic Menú.
           </Typography>
         </Box>
 
@@ -319,13 +572,13 @@ export default function Metricas() {
             select
             size="small"
             label="Año"
-            value={anio}
-            onChange={(event) => setAnio(event.target.value)}
+            value={selectedYear}
+            onChange={(event) => setSelectedYear(event.target.value)}
             sx={{ minWidth: { xs: "100%", sm: 130 } }}
           >
-            {years.map((year) => (
-              <MenuItem key={year} value={String(year)}>
-                {year}
+            {yearOptions.map((item) => (
+              <MenuItem key={item} value={String(item)}>
+                {item}
               </MenuItem>
             ))}
           </TextField>
@@ -334,15 +587,15 @@ export default function Metricas() {
             select
             size="small"
             label="Sistema"
-            value={sistemaFiltro}
+            value={systemFilter}
             onChange={(event) =>
-              setSistemaFiltro(event.target.value as SistemaKey)
+              setSystemFilter(event.target.value as SystemKey)
             }
             sx={{ minWidth: { xs: "100%", sm: 190 } }}
           >
             <MenuItem value="todos">Todos</MenuItem>
-            <MenuItem value="mitienda">Mi Tienda</MenuItem>
-            <MenuItem value="clicmenu">ClicMenu</MenuItem>
+            <MenuItem value="mitienda">MiTiendaEnLineaMx</MenuItem>
+            <MenuItem value="clicmenu">Clic Menú</MenuItem>
           </TextField>
 
           <Button
@@ -363,7 +616,7 @@ export default function Metricas() {
         </Alert>
       )}
 
-      {loading && sistemas.length === 0 ? (
+      {loading && snapshots.length === 0 ? (
         <Paper
           variant="outlined"
           sx={{
@@ -376,7 +629,7 @@ export default function Metricas() {
           <Stack alignItems="center" spacing={2}>
             <CircularProgress />
             <Typography color="text.secondary">
-              Cargando métricas reales...
+              Cargando métricas generales...
             </Typography>
           </Stack>
         </Paper>
@@ -385,56 +638,16 @@ export default function Metricas() {
           <Grid container spacing={3}>
             {cards.map((item) => (
               <Grid item xs={12} sm={6} md={3} key={item.title}>
-                <Card
-                  sx={{
-                    height: "100%",
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 4,
-                    bgcolor: "background.paper",
-                    color: "text.primary",
-                    boxShadow: isDark
-                      ? "0 12px 30px rgba(0,0,0,0.35)"
-                      : "0 12px 30px rgba(0,0,0,0.08)",
-                  }}
-                >
-                  <CardContent>
-                    <Stack direction="row" justifyContent="space-between" mb={2}>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        fontWeight={700}
-                      >
-                        {item.title}
-                      </Typography>
-
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 2,
-                          display: "grid",
-                          placeItems: "center",
-                          bgcolor: alpha(
-                            theme.palette.primary.main,
-                            isDark ? 0.18 : 0.1
-                          ),
-                          color: theme.palette.primary.main,
-                        }}
-                      >
-                        {item.icon}
-                      </Box>
-                    </Stack>
-
-                    <Typography variant="h4" fontWeight={900}>
-                      {item.value}
-                    </Typography>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  title={item.title}
+                  value={item.value}
+                  icon={item.icon}
+                />
               </Grid>
             ))}
           </Grid>
 
-          <Grid container spacing={3} mt={0}>
+          <Grid container spacing={3} sx={{ mt: 0.5 }}>
             <Grid item xs={12} lg={8}>
               <Paper
                 variant="outlined"
@@ -454,101 +667,79 @@ export default function Metricas() {
                 >
                   <Box>
                     <Typography fontWeight={900} fontSize={18}>
-                      Empresas por mes
+                      Relación de ventas por mes
                     </Typography>
 
                     <Typography color="text.secondary" fontSize={13}>
-                      Comparación mensual de registros durante {anio}.
+                      Comparación mensual durante {year}.
                     </Typography>
                   </Box>
 
                   <Chip
-                    icon={<StorefrontIcon />}
-                    label={`${totalEmpresas} empresas`}
+                    icon={<InfoOutlinedIcon />}
+                    label={`${formatNumber(totalEmpresas)} empresas`}
                     size="small"
                     sx={{ fontWeight: 800 }}
                   />
                 </Stack>
 
-                {sistemasFiltrados.length === 0 ? (
+                {relationSeries.every((item) => item.total <= 0) ? (
                   <Alert severity="info">
                     No hay datos disponibles para los filtros seleccionados.
                   </Alert>
                 ) : (
-                  <Stack spacing={2.2}>
-                    {meses.map((mes, index) => {
-                      const totalMes = getTotalPorMes(
-                        sistemasFiltrados,
-                        index,
-                        "empresas"
-                      );
+                  <Stack spacing={2}>
+                    {relationSeries.map((item) => (
+                      <Box key={item.month}>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          mb={0.7}
+                        >
+                          <Typography fontSize={13} fontWeight={800}>
+                            {item.month}
+                          </Typography>
 
-                      return (
-                        <Box key={mes}>
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            mb={0.7}
-                          >
-                            <Typography fontSize={13} fontWeight={800}>
-                              {mes}
+                          <Typography fontSize={13} color="text.secondary">
+                            {formatMoney(item.total)}
+                          </Typography>
+                        </Stack>
+
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min(
+                            (item.total / maxSeriesValue) * 100,
+                            100
+                          )}
+                          sx={{
+                            height: 10,
+                            borderRadius: 99,
+                            bgcolor: alpha(
+                              theme.palette.primary.main,
+                              isDark ? 0.15 : 0.08
+                            ),
+                            "& .MuiLinearProgress-bar": {
+                              borderRadius: 99,
+                            },
+                          }}
+                        />
+
+                        <Stack direction="row" spacing={2} mt={0.6} flexWrap="wrap">
+                          {visibleSystems.includes("mitienda") && (
+                            <Typography fontSize={12} color="text.secondary">
+                              MiTienda: {formatMoney(item.mitienda)}
                             </Typography>
+                          )}
 
-                            <Typography fontSize={13} color="text.secondary">
-                              {totalMes} empresas
+                          {visibleSystems.includes("clicmenu") && (
+                            <Typography fontSize={12} color="text.secondary">
+                              Clic Menú: {formatMoney(item.clicmenu)}
                             </Typography>
-                          </Stack>
-
-                          <Stack spacing={0.8}>
-                            {sistemasFiltrados.map((sistema) => {
-                              const value = sistema.empresas[index] ?? 0;
-                              const percent = Math.min(
-                                (value / maxEmpresas) * 100,
-                                100
-                              );
-
-                              return (
-                                <Box key={`${sistema.key}-${mes}`}>
-                                  <Stack
-                                    direction="row"
-                                    justifyContent="space-between"
-                                    mb={0.3}
-                                  >
-                                    <Typography
-                                      fontSize={12}
-                                      color="text.secondary"
-                                    >
-                                      {sistema.label}
-                                    </Typography>
-
-                                    <Typography fontSize={12} fontWeight={800}>
-                                      {value}
-                                    </Typography>
-                                  </Stack>
-
-                                  <LinearProgress
-                                    variant="determinate"
-                                    value={percent}
-                                    sx={{
-                                      height: 9,
-                                      borderRadius: 99,
-                                      bgcolor: alpha(
-                                        theme.palette.primary.main,
-                                        isDark ? 0.15 : 0.08
-                                      ),
-                                      "& .MuiLinearProgress-bar": {
-                                        borderRadius: 99,
-                                      },
-                                    }}
-                                  />
-                                </Box>
-                              );
-                            })}
-                          </Stack>
-                        </Box>
-                      );
-                    })}
+                          )}
+                        </Stack>
+                      </Box>
+                    ))}
                   </Stack>
                 )}
               </Paper>
@@ -591,7 +782,7 @@ export default function Metricas() {
                         </Typography>
 
                         <Typography fontSize={32} fontWeight={900}>
-                          {totalActivas}
+                          {formatNumber(planesActivos)}
                         </Typography>
                       </Box>
 
@@ -616,223 +807,14 @@ export default function Metricas() {
                         </Typography>
 
                         <Typography fontSize={32} fontWeight={900}>
-                          {totalVencidas}
+                          {formatNumber(planesVencidos)}
                         </Typography>
                       </Box>
 
                       <ErrorIcon color="error" />
                     </Stack>
                   </Box>
-
-                  {sistemasFiltrados.map((sistema) => {
-                    const total = sistema.activas + sistema.vencidas;
-                    const percent = total > 0 ? (sistema.activas / total) * 100 : 0;
-
-                    return (
-                      <Box key={sistema.key}>
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          justifyContent="space-between"
-                          mb={0.8}
-                        >
-                          <Stack direction="row" alignItems="center" spacing={1}>
-                            <Box
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: 2,
-                                display: "grid",
-                                placeItems: "center",
-                                bgcolor: alpha(
-                                  theme.palette.primary.main,
-                                  isDark ? 0.18 : 0.1
-                                ),
-                                color: "primary.main",
-                              }}
-                            >
-                              {sistema.icon}
-                            </Box>
-
-                            <Box>
-                              <Typography fontWeight={900}>
-                                {sistema.label}
-                              </Typography>
-
-                              <Typography fontSize={11} color="text.secondary">
-                                {sistema.activas} activas / {sistema.vencidas}{" "}
-                                vencidas / {total} total
-                              </Typography>
-                            </Box>
-                          </Stack>
-
-                          <Typography fontWeight={900}>
-                            {Math.round(percent)}%
-                          </Typography>
-                        </Stack>
-
-                        <LinearProgress
-                          variant="determinate"
-                          value={percent}
-                          sx={{
-                            height: 10,
-                            borderRadius: 99,
-                            bgcolor: alpha(
-                              theme.palette.success.main,
-                              isDark ? 0.16 : 0.09
-                            ),
-                            "& .MuiLinearProgress-bar": {
-                              borderRadius: 99,
-                              bgcolor: theme.palette.success.main,
-                            },
-                          }}
-                        />
-                      </Box>
-                    );
-                  })}
                 </Stack>
-              </Paper>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: { xs: 2, md: 3 },
-                  borderRadius: 4,
-                  bgcolor: "background.paper",
-                  borderColor: theme.palette.divider,
-                }}
-              >
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  justifyContent="space-between"
-                  alignItems={{ xs: "flex-start", sm: "center" }}
-                  spacing={1}
-                  mb={3}
-                >
-                  <Box>
-                    <Typography fontWeight={900} fontSize={18}>
-                      Tendencia de ingresos
-                    </Typography>
-
-                    <Typography color="text.secondary" fontSize={13}>
-                      Ingresos mensuales reales por sistema.
-                    </Typography>
-                  </Box>
-
-                  <Chip
-                    icon={<ReceiptLongIcon />}
-                    label={formatMoney(ingresosDelAnio)}
-                    size="small"
-                    sx={{ fontWeight: 800 }}
-                  />
-                </Stack>
-
-                <Grid container spacing={2}>
-                  {sistemasFiltrados.map((sistema) => (
-                    <Grid item xs={12} md={6} key={sistema.key}>
-                      <Box
-                        sx={{
-                          p: 2,
-                          borderRadius: 3,
-                          border: `1px solid ${theme.palette.divider}`,
-                          bgcolor: isDark
-                            ? alpha(theme.palette.common.white, 0.03)
-                            : alpha(theme.palette.common.black, 0.015),
-                        }}
-                      >
-                        <Stack
-                          direction="row"
-                          justifyContent="space-between"
-                          alignItems="center"
-                          mb={2}
-                        >
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Box
-                              sx={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 2,
-                                display: "grid",
-                                placeItems: "center",
-                                bgcolor: alpha(
-                                  theme.palette.primary.main,
-                                  isDark ? 0.18 : 0.1
-                                ),
-                                color: "primary.main",
-                              }}
-                            >
-                              {sistema.icon}
-                            </Box>
-
-                            <Typography fontWeight={900}>
-                              {sistema.label}
-                            </Typography>
-                          </Stack>
-
-                          <Typography fontWeight={900}>
-                            {formatMoney(sistema.totalIngresos)}
-                          </Typography>
-                        </Stack>
-
-                        <Stack spacing={1.1}>
-                          {meses.map((mes, index) => {
-                            const value = sistema.ingresos[index] ?? 0;
-                            const percent = Math.min(
-                              (value / maxIngresos) * 100,
-                              100
-                            );
-
-                            return (
-                              <Stack
-                                key={`${sistema.key}-ingreso-${mes}`}
-                                direction="row"
-                                alignItems="center"
-                                spacing={1}
-                              >
-                                <Typography
-                                  fontSize={12}
-                                  color="text.secondary"
-                                  sx={{ width: 32 }}
-                                >
-                                  {mes}
-                                </Typography>
-
-                                <Box sx={{ flex: 1 }}>
-                                  <LinearProgress
-                                    variant="determinate"
-                                    value={percent}
-                                    sx={{
-                                      height: 8,
-                                      borderRadius: 99,
-                                      bgcolor: alpha(
-                                        theme.palette.secondary.main,
-                                        isDark ? 0.15 : 0.08
-                                      ),
-                                      "& .MuiLinearProgress-bar": {
-                                        borderRadius: 99,
-                                        bgcolor: theme.palette.secondary.main,
-                                      },
-                                    }}
-                                  />
-                                </Box>
-
-                                <Typography
-                                  fontSize={12}
-                                  fontWeight={800}
-                                  sx={{ width: 90, textAlign: "right" }}
-                                >
-                                  {formatMoney(value)}
-                                </Typography>
-                              </Stack>
-                            );
-                          })}
-                        </Stack>
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
               </Paper>
             </Grid>
           </Grid>

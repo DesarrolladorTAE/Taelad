@@ -7,7 +7,7 @@ import MiTiendaDetalle from "../pages/Superadmin/components/MiTiendaDetalle";
 import MiTiendaDashboard from "../pages/Superadmin/components/MiTiendaDashboard";
 import MiTiendaTiendas from "../pages/Superadmin/components/MiTiendaTiendas";
 import MiTiendaVentas from "../pages/Superadmin/components/MiTiendaVentas";
-import MiTiendaMetricas from "../pages/Superadmin/components/MiTiendaMetricas";
+
 
 // Landings
 const Index1 = React.lazy(() => import("../pages/landings/Index1"));
@@ -129,10 +129,7 @@ export default function AllRoutes() {
           path: "superadmin/mitienda/:id/ventas",
           element: <MiTiendaVentas />,
         },
-        {
-          path: "superadmin/mitienda/:id/metricas",
-          element: <MiTiendaMetricas />,
-        },
+  
         {
           path: "superadmin/mitienda/tiendas/:tiendaId",
           element: <MiTiendaDetalle />,
