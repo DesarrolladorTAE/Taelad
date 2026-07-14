@@ -576,3 +576,17 @@ export function broadcastAuthUserChange(user: User) {
   localStorage.setItem("auth_user", JSON.stringify(user));
   window.dispatchEvent(new CustomEvent("auth:user-changed", { detail: user }));
 }
+
+export { blogApi } from "./blogs";
+
+export type {
+  Blog,
+  BlogSeo,
+  BlogLimits,
+  BlogTotals,
+  BlogStatus,
+  BlogListParams,
+  PaginatedResponse,
+  PaginationMeta,
+  PaginationLink,
+} from "./blogs";

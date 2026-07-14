@@ -111,12 +111,18 @@ export default function SideNav({
   }`.trim();
 
   const isActive = (view: string) => {
-    if (view === "sistemas") {
-      return activeView === "sistemas" || activeView.startsWith("mitienda-");
-    }
+  if (view === "sistemas") {
+    return (
+      activeView === "sistemas" ||
+      activeView.startsWith("mitienda-") ||
+      activeView.startsWith("clicmenu-") ||
+      activeView === "clicmenu"
+    );
+  }
 
-    return activeView === view;
-  };
+  return activeView === view;
+  
+};
 
   const menuButtonSx = (view: string) => (theme: any) => {
     const active = isActive(view);

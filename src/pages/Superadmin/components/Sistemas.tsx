@@ -66,10 +66,11 @@ export default function Sistemas({ setView }: Props) {
       return;
     }
 
-    if (sistema.id === "clicmenu") {
-      setView?.("clicmenu");
-      navigate("/superadmin/");
-      return;
+   if (sistema.id === "clicmenu") {
+  setView?.("clicmenu-inicio");
+  navigate("/superadmin/");
+  return;
+
     }
 
     if (sistema.id === "taeconta") {
