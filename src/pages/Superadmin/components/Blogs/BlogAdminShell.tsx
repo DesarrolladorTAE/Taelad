@@ -12,9 +12,7 @@ import {
   Card,
   CardActionArea,
   CardContent,
-  Chip,
   CircularProgress,
-  Divider,
   Grid,
   Stack,
   Typography,
@@ -30,6 +28,7 @@ import BlogPostsSection from "./BlogPostsSection";
 import BlogCategoriesSection from "./BlogCategoriesSection";
 import BlogTagsSection from "./BlogTagsSection";
 import BlogMediaSection from "./BlogMediaSection";
+
 import {
   blogApi,
   type Blog,
@@ -45,6 +44,7 @@ type BlogSection =
 type Props = {
   systemId: number;
   systemName: string;
+  systemLogo?: string | null;
   backView: string;
   setView: (view: string) => void;
 };
@@ -54,6 +54,15 @@ type ModuleCard = {
   title: string;
   description: string;
   icon: ReactNode;
+};
+
+type BlogWithBranding = Blog & {
+  logo_url?: string | null;
+  system?: {
+    logo_url?: string | null;
+    logo?: string | null;
+    image_url?: string | null;
+  } | null;
 };
 
 const modules: ModuleCard[] = [
@@ -87,16 +96,164 @@ const modules: ModuleCard[] = [
   },
 ];
 
-function getSectionTitle(section: BlogSection): string {
-  const titles: Record<BlogSection, string> = {
-    inicio: "Blogs",
-    publicaciones: "Publicaciones",
-    categorias: "Categorías",
-    etiquetas: "Etiquetas",
-    multimedia: "Multimedia",
-  };
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+}
 
-  return titles[section];
+function getDefaultSystemLogo(systemName: string): string | null {
+  const normalizedName = normalizeText(systemName);
+
+  if (normalizedName.includes("clicmenu")) {
+    return "/images/systems/clicmenu.png";
+  }
+
+  if (
+    normalizedName.includes("mitienda") ||
+    normalizedName.includes("mtelmx")
+  ) {
+    return "/images/systems/mitienda.png";
+  }
+
+  if (normalizedName.includes("taeconta")) {
+    return "/images/systems/taeconta.png";
+  }
+
+  if (normalizedName.includes("telorecargo")) {
+    return "/images/systems/telorecargo.png";
+  }
+
+  if (normalizedName.includes("chatingbot")) {
+    return "/images/systems/chatingbot.png";
+  }
+
+  if (
+    normalizedName.includes("tecnologiasadministrativas") ||
+    normalizedName.includes("elad")
+  ) {
+    return "/images/systems/elad.png";
+  }
+
+  return null;
+}
+
+function getSystemInitials(systemName: string): string {
+  const words = systemName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) {
+    return "S";
+  }
+
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
+function SystemLogo({
+  src,
+  systemName,
+}: {
+  src: string | null;
+  systemName: string;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) {
+    return (
+      <Avatar
+        variant="rounded"
+        sx={{
+          width: {
+            xs: 48,
+            sm: 56,
+          },
+          height: {
+            xs: 48,
+            sm: 56,
+          },
+          borderRadius: 2.5,
+          bgcolor: "primary.main",
+          color: "primary.contrastText",
+          fontWeight: 900,
+          fontSize: "1rem",
+        }}
+      >
+        {getSystemInitials(systemName)}
+      </Avatar>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        width: {
+          xs: 48,
+          sm: 56,
+        },
+        height: {
+          xs: 48,
+          sm: 56,
+        },
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 2.5,
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
+        p: 0.75,
+      }}
+    >
+      <Box
+        component="img"
+        src={src}
+        alt={`Logo de ${systemName}`}
+        onError={() => setFailed(true)}
+        sx={{
+          width: "100%",
+          height: "100%",
+          display: "block",
+          objectFit: "contain",
+        }}
+      />
+    </Box>
+  );
+}
+
+function getModuleCount(
+  moduleId: ModuleCard["id"],
+  blog: Blog
+): number {
+  switch (moduleId) {
+    case "publicaciones":
+      return blog.totals?.posts ?? 0;
+
+    case "categorias":
+      return blog.totals?.categories ?? 0;
+
+    case "etiquetas":
+      return blog.totals?.tags ?? 0;
+
+    case "multimedia":
+      return blog.totals?.media ?? 0;
+
+    default:
+      return 0;
+  }
 }
 
 function getErrorMessage(error: unknown): string {
@@ -130,6 +287,7 @@ function getErrorMessage(error: unknown): string {
 export default function BlogAdminShell({
   systemId,
   systemName,
+  systemLogo = null,
   backView,
   setView,
 }: Props) {
@@ -155,16 +313,20 @@ export default function BlogAdminShell({
         setBlogError(null);
         setBlog(null);
 
-        const response = await blogApi.list(systemId, {
-          status: "active",
-          per_page: 50,
-        });
+        const response = await blogApi.list(
+          systemId,
+          {
+            status: "active",
+            per_page: 50,
+          }
+        );
 
         if (!active) {
           return;
         }
 
-        const blogs = response.data?.data ?? [];
+        const blogs =
+          response.data?.data ?? [];
 
         setBlog(blogs[0] ?? null);
       } catch (error) {
@@ -173,7 +335,9 @@ export default function BlogAdminShell({
         }
 
         setBlog(null);
-        setBlogError(getErrorMessage(error));
+        setBlogError(
+          getErrorMessage(error)
+        );
       } finally {
         if (active) {
           setLoadingBlog(false);
@@ -181,18 +345,12 @@ export default function BlogAdminShell({
       }
     }
 
-    loadBlog();
+    void loadBlog();
 
     return () => {
       active = false;
     };
   }, [systemId]);
-
-  /*
-  |--------------------------------------------------------------------------
-  | ESTADO DE CARGA
-  |--------------------------------------------------------------------------
-  */
 
   if (loadingBlog) {
     return (
@@ -204,22 +362,20 @@ export default function BlogAdminShell({
           justifyContent: "center",
         }}
       >
-        <Stack alignItems="center" spacing={2}>
+        <Stack
+          alignItems="center"
+          spacing={2}
+        >
           <CircularProgress />
 
           <Typography color="text.secondary">
-            Consultando blog de {systemName}...
+            Consultando blog de{" "}
+            {systemName}...
           </Typography>
         </Stack>
       </Box>
     );
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | ERROR
-  |--------------------------------------------------------------------------
-  */
 
   if (blogError) {
     return (
@@ -231,7 +387,9 @@ export default function BlogAdminShell({
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}
-          onClick={() => setView(backView)}
+          onClick={() =>
+            setView(backView)
+          }
           sx={{
             alignSelf: "flex-start",
             textTransform: "none",
@@ -244,25 +402,21 @@ export default function BlogAdminShell({
       </Stack>
     );
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | BLOG NO ENCONTRADO
-  |--------------------------------------------------------------------------
-  */
 
   if (!blog) {
     return (
       <Stack spacing={2}>
         <Alert severity="warning">
-          No existe un blog activo registrado para{" "}
-          {systemName}.
+          No existe un blog activo
+          registrado para {systemName}.
         </Alert>
 
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}
-          onClick={() => setView(backView)}
+          onClick={() =>
+            setView(backView)
+          }
           sx={{
             alignSelf: "flex-start",
             textTransform: "none",
@@ -275,12 +429,6 @@ export default function BlogAdminShell({
       </Stack>
     );
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | PUBLICACIONES
-  |--------------------------------------------------------------------------
-  */
 
   if (section === "publicaciones") {
     return (
@@ -289,56 +437,68 @@ export default function BlogAdminShell({
         systemName={systemName}
         blogId={blog.id}
         blogName={blog.name}
-        onBack={() => setSection("inicio")}
+        onBack={() =>
+          setSection("inicio")
+        }
       />
     );
   }
-  // Categorias 
+
   if (section === "categorias") {
-  return (
-    <BlogCategoriesSection
-      systemId={systemId}
-      systemName={systemName}
-      blogId={blog.id}
-      blogName={blog.name}
-      onBack={() => setSection("inicio")}
-    />
-  );
-}
-//Etiquetas
+    return (
+      <BlogCategoriesSection
+        systemId={systemId}
+        systemName={systemName}
+        blogId={blog.id}
+        blogName={blog.name}
+        onBack={() =>
+          setSection("inicio")
+        }
+      />
+    );
+  }
 
- if (section === "etiquetas") {
-  return (
-    <BlogTagsSection
-      systemId={systemId}
-      systemName={systemName}
-      blogId={blog.id}
-      blogName={blog.name}
-      onBack={() => setSection("inicio")}
-    />
-  );
-}
-if (section === "multimedia") {
-  return (
-    <BlogMediaSection
-      systemId={systemId}
-      systemName={systemName}
-      blogId={blog.id}
-      blogName={blog.name}
-      onBack={() => setSection("inicio")}
-    />
-  );
+  if (section === "etiquetas") {
+    return (
+      <BlogTagsSection
+        systemId={systemId}
+        systemName={systemName}
+        blogId={blog.id}
+        blogName={blog.name}
+        onBack={() =>
+          setSection("inicio")
+        }
+      />
+    );
+  }
 
-}
-  /*
-  |--------------------------------------------------------------------------
-  | DASHBOARD PRINCIPAL DEL BLOG
-  |--------------------------------------------------------------------------
-  */
+  if (section === "multimedia") {
+    return (
+      <BlogMediaSection
+        systemId={systemId}
+        systemName={systemName}
+        blogId={blog.id}
+        blogName={blog.name}
+        onBack={() =>
+          setSection("inicio")
+        }
+      />
+    );
+  }
+
+  const brandedBlog = blog as BlogWithBranding;
+
+  const resolvedSystemLogo =
+    systemLogo?.trim() ||
+    brandedBlog.system?.logo_url?.trim() ||
+    brandedBlog.system?.logo?.trim() ||
+    brandedBlog.system?.image_url?.trim() ||
+    brandedBlog.logo_url?.trim() ||
+    getDefaultSystemLogo(systemName);
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Stack spacing={3}>
+      <Stack spacing={4}>
         <Stack
           direction={{
             xs: "column",
@@ -351,25 +511,42 @@ if (section === "multimedia") {
           }}
           spacing={2}
         >
-          <Box>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.75}
+            sx={{ minWidth: 0 }}
+          >
+            <SystemLogo
+              src={resolvedSystemLogo}
+              systemName={systemName}
+            />
+
             <Typography
               variant="h4"
               fontWeight={900}
+              sx={{
+                minWidth: 0,
+                lineHeight: 1.15,
+                wordBreak: "break-word",
+                fontSize: {
+                  xs: "1.75rem",
+                  sm: "2.125rem",
+                },
+              }}
             >
-              Blogs
+              Blogs {systemName}
             </Typography>
-
-            <Typography color="text.secondary">
-              Administración de contenido para{" "}
-              {systemName}.
-            </Typography>
-          </Box>
+          </Stack>
 
           <Button
             variant="outlined"
             startIcon={<ArrowBackIcon />}
-            onClick={() => setView(backView)}
+            onClick={() =>
+              setView(backView)
+            }
             sx={{
+              flexShrink: 0,
               textTransform: "none",
               fontWeight: 800,
               borderRadius: 2.5,
@@ -379,219 +556,132 @@ if (section === "multimedia") {
           </Button>
         </Stack>
 
-        <Card
-          elevation={0}
-          sx={{
-            borderRadius: 4,
-            border: "1px solid",
-            borderColor: "divider",
-            bgcolor: "background.paper",
-          }}
-        >
-          <CardContent
-            sx={{
-              p: {
-                xs: 2.5,
-                md: 3,
-              },
-            }}
-          >
-            <Stack spacing={2}>
-              <Stack
-                direction={{
-                  xs: "column",
-                  sm: "row",
-                }}
-                justifyContent="space-between"
-                alignItems={{
-                  xs: "flex-start",
-                  sm: "center",
-                }}
-                spacing={2}
-              >
-                <Box>
-                  <Typography
-                    variant="h6"
-                    fontWeight={900}
-                  >
-                    {blog.name}
-                  </Typography>
-
-                  <Typography color="text.secondary">
-                    /{blog.slug}
-                  </Typography>
-                </Box>
-
-                <Chip
-                  label={
-                    blog.status === "active"
-                      ? "Activo"
-                      : "Inactivo"
-                  }
-                  color={
-                    blog.status === "active"
-                      ? "success"
-                      : "default"
-                  }
-                  size="small"
-                  sx={{
-                    fontWeight: 800,
-                  }}
-                />
-              </Stack>
-
-              {blog.description && (
-                <Typography color="text.secondary">
-                  {blog.description}
-                </Typography>
-              )}
-
-              <Divider />
-
-              <Stack
-                direction="row"
-                spacing={4}
-                useFlexGap
-                flexWrap="wrap"
-              >
-                <Box>
-                  <Typography fontWeight={900}>
-                    {blog.totals?.posts ?? 0}
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Publicaciones
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography fontWeight={900}>
-                    {blog.totals?.categories ?? 0}
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Categorías
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography fontWeight={900}>
-                    {blog.totals?.tags ?? 0}
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Etiquetas
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography fontWeight={900}>
-                    {blog.totals?.media ?? 0}
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Multimedia
-                  </Typography>
-                </Box>
-              </Stack>
-            </Stack>
-          </CardContent>
-        </Card>
-
         <Grid container spacing={3}>
-          {modules.map((module) => (
-            <Grid
-              item
-              xs={12}
-              sm={6}
-              lg={3}
-              key={module.id}
-            >
-              <Card
-                elevation={0}
-                sx={{
-                  height: "100%",
-                  minHeight: 245,
-                  borderRadius: 4,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  bgcolor: "background.paper",
-                  overflow: "hidden",
-                  transition: "0.18s ease",
+          {modules.map((module) => {
+            const count = getModuleCount(
+              module.id,
+              blog
+            );
 
-                  "&:hover": {
-                    transform: "translateY(-4px)",
-                    borderColor: "primary.main",
-                    boxShadow:
-                      "0 14px 32px rgba(15, 23, 42, 0.12)",
-                  },
-                }}
+            return (
+              <Grid
+                item
+                xs={12}
+                sm={6}
+                lg={3}
+                key={module.id}
               >
-                <CardActionArea
-                  onClick={() =>
-                    setSection(module.id)
-                  }
+                <Card
+                  elevation={0}
                   sx={{
                     height: "100%",
-                    display: "flex",
-                    alignItems: "stretch",
+                    minHeight: 245,
+                    borderRadius: 4,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
+                    overflow: "hidden",
+                    transition: "0.18s ease",
+
+                    "&:hover": {
+                      transform:
+                        "translateY(-4px)",
+                      borderColor:
+                        "primary.main",
+                      boxShadow:
+                        "0 14px 32px rgba(15, 23, 42, 0.12)",
+                    },
                   }}
                 >
-                  <CardContent
+                  <CardActionArea
+                    onClick={() =>
+                      setSection(module.id)
+                    }
                     sx={{
-                      width: "100%",
-                      p: 3,
+                      height: "100%",
                       display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
+                      alignItems: "stretch",
                     }}
                   >
-                    <Avatar
+                    <CardContent
                       sx={{
-                        width: 56,
-                        height: 56,
-                        mb: 2.5,
-                        bgcolor: "primary.main",
-                        color:
-                          "primary.contrastText",
+                        width: "100%",
+                        p: 3,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
                       }}
                     >
-                      {module.icon}
-                    </Avatar>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        spacing={2}
+                        sx={{
+                          width: "100%",
+                          mb: 2.5,
+                        }}
+                      >
+                        <Avatar
+                          sx={{
+                            width: 56,
+                            height: 56,
+                            bgcolor:
+                              "primary.main",
+                            color:
+                              "primary.contrastText",
+                          }}
+                        >
+                          {module.icon}
+                        </Avatar>
 
-                    <Typography
-                      variant="h6"
-                      fontWeight={900}
-                      mb={1}
-                    >
-                      {module.title}
-                    </Typography>
+                        <Box
+                          sx={{
+                            minWidth: 52,
+                            height: 44,
+                            px: 1.5,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 2.5,
+                            bgcolor: "action.hover",
+                            border: "1px solid",
+                            borderColor: "divider",
+                          }}
+                        >
+                          <Typography
+                            variant="h5"
+                            fontWeight={900}
+                            lineHeight={1}
+                            color="text.primary"
+                          >
+                            {count}
+                          </Typography>
+                        </Box>
+                      </Stack>
 
-                    <Typography
-                      color="text.secondary"
-                      sx={{
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {module.description}
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))}
+                      <Typography
+                        variant="h6"
+                        fontWeight={900}
+                        mb={1}
+                      >
+                        {module.title}
+                      </Typography>
+
+                      <Typography
+                        color="text.secondary"
+                        sx={{
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        {module.description}
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
       </Stack>
     </Box>

@@ -1,6 +1,14 @@
 import axiosClient from "../axiosClient";
 
-export type BlogStatus = "active" | "inactive";
+/*
+|--------------------------------------------------------------------------
+| BLOGS
+|--------------------------------------------------------------------------
+*/
+
+export type BlogStatus =
+  | "active"
+  | "inactive";
 
 export type BlogSeo = {
   title: string | null;
@@ -43,6 +51,26 @@ export type Blog = {
   created_at: string | null;
   updated_at: string | null;
 };
+
+export type BlogListParams = {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  status?: BlogStatus | "";
+};
+
+/*
+|--------------------------------------------------------------------------
+| PUBLICACIONES
+|--------------------------------------------------------------------------
+*/
+
+export type BlogPostStatus =
+  | "draft"
+  | "scheduled"
+  | "published"
+  | "archived";
+
 export type BlogPostCategory = {
   id: number;
   name: string;
@@ -57,8 +85,21 @@ export type BlogPostAuthor = {
 
 export type BlogPostMedia = {
   id: number;
+  blog_id?: number;
+
   path: string;
   url: string;
+
+  filename?: string;
+  original_filename?: string;
+  mime_type?: string;
+
+  size?: number;
+  size_kb?: string;
+
+  width?: number | null;
+  height?: number | null;
+
   alt_text: string | null;
   caption: string | null;
 };
@@ -82,6 +123,12 @@ export type BlogPostOpenGraph = {
   title: string | null;
   description: string | null;
   image_media_id: number | null;
+
+  /*
+   * Se deja opcional porque depende de cómo esté
+   * construido BlogPostResource.
+   */
+  image_media?: BlogPostMedia | null;
 };
 
 export type BlogPost = {
@@ -89,14 +136,19 @@ export type BlogPost = {
   blog_id: number;
   category_id: number | null;
   author_id: number;
+
   cover_media_id: number | null;
 
   title: string;
   slug: string;
   excerpt: string | null;
-  content: string;
 
-  status: string;
+  /*
+   * El backend permite content nullable.
+   */
+  content: string | null;
+
+  status: BlogPostStatus;
   is_featured: boolean;
   allow_comments: boolean;
   views_count: number;
@@ -104,6 +156,10 @@ export type BlogPost = {
   published_at: string | null;
   scheduled_at: string | null;
 
+  /*
+   * La respuesta de BlogPostResource agrupa
+   * estos datos en objetos.
+   */
   seo: BlogPostSeo;
   open_graph: BlogPostOpenGraph;
 
@@ -112,15 +168,73 @@ export type BlogPost = {
   cover_media: BlogPostMedia | null;
   tags: BlogPostTag[];
 
+  /*
+   * Compatibilidad con posibles nombres utilizados
+   * por BlogPostResource.
+   */
+  og_image_media?: BlogPostMedia | null;
+  ogImageMedia?: BlogPostMedia | null;
+
   created_at: string | null;
   updated_at: string | null;
 };
 
-
 export type BlogPostListParams = {
   page?: number;
   per_page?: number;
+  search?: string;
+  status?: BlogPostStatus;
+  category_id?: number;
+  is_featured?: boolean;
 };
+
+/*
+ * El backend recibe los datos SEO y Open Graph
+ * como campos planos.
+ */
+export type BlogPostPayload = {
+  title: string;
+  slug: string;
+
+  excerpt: string | null;
+  content: string | null;
+
+  category_id: number | null;
+  cover_media_id: number | null;
+  tag_ids: number[];
+
+  is_featured: boolean;
+  allow_comments: boolean;
+
+  seo_title: string | null;
+  seo_description: string | null;
+  seo_keywords: string | null;
+  canonical_url: string | null;
+
+  robots_index: boolean;
+  robots_follow: boolean;
+
+  og_title: string | null;
+  og_description: string | null;
+  og_image_media_id: number | null;
+};
+
+/*
+ * UpdateBlogPostRequest permite actualizaciones parciales.
+ * También acepta BlogPostPayload completo.
+ */
+export type BlogPostUpdatePayload =
+  Partial<BlogPostPayload>;
+
+export type BlogPostSchedulePayload = {
+  scheduled_at: string;
+};
+
+/*
+|--------------------------------------------------------------------------
+| PAGINACIÓN
+|--------------------------------------------------------------------------
+*/
 
 export type PaginationLink = {
   url: string | null;
@@ -152,12 +266,12 @@ export type PaginatedResponse<T> = {
   meta: PaginationMeta;
 };
 
-export type BlogListParams = {
-  page?: number;
-  per_page?: number;
-  search?: string;
-  status?: BlogStatus | "";
-};
+/*
+|--------------------------------------------------------------------------
+| CATEGORÍAS
+|--------------------------------------------------------------------------
+*/
+
 export type BlogCategoryParent = {
   id: number;
   name: string;
@@ -169,6 +283,10 @@ export type BlogCategoryTotals = {
   children: number;
 };
 
+export type BlogCategoryStatus =
+  | "active"
+  | "inactive";
+
 export type BlogCategory = {
   id: number;
   blog_id: number;
@@ -177,7 +295,7 @@ export type BlogCategory = {
   name: string;
   slug: string;
   description: string | null;
-  status: "active" | "inactive";
+  status: BlogCategoryStatus;
   sort_order: number;
 
   parent: BlogCategoryParent | null;
@@ -190,7 +308,25 @@ export type BlogCategory = {
 export type BlogCategoryListParams = {
   page?: number;
   per_page?: number;
+  search?: string;
+  status?: BlogCategoryStatus;
 };
+
+export type BlogCategoryPayload = {
+  name: string;
+  slug: string;
+  description: string | null;
+  parent_id: number | null;
+  status: BlogCategoryStatus;
+  sort_order: number;
+};
+
+/*
+|--------------------------------------------------------------------------
+| ETIQUETAS
+|--------------------------------------------------------------------------
+*/
+
 export type BlogTagTotals = {
   posts: number;
 };
@@ -198,9 +334,12 @@ export type BlogTagTotals = {
 export type BlogTag = {
   id: number;
   blog_id: number;
+
   name: string;
   slug: string;
+
   totals: BlogTagTotals;
+
   created_at: string | null;
   updated_at: string | null;
 };
@@ -208,7 +347,20 @@ export type BlogTag = {
 export type BlogTagListParams = {
   page?: number;
   per_page?: number;
+  search?: string;
 };
+
+export type BlogTagPayload = {
+  name: string;
+  slug: string;
+};
+
+/*
+|--------------------------------------------------------------------------
+| MULTIMEDIA
+|--------------------------------------------------------------------------
+*/
+
 export type BlogMediaUploader = {
   id: number;
   name: string;
@@ -260,23 +412,76 @@ export type BlogMediaUpdatePayload = {
   alt_text: string | null;
   caption: string | null;
 };
-export type BlogTagPayload = {
-  name: string;
-  slug: string;
-};
-export type BlogCategoryPayload = {
-  name: string;
-  slug: string;
-  description: string | null;
-  parent_id: number | null;
-  status: "active" | "inactive";
-  sort_order: number;
+
+/*
+|--------------------------------------------------------------------------
+| RESPUESTAS COMUNES
+|--------------------------------------------------------------------------
+*/
+
+export type ApiMessageResponse = {
+  message: string;
 };
 
-const blogsRoute = (systemId: number | string) =>
+export type ApiResourceResponse<T> = {
+  message?: string;
+  data: T;
+};
+
+/*
+|--------------------------------------------------------------------------
+| RUTAS
+|--------------------------------------------------------------------------
+*/
+
+const blogsRoute = (
+  systemId: number | string
+): string =>
   `/superadmin/systems/${systemId}/blogs`;
 
+const blogRoute = (
+  systemId: number | string,
+  blogId: number | string
+): string =>
+  `${blogsRoute(systemId)}/${blogId}`;
+
+const postsRoute = (
+  systemId: number | string,
+  blogId: number | string
+): string =>
+  `${blogRoute(systemId, blogId)}/posts`;
+
+const categoriesRoute = (
+  systemId: number | string,
+  blogId: number | string
+): string =>
+  `${blogRoute(systemId, blogId)}/categories`;
+
+const tagsRoute = (
+  systemId: number | string,
+  blogId: number | string
+): string =>
+  `${blogRoute(systemId, blogId)}/tags`;
+
+const mediaRoute = (
+  systemId: number | string,
+  blogId: number | string
+): string =>
+  `${blogRoute(systemId, blogId)}/media`;
+
+/*
+|--------------------------------------------------------------------------
+| API
+|--------------------------------------------------------------------------
+*/
+
 export const blogApi = {
+  /*
+  |--------------------------------------------------------------------------
+  | BLOGS
+  |--------------------------------------------------------------------------
+  */
+
   list: (
     systemId: number | string,
     params?: BlogListParams
@@ -291,151 +496,316 @@ export const blogApi = {
     blogId: number | string
   ) =>
     axiosClient.get<{ data: Blog }>(
-      `${blogsRoute(systemId)}/${blogId}`
+      blogRoute(systemId, blogId)
     ),
 
+  /*
+  |--------------------------------------------------------------------------
+  | PUBLICACIONES
+  |--------------------------------------------------------------------------
+  */
+
   posts: (
-  systemId: number | string,
-  blogId: number | string,
-  params?: BlogPostListParams
-) =>
-  axiosClient.get<PaginatedResponse<BlogPost>>(
-    `${blogsRoute(systemId)}/${blogId}/posts`,
-    { params }
-  ),
-  
+    systemId: number | string,
+    blogId: number | string,
+    params?: BlogPostListParams
+  ) =>
+    axiosClient.get<
+      PaginatedResponse<BlogPost>
+    >(
+      postsRoute(systemId, blogId),
+      { params }
+    ),
 
- categories: (
-  systemId: number | string,
-  blogId: number | string,
-  params?: BlogCategoryListParams
-) =>
-  axiosClient.get<PaginatedResponse<BlogCategory>>(
-    `${blogsRoute(systemId)}/${blogId}/categories`,
-    { params }
-  ),
+  post: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string
+  ) =>
+    axiosClient.get<{
+      data: BlogPost;
+    }>(
+      `${postsRoute(
+        systemId,
+        blogId
+      )}/${postId}`
+    ),
 
-createCategory: (
-  systemId: number | string,
-  blogId: number | string,
-  payload: BlogCategoryPayload
-) =>
-  axiosClient.post<{
-    data: BlogCategory;
-    message?: string;
-  }>(
-    `${blogsRoute(systemId)}/${blogId}/categories`,
-    payload
-  ),
+  createPost: (
+    systemId: number | string,
+    blogId: number | string,
+    payload: BlogPostPayload
+  ) =>
+    axiosClient.post<
+      ApiResourceResponse<BlogPost>
+    >(
+      postsRoute(systemId, blogId),
+      payload
+    ),
 
-updateCategory: (
-  systemId: number | string,
-  blogId: number | string,
-  categoryId: number | string,
-  payload: BlogCategoryPayload
-) =>
-  axiosClient.put<{
-    data: BlogCategory;
-    message?: string;
-  }>(
-    `${blogsRoute(systemId)}/${blogId}/categories/${categoryId}`,
-    payload
-  ),
+  updatePost: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string,
+    payload: BlogPostUpdatePayload
+  ) =>
+    axiosClient.put<
+      ApiResourceResponse<BlogPost>
+    >(
+      `${postsRoute(
+        systemId,
+        blogId
+      )}/${postId}`,
+      payload
+    ),
 
-deleteCategory: (
-  systemId: number | string,
-  blogId: number | string,
-  categoryId: number | string
-) =>
-  axiosClient.delete<{ message?: string }>(
-    `${blogsRoute(systemId)}/${blogId}/categories/${categoryId}`
-  ),
+  deletePost: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string
+  ) =>
+    axiosClient.delete<ApiMessageResponse>(
+      `${postsRoute(
+        systemId,
+        blogId
+      )}/${postId}`
+    ),
+
+  publishPost: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string
+  ) =>
+    axiosClient.post<
+      ApiResourceResponse<BlogPost>
+    >(
+      `${postsRoute(
+        systemId,
+        blogId
+      )}/${postId}/publish`
+    ),
+
+  schedulePost: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string,
+    payload: BlogPostSchedulePayload
+  ) =>
+    axiosClient.post<
+      ApiResourceResponse<BlogPost>
+    >(
+      `${postsRoute(
+        systemId,
+        blogId
+      )}/${postId}/schedule`,
+      payload
+    ),
+
+  archivePost: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string
+  ) =>
+    axiosClient.post<
+      ApiResourceResponse<BlogPost>
+    >(
+      `${postsRoute(
+        systemId,
+        blogId
+      )}/${postId}/archive`
+    ),
+
+  /*
+  |--------------------------------------------------------------------------
+  | CATEGORÍAS
+  |--------------------------------------------------------------------------
+  */
+
+  categories: (
+    systemId: number | string,
+    blogId: number | string,
+    params?: BlogCategoryListParams
+  ) =>
+    axiosClient.get<
+      PaginatedResponse<BlogCategory>
+    >(
+      categoriesRoute(
+        systemId,
+        blogId
+      ),
+      { params }
+    ),
+
+  createCategory: (
+    systemId: number | string,
+    blogId: number | string,
+    payload: BlogCategoryPayload
+  ) =>
+    axiosClient.post<
+      ApiResourceResponse<BlogCategory>
+    >(
+      categoriesRoute(
+        systemId,
+        blogId
+      ),
+      payload
+    ),
+
+  updateCategory: (
+    systemId: number | string,
+    blogId: number | string,
+    categoryId: number | string,
+    payload: BlogCategoryPayload
+  ) =>
+    axiosClient.put<
+      ApiResourceResponse<BlogCategory>
+    >(
+      `${categoriesRoute(
+        systemId,
+        blogId
+      )}/${categoryId}`,
+      payload
+    ),
+
+  deleteCategory: (
+    systemId: number | string,
+    blogId: number | string,
+    categoryId: number | string
+  ) =>
+    axiosClient.delete<ApiMessageResponse>(
+      `${categoriesRoute(
+        systemId,
+        blogId
+      )}/${categoryId}`
+    ),
+
+  /*
+  |--------------------------------------------------------------------------
+  | ETIQUETAS
+  |--------------------------------------------------------------------------
+  */
 
   tags: (
-  systemId: number | string,
-  blogId: number | string,
-  params?: BlogTagListParams
-) =>
-  axiosClient.get<PaginatedResponse<BlogTag>>(
-    `${blogsRoute(systemId)}/${blogId}/tags`,
-    { params }
-  ),
+    systemId: number | string,
+    blogId: number | string,
+    params?: BlogTagListParams
+  ) =>
+    axiosClient.get<
+      PaginatedResponse<BlogTag>
+    >(
+      tagsRoute(systemId, blogId),
+      { params }
+    ),
 
-createTag: (
-  systemId: number | string,
-  blogId: number | string,
-  payload: BlogTagPayload
-) =>
-  axiosClient.post<{ data: BlogTag; message?: string }>(
-    `${blogsRoute(systemId)}/${blogId}/tags`,
-    payload
-  ),
+  createTag: (
+    systemId: number | string,
+    blogId: number | string,
+    payload: BlogTagPayload
+  ) =>
+    axiosClient.post<
+      ApiResourceResponse<BlogTag>
+    >(
+      tagsRoute(systemId, blogId),
+      payload
+    ),
 
-updateTag: (
-  systemId: number | string,
-  blogId: number | string,
-  tagId: number | string,
-  payload: BlogTagPayload
-) =>
-  axiosClient.put<{ data: BlogTag; message?: string }>(
-    `${blogsRoute(systemId)}/${blogId}/tags/${tagId}`,
-    payload
-  ),
+  updateTag: (
+    systemId: number | string,
+    blogId: number | string,
+    tagId: number | string,
+    payload: BlogTagPayload
+  ) =>
+    axiosClient.put<
+      ApiResourceResponse<BlogTag>
+    >(
+      `${tagsRoute(
+        systemId,
+        blogId
+      )}/${tagId}`,
+      payload
+    ),
 
-deleteTag: (
-  systemId: number | string,
-  blogId: number | string,
-  tagId: number | string
-) =>
-  axiosClient.delete<{ message?: string }>(
-    `${blogsRoute(systemId)}/${blogId}/tags/${tagId}`
-  ),
-   
+  deleteTag: (
+    systemId: number | string,
+    blogId: number | string,
+    tagId: number | string
+  ) =>
+    axiosClient.delete<ApiMessageResponse>(
+      `${tagsRoute(
+        systemId,
+        blogId
+      )}/${tagId}`
+    ),
+
+  /*
+  |--------------------------------------------------------------------------
+  | MULTIMEDIA
+  |--------------------------------------------------------------------------
+  */
+
   media: (
-  systemId: number | string,
-  blogId: number | string,
-  params?: BlogMediaListParams
-) =>
-  axiosClient.get<PaginatedResponse<BlogMedia>>(
-    `${blogsRoute(systemId)}/${blogId}/media`,
-    { params }
-  ),
+    systemId: number | string,
+    blogId: number | string,
+    params?: BlogMediaListParams
+  ) =>
+    axiosClient.get<
+      PaginatedResponse<BlogMedia>
+    >(
+      mediaRoute(systemId, blogId),
+      { params }
+    ),
 
-createMedia: (
-  systemId: number | string,
-  blogId: number | string,
-  payload: FormData
-) =>
-  axiosClient.post<{
-    message: string;
-    data: BlogMedia;
-  }>(
-    `${blogsRoute(systemId)}/${blogId}/media`,
-    payload
-  ),
+  mediaItem: (
+    systemId: number | string,
+    blogId: number | string,
+    mediaId: number | string
+  ) =>
+    axiosClient.get<{
+      data: BlogMedia;
+    }>(
+      `${mediaRoute(
+        systemId,
+        blogId
+      )}/${mediaId}`
+    ),
 
-updateMedia: (
-  systemId: number | string,
-  blogId: number | string,
-  mediaId: number | string,
-  payload: BlogMediaUpdatePayload
-) =>
-  axiosClient.put<{
-    message: string;
-    data: BlogMedia;
-  }>(
-    `${blogsRoute(systemId)}/${blogId}/media/${mediaId}`,
-    payload
-  ),
+  createMedia: (
+    systemId: number | string,
+    blogId: number | string,
+    payload: FormData
+  ) =>
+    axiosClient.post<
+      ApiResourceResponse<BlogMedia>
+    >(
+      mediaRoute(systemId, blogId),
+      payload
+    ),
 
-deleteMedia: (
-  systemId: number | string,
-  blogId: number | string,
-  mediaId: number | string
-) =>
-  axiosClient.delete<{
-    message: string;
-  }>(
-    `${blogsRoute(systemId)}/${blogId}/media/${mediaId}`
-  ),
+  updateMedia: (
+    systemId: number | string,
+    blogId: number | string,
+    mediaId: number | string,
+    payload: BlogMediaUpdatePayload
+  ) =>
+    axiosClient.put<
+      ApiResourceResponse<BlogMedia>
+    >(
+      `${mediaRoute(
+        systemId,
+        blogId
+      )}/${mediaId}`,
+      payload
+    ),
+
+  deleteMedia: (
+    systemId: number | string,
+    blogId: number | string,
+    mediaId: number | string
+  ) =>
+    axiosClient.delete<ApiMessageResponse>(
+      `${mediaRoute(
+        systemId,
+        blogId
+      )}/${mediaId}`
+    ),
 };

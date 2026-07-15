@@ -27,21 +27,24 @@ const sistemas: Sistema[] = [
     id: "taeconta",
     nombre: "TAECONTA",
     logo: "/app/taeconta.png",
-    descripcion: "Sistema contable, fiscal y administrativo",
+    descripcion:
+      "Sistema contable, fiscal y administrativo",
     estado: "Activo",
   },
   {
     id: "telorecargo",
     nombre: "TELORECARGO",
     logo: "/app/telorecargo.png",
-    descripcion: "Sistema de recargas electrónicas y servicios",
+    descripcion:
+      "Sistema de recargas electrónicas y servicios",
     estado: "Activo",
   },
   {
     id: "mitienda",
     nombre: "MI TIENDA",
     logo: "/app/mitienda.png",
-    descripcion: "Sistema de tienda en línea y punto de venta",
+    descripcion:
+      "Sistema de tienda en línea y punto de venta",
     estado: "Activo",
   },
   {
@@ -52,13 +55,27 @@ const sistemas: Sistema[] = [
       "Sistema de gestión para restaurantes, pedidos y control operativo",
     estado: "Activo",
   },
+  {
+    id: "elad",
+    nombre: "TECNOLOGÍAS ADMINISTRATIVAS ELAD",
+    logo: "/logo/logo.png",
+    descripcion:
+      "Administración del blog institucional de Tecnologías Administrativas ELAD",
+    estado: "Activo",
+  },
 ];
 
-export default function Sistemas({ setView }: Props) {
+export default function Sistemas({
+  setView,
+}: Props) {
   const navigate = useNavigate();
 
-  const abrirSistema = (sistema: Sistema) => {
-    if (!sistema?.id) return;
+  const abrirSistema = (
+    sistema: Sistema
+  ) => {
+    if (!sistema?.id) {
+      return;
+    }
 
     if (sistema.id === "mitienda") {
       setView?.("mitienda-dashboard");
@@ -66,28 +83,54 @@ export default function Sistemas({ setView }: Props) {
       return;
     }
 
-   if (sistema.id === "clicmenu") {
-  setView?.("clicmenu-inicio");
-  navigate("/superadmin/");
-  return;
-
+    if (sistema.id === "clicmenu") {
+      setView?.("clicmenu-inicio");
+      navigate("/superadmin/");
+      return;
     }
 
     if (sistema.id === "taeconta") {
-      navigate("/superadmin/taeconta/empresas");
+      navigate(
+        "/superadmin/taeconta/empresas"
+      );
       return;
     }
 
     if (sistema.id === "telorecargo") {
-      navigate("/superadmin/telorecargo");
+      navigate(
+        "/superadmin/telorecargo"
+      );
       return;
+    }
+    if (sistema.id === "elad") {
+     setView?.("elad-blog");
+     navigate("/superadmin/");
+  return;
+}
+
+    /*
+    |--------------------------------------------------------------------------
+    | TECNOLOGÍAS ADMINISTRATIVAS ELAD
+    |--------------------------------------------------------------------------
+    |
+    | Este sistema abrirá directamente el módulo
+    | de Blogs, ya que no tendrá otros módulos.
+    |
+    */
+
+    if (sistema.id === "elad") {
+      setView?.("elad-blog");
+      navigate("/superadmin/");
     }
   };
 
   return (
     <Box sx={{ width: "100%" }}>
       <Box mb={3}>
-        <Typography variant="h5" fontWeight={900}>
+        <Typography
+          variant="h5"
+          fontWeight={900}
+        >
           Sistemas
         </Typography>
 
@@ -98,9 +141,16 @@ export default function Sistemas({ setView }: Props) {
 
       <Grid container spacing={3}>
         {sistemas.map((sistema) => (
-          <Grid item xs={12} md={4} key={sistema.id}>
+          <Grid
+            item
+            xs={12}
+            md={4}
+            key={sistema.id}
+          >
             <Card
-              onClick={() => abrirSistema(sistema)}
+              onClick={() =>
+                abrirSistema(sistema)
+              }
               elevation={0}
               sx={{
                 height: "100%",
@@ -111,10 +161,14 @@ export default function Sistemas({ setView }: Props) {
                 borderColor: "divider",
                 bgcolor: "background.paper",
                 transition: "0.18s ease",
+
                 "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: "0 12px 28px rgba(15, 23, 42, 0.12)",
-                  borderColor: "primary.main",
+                  transform:
+                    "translateY(-4px)",
+                  boxShadow:
+                    "0 12px 28px rgba(15, 23, 42, 0.12)",
+                  borderColor:
+                    "primary.main",
                 },
               }}
             >
@@ -124,57 +178,87 @@ export default function Sistemas({ setView }: Props) {
                   p: 2.5,
                   display: "flex",
                   flexDirection: "column",
-                  justifyContent: "space-between",
+                  justifyContent:
+                    "space-between",
                 }}
               >
                 <Box>
-                  <Box
-                    sx={{
-                      height: 86,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      mb: 2,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <img
-                      src={sistema.logo}
-                      alt={sistema.nombre}
-                      style={{
-                        maxHeight: 76,
-                        maxWidth: "100%",
-                        objectFit: "contain",
-                      }}
-                    />
-                  </Box>
+  <Box
+    sx={{
+      height: 100,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      mb: 2,
+      overflow: "hidden",
+    }}
+  >
+    <Box
+      component="img"
+      src={sistema.logo}
+      alt={sistema.nombre}
+      sx={{
+        width:
+          sistema.id === "elad"
+            ? 190
+            : "auto",
 
-                  <Typography fontSize={20} fontWeight={900} mb={0.5}>
-                    {sistema.nombre}
-                  </Typography>
+        maxWidth:
+          sistema.id === "elad"
+            ? 190
+            : "100%",
 
-                  <Typography
-                    fontSize={14}
-                    color="text.secondary"
-                    sx={{
-                      lineHeight: 1.45,
-                      minHeight: 42,
-                    }}
-                  >
-                    {sistema.descripcion}
-                  </Typography>
-                </Box>
+        maxHeight:
+          sistema.id === "elad"
+            ? 96
+            : 76,
 
-                <Stack direction="row" justifyContent="flex-start" mt={2}>
-                  <Chip
-                    label={sistema.estado}
-                    size="small"
-                    sx={{
-                      fontWeight: 700,
-                      bgcolor: "action.hover",
-                    }}
-                  />
-                </Stack>
+        objectFit: "contain",
+
+        transform:
+          sistema.id === "elad"
+            ? "scale(1.45)"
+            : "none",
+
+        transformOrigin: "center",
+      }}
+    />
+  </Box>
+
+  <Typography
+    fontSize={20}
+    fontWeight={900}
+    mb={0.5}
+  >
+    {sistema.nombre}
+  </Typography>
+
+  <Typography
+    fontSize={14}
+    color="text.secondary"
+    sx={{
+      lineHeight: 1.45,
+      minHeight: 42,
+    }}
+  >
+    {sistema.descripcion}
+  </Typography>
+</Box>
+
+<Stack
+  direction="row"
+  justifyContent="flex-start"
+  mt={2}
+>
+  <Chip
+    label={sistema.estado}
+    size="small"
+    sx={{
+      fontWeight: 700,
+      bgcolor: "action.hover",
+    }}
+  />
+</Stack>
               </CardContent>
             </Card>
           </Grid>

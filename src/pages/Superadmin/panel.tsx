@@ -98,6 +98,16 @@ case "clicmenu-blogs":
       setView={setView}
     />
   );
+  case "elad-blog":
+  return (
+    <BlogAdminShell
+      systemId={5}
+      systemName="Tecnologías Administrativas ELAD"
+      backView="sistemas"
+      setView={setView}
+    />
+  );
+
 
 default:
   return <Dashboard darkMode={darkMode} />;
@@ -105,4 +115,5 @@ default:
       }}
     </Shell>
   );
+
 }

@@ -117,6 +117,7 @@ export default function SideNav({
       activeView.startsWith("mitienda-") ||
       activeView.startsWith("clicmenu-") ||
       activeView === "clicmenu"
+      
     );
   }
 
