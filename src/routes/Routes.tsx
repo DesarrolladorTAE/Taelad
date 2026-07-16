@@ -30,6 +30,18 @@ const Superadmin = React.lazy(() => import("../pages/Superadmin/panel"));
 const TaecontaEmpresasPage = React.lazy(() =>
   import("../pages/taeconta/TaecontaEmpresasPage")
 );
+//Blogs
+const BlogPage = React.lazy(() =>
+  import("../pages/Superadmin/components/Blogs/BlogPage")
+);
+
+const BlogPostPage = React.lazy(() =>
+  import(
+    "../pages/Superadmin/components/Blogs/BlogPostPage"
+  )
+);
+
+
 
 // Tarjetas
 const TarjetaJennys = React.lazy(() => import("../tarjetas/TarjetaJennys"));
@@ -58,6 +70,17 @@ const LoadComponent = ({ component: Component }: any) => (
     <Component />
   </Suspense>
 );
+const Blogs = React.lazy(() =>
+  import("../pages/landings/Index1/Blogs")
+);
+const BlogDetail = React.lazy(() =>
+  import("../pages/landings/Index1/BlogDetail")
+);
+const BlogPostDetail = React.lazy(() =>
+  import(
+    "../pages/landings/Index1/BlogPostDetail"
+  )
+);
 
 export default function AllRoutes() {
   return useRoutes([
@@ -84,7 +107,7 @@ export default function AllRoutes() {
         { path: "desarrollo", element: <LoadComponent component={DisWeb} /> },
         { path: "diseno", element: <LoadComponent component={ImaCor} /> },
         { path: "marketing", element: <LoadComponent component={MarDig} /> },
-
+        { path: "blogs", element: <LoadComponent component={Blogs} /> },
         // =========================
         // FOOTER
         // =========================
@@ -97,6 +120,43 @@ export default function AllRoutes() {
           path: "terminos-condiciones",
           element: <LoadComponent component={TerminosCondiciones} />,
         },
+
+        // =========================
+         // BLOG PÚBLICO
+        // =========================
+        {
+         path: "blog",
+         element: <LoadComponent component={BlogPage} />,
+        },
+        // =========================
+// BLOG PÚBLICO
+// =========================
+{
+  path: "blog",
+  element: (
+    <LoadComponent component={BlogPage} />
+  ),
+},
+{
+  path: "blog/:postSlug",
+  element: (
+    <LoadComponent
+      component={BlogPostPage}
+    />
+  ),
+},
+{
+  path: "blogs/:systemSlug/:blogSlug",
+  element: <LoadComponent component={BlogDetail} />,
+},
+{
+  path: "blogs/:systemSlug/:blogSlug/posts/:postSlug",
+  element: (
+    <LoadComponent
+      component={BlogPostDetail}
+    />
+  ),
+},
 
         // =========================
         // TARJETAS

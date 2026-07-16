@@ -469,6 +469,7 @@ const mediaRoute = (
 ): string =>
   `${blogRoute(systemId, blogId)}/media`;
 
+  
 /*
 |--------------------------------------------------------------------------
 | API
@@ -769,17 +770,30 @@ export const blogApi = {
       )}/${mediaId}`
     ),
 
-  createMedia: (
-    systemId: number | string,
-    blogId: number | string,
-    payload: FormData
-  ) =>
-    axiosClient.post<
-      ApiResourceResponse<BlogMedia>
-    >(
-      mediaRoute(systemId, blogId),
-      payload
-    ),
+    createMedia: (
+  systemId: number | string,
+  blogId: number | string,
+  payload: FormData
+) =>
+  axiosClient.post<
+    ApiResourceResponse<BlogMedia>
+  >(
+    mediaRoute(systemId, blogId),
+    payload,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+
+      /*
+       * Evita que una configuración global de Axios
+       * convierta el FormData en JSON.
+       */
+      transformRequest: [
+        (data) => data,
+      ],
+    }
+  ),
 
   updateMedia: (
     systemId: number | string,

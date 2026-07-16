@@ -60,10 +60,12 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArticleIcon from "@mui/icons-material/Article";
 import BrokenImageIcon from "@mui/icons-material/BrokenImage";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
+import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import PublishOutlinedIcon from "@mui/icons-material/PublishOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
@@ -75,6 +77,7 @@ import BlogRichTextEditor from "./BlogRichTextEditor";
 import {
   blogApi,
   type BlogCategory,
+  type BlogCategoryPayload,
   type BlogMedia,
   type BlogPost,
   type BlogPostListParams,
@@ -82,6 +85,7 @@ import {
   type BlogPostPayload,
   type BlogPostStatus,
   type BlogTag,
+  type BlogTagPayload,
 } from "../../../../services/api/blogs";
 
 type Props = {
@@ -133,6 +137,17 @@ type PostFormErrors = {
   canonical_url?: string;
 };
 
+type QuickCategoryForm = {
+  name: string;
+  slug: string;
+  description: string;
+};
+
+type QuickTagForm = {
+  name: string;
+  slug: string;
+};
+
 type ApiErrorData = {
   message?: string;
   errors?: Record<string, string[] | string>;
@@ -171,6 +186,17 @@ const EMPTY_FORM: PostForm = {
   og_title: "",
   og_description: "",
   og_image_media_id: "",
+};
+
+const EMPTY_QUICK_CATEGORY_FORM: QuickCategoryForm = {
+  name: "",
+  slug: "",
+  description: "",
+};
+
+const EMPTY_QUICK_TAG_FORM: QuickTagForm = {
+  name: "",
+  slug: "",
 };
 
 function getErrorMessage(
@@ -471,6 +497,68 @@ export default function BlogPostsSection({
 
   /*
   |--------------------------------------------------------------------------
+  | CREACIÓN RÁPIDA DE CLASIFICACIÓN Y MULTIMEDIA
+  |--------------------------------------------------------------------------
+  */
+
+  const [lookupSuccess, setLookupSuccess] =
+    useState<string | null>(null);
+
+  const [quickCategoryOpen, setQuickCategoryOpen] =
+    useState(false);
+
+  const [quickCategoryForm, setQuickCategoryForm] =
+    useState<QuickCategoryForm>(
+      EMPTY_QUICK_CATEGORY_FORM
+    );
+
+  const [quickCategorySlugEdited, setQuickCategorySlugEdited] =
+    useState(false);
+
+  const [quickCategoryError, setQuickCategoryError] =
+    useState<string | null>(null);
+
+  const [quickCategorySaving, setQuickCategorySaving] =
+    useState(false);
+
+  const [quickTagOpen, setQuickTagOpen] =
+    useState(false);
+
+  const [quickTagForm, setQuickTagForm] =
+    useState<QuickTagForm>(EMPTY_QUICK_TAG_FORM);
+
+  const [quickTagSlugEdited, setQuickTagSlugEdited] =
+    useState(false);
+
+  const [quickTagError, setQuickTagError] =
+    useState<string | null>(null);
+
+  const [quickTagSaving, setQuickTagSaving] =
+    useState(false);
+
+  const [uploadMediaOpen, setUploadMediaOpen] =
+    useState(false);
+
+  const [uploadFile, setUploadFile] =
+    useState<File | null>(null);
+
+  const [uploadPreview, setUploadPreview] =
+    useState<string | null>(null);
+
+  const [uploadAltText, setUploadAltText] =
+    useState("");
+
+  const [uploadCaption, setUploadCaption] =
+    useState("");
+
+  const [uploadMediaError, setUploadMediaError] =
+    useState<string | null>(null);
+
+  const [uploadingMedia, setUploadingMedia] =
+    useState(false);
+
+  /*
+  |--------------------------------------------------------------------------
   | FORMULARIO
   |--------------------------------------------------------------------------
   */
@@ -558,6 +646,14 @@ export default function BlogPostsSection({
 
   const [scheduling, setScheduling] =
     useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (uploadPreview) {
+        URL.revokeObjectURL(uploadPreview);
+      }
+    };
+  }, [uploadPreview]);
 
   /*
   |--------------------------------------------------------------------------
@@ -708,6 +804,405 @@ export default function BlogPostsSection({
 
   /*
   |--------------------------------------------------------------------------
+  | CREACIÓN RÁPIDA DE CATEGORÍA
+  |--------------------------------------------------------------------------
+  */
+
+  function openQuickCategoryDialog() {
+    setQuickCategoryForm(
+      EMPTY_QUICK_CATEGORY_FORM
+    );
+    setQuickCategorySlugEdited(false);
+    setQuickCategoryError(null);
+    setQuickCategoryOpen(true);
+  }
+
+  function closeQuickCategoryDialog() {
+    if (quickCategorySaving) {
+      return;
+    }
+
+    setQuickCategoryOpen(false);
+    setQuickCategoryForm(
+      EMPTY_QUICK_CATEGORY_FORM
+    );
+    setQuickCategorySlugEdited(false);
+    setQuickCategoryError(null);
+  }
+
+  function handleQuickCategoryNameChange(
+    value: string
+  ) {
+    setQuickCategoryForm((current) => ({
+      ...current,
+      name: value,
+      slug: quickCategorySlugEdited
+        ? current.slug
+        : slugify(value),
+    }));
+
+    setQuickCategoryError(null);
+  }
+
+  function handleQuickCategorySlugChange(
+    value: string
+  ) {
+    setQuickCategorySlugEdited(true);
+
+    setQuickCategoryForm((current) => ({
+      ...current,
+      slug: slugify(value),
+    }));
+
+    setQuickCategoryError(null);
+  }
+
+  async function handleCreateQuickCategory() {
+    const name = quickCategoryForm.name.trim();
+    const slug = quickCategoryForm.slug.trim();
+
+    if (!name) {
+      setQuickCategoryError(
+        "Escribe el nombre de la categoría."
+      );
+      return;
+    }
+
+    if (!slug) {
+      setQuickCategoryError(
+        "El slug de la categoría es obligatorio."
+      );
+      return;
+    }
+
+    const payload: BlogCategoryPayload = {
+      name,
+      slug,
+      description:
+        quickCategoryForm.description.trim() || null,
+      parent_id: null,
+      status: "active",
+      sort_order: categories.length + 1,
+    };
+
+    try {
+      setQuickCategorySaving(true);
+      setQuickCategoryError(null);
+      setLookupSuccess(null);
+
+      const response =
+        await blogApi.createCategory(
+          systemId,
+          blogId,
+          payload
+        );
+
+      const createdCategory =
+        response.data.data;
+
+      setCategories((current) =>
+        [
+          ...current.filter(
+            (category) =>
+              category.id !==
+              createdCategory.id
+          ),
+          createdCategory,
+        ].sort((first, second) =>
+          first.name.localeCompare(
+            second.name,
+            "es"
+          )
+        )
+      );
+
+      setForm((current) => ({
+        ...current,
+        category_id: createdCategory.id,
+      }));
+
+      setLookupSuccess(
+        `La categoría “${createdCategory.name}” fue creada y seleccionada.`
+      );
+
+      setQuickCategoryOpen(false);
+      setQuickCategoryForm(
+        EMPTY_QUICK_CATEGORY_FORM
+      );
+      setQuickCategorySlugEdited(false);
+      setQuickCategoryError(null);
+    } catch (requestError) {
+      setQuickCategoryError(
+        getErrorMessage(
+          requestError,
+          "No fue posible crear la categoría."
+        )
+      );
+    } finally {
+      setQuickCategorySaving(false);
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | CREACIÓN RÁPIDA DE ETIQUETA
+  |--------------------------------------------------------------------------
+  */
+
+  function openQuickTagDialog() {
+    setQuickTagForm(EMPTY_QUICK_TAG_FORM);
+    setQuickTagSlugEdited(false);
+    setQuickTagError(null);
+    setQuickTagOpen(true);
+  }
+
+  function closeQuickTagDialog() {
+    if (quickTagSaving) {
+      return;
+    }
+
+    setQuickTagOpen(false);
+    setQuickTagForm(EMPTY_QUICK_TAG_FORM);
+    setQuickTagSlugEdited(false);
+    setQuickTagError(null);
+  }
+
+  function handleQuickTagNameChange(value: string) {
+    setQuickTagForm((current) => ({
+      ...current,
+      name: value,
+      slug: quickTagSlugEdited
+        ? current.slug
+        : slugify(value),
+    }));
+
+    setQuickTagError(null);
+  }
+
+  function handleQuickTagSlugChange(value: string) {
+    setQuickTagSlugEdited(true);
+
+    setQuickTagForm((current) => ({
+      ...current,
+      slug: slugify(value),
+    }));
+
+    setQuickTagError(null);
+  }
+
+  async function handleCreateQuickTag() {
+    const name = quickTagForm.name.trim();
+    const slug = quickTagForm.slug.trim();
+
+    if (!name) {
+      setQuickTagError(
+        "Escribe el nombre de la etiqueta."
+      );
+      return;
+    }
+
+    if (!slug) {
+      setQuickTagError(
+        "El slug de la etiqueta es obligatorio."
+      );
+      return;
+    }
+
+    const payload: BlogTagPayload = {
+      name,
+      slug,
+    };
+
+    try {
+      setQuickTagSaving(true);
+      setQuickTagError(null);
+      setLookupSuccess(null);
+
+      const response =
+        await blogApi.createTag(
+          systemId,
+          blogId,
+          payload
+        );
+
+      const createdTag = response.data.data;
+
+      setTags((current) =>
+        [
+          ...current.filter(
+            (tag) => tag.id !== createdTag.id
+          ),
+          createdTag,
+        ].sort((first, second) =>
+          first.name.localeCompare(
+            second.name,
+            "es"
+          )
+        )
+      );
+
+      setForm((current) => ({
+        ...current,
+        tag_ids: Array.from(
+          new Set([
+            ...current.tag_ids,
+            createdTag.id,
+          ])
+        ),
+      }));
+
+      setLookupSuccess(
+        `La etiqueta “${createdTag.name}” fue creada y seleccionada.`
+      );
+
+      setQuickTagOpen(false);
+      setQuickTagForm(EMPTY_QUICK_TAG_FORM);
+      setQuickTagSlugEdited(false);
+      setQuickTagError(null);
+    } catch (requestError) {
+      setQuickTagError(
+        getErrorMessage(
+          requestError,
+          "No fue posible crear la etiqueta."
+        )
+      );
+    } finally {
+      setQuickTagSaving(false);
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | CARGA RÁPIDA DE IMAGEN
+  |--------------------------------------------------------------------------
+  */
+
+  function openUploadMediaDialog() {
+    setUploadFile(null);
+    setUploadPreview(null);
+    setUploadAltText("");
+    setUploadCaption("");
+    setUploadMediaError(null);
+    setUploadMediaOpen(true);
+  }
+
+  function closeUploadMediaDialog() {
+    if (uploadingMedia) {
+      return;
+    }
+
+    setUploadMediaOpen(false);
+    setUploadFile(null);
+    setUploadPreview(null);
+    setUploadAltText("");
+    setUploadCaption("");
+    setUploadMediaError(null);
+  }
+
+  function handleUploadFileSelected(
+    file: File | null
+  ) {
+    setUploadMediaError(null);
+    setUploadFile(file);
+
+    if (!file) {
+      setUploadPreview(null);
+      return;
+    }
+
+    if (
+      file.type &&
+      !file.type.startsWith("image/")
+    ) {
+      setUploadFile(null);
+      setUploadPreview(null);
+      setUploadMediaError(
+        "El archivo seleccionado no es una imagen."
+      );
+      return;
+    }
+
+    setUploadPreview(
+      URL.createObjectURL(file)
+    );
+  }
+
+  async function handleUploadMedia() {
+    if (!uploadFile) {
+      setUploadMediaError(
+        "Selecciona una imagen antes de continuar."
+      );
+      return;
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", uploadFile);
+
+    if (uploadAltText.trim()) {
+      formData.append(
+        "alt_text",
+        uploadAltText.trim()
+      );
+    }
+
+    if (uploadCaption.trim()) {
+      formData.append(
+        "caption",
+        uploadCaption.trim()
+      );
+    }
+
+    try {
+      setUploadingMedia(true);
+      setUploadMediaError(null);
+      setLookupSuccess(null);
+
+      const response =
+        await blogApi.createMedia(
+          systemId,
+          blogId,
+          formData
+        );
+
+      const createdMedia = response.data.data;
+
+      setMedia((current) => [
+        createdMedia,
+        ...current.filter(
+          (item) => item.id !== createdMedia.id
+        ),
+      ]);
+
+      setForm((current) => ({
+        ...current,
+        cover_media_id: createdMedia.id,
+      }));
+
+      setLookupSuccess(
+        `La imagen “${createdMedia.original_filename}” fue subida y seleccionada como portada.`
+      );
+
+      setUploadMediaOpen(false);
+      setUploadFile(null);
+      setUploadPreview(null);
+      setUploadAltText("");
+      setUploadCaption("");
+      setUploadMediaError(null);
+    } catch (requestError) {
+      setUploadMediaError(
+        getErrorMessage(
+          requestError,
+          "No fue posible subir la imagen."
+        )
+      );
+    } finally {
+      setUploadingMedia(false);
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
   | FILTROS
   |--------------------------------------------------------------------------
   */
@@ -782,6 +1277,7 @@ export default function BlogPostsSection({
 
   function openCreateDialog() {
     setEditingPost(null);
+    setLookupSuccess(null);
     setForm(EMPTY_FORM);
     setFormErrors({});
     setFormError(null);
@@ -795,6 +1291,7 @@ export default function BlogPostsSection({
     closeActionMenu();
 
     setEditingPost(post);
+    setLookupSuccess(null);
     setForm(mapPostToForm(post));
     setFormOpen(true);
     setFormLoading(true);
@@ -835,10 +1332,17 @@ export default function BlogPostsSection({
     setFormTab(0);
     setSlugEdited(false);
     setFormLoading(false);
+    setLookupSuccess(null);
   }
 
   function closeFormDialog() {
-    if (saving || formLoading) {
+    if (
+      saving ||
+      formLoading ||
+      quickCategorySaving ||
+      quickTagSaving ||
+      uploadingMedia
+    ) {
       return;
     }
 
@@ -2440,152 +2944,296 @@ export default function BlogPostsSection({
               )}
 
               {formTab === 1 && (
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel id="post-form-category">
-                        Categoría
-                      </InputLabel>
-
-                      <Select
-                        labelId="post-form-category"
-                        label="Categoría"
-                        value={form.category_id}
-                        onChange={(event) => {
-                          const value =
-                            event.target.value;
-
-                          setForm((current) => ({
-                            ...current,
-                            category_id:
-                              value === ""
-                                ? ""
-                                : Number(value),
-                          }));
-                        }}
-                        disabled={saving}
-                      >
-                        <MenuItem value="">
-                          Sin categoría
-                        </MenuItem>
-
-                        {categories.map((category) => (
-                          <MenuItem
-                            key={category.id}
-                            value={category.id}
-                          >
-                            {category.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel id="post-form-tags">
-                        Etiquetas
-                      </InputLabel>
-
-                      <Select
-                        multiple
-                        labelId="post-form-tags"
-                        label="Etiquetas"
-                        value={form.tag_ids}
-                        input={
-                          <OutlinedInput label="Etiquetas" />
+                <Grid container spacing={2.5}>
+                  {lookupSuccess && (
+                    <Grid item xs={12}>
+                      <Alert
+                        severity="success"
+                        onClose={() =>
+                          setLookupSuccess(null)
                         }
-                        renderValue={() =>
-                          selectedTagNames.length > 0
-                            ? selectedTagNames.join(", ")
-                            : "Sin etiquetas"
-                        }
-                        onChange={(event) => {
-                          const value =
-                            event.target.value;
-
-                          setForm((current) => ({
-                            ...current,
-                            tag_ids:
-                              typeof value === "string"
-                                ? value
-                                    .split(",")
-                                    .map(Number)
-                                : (value as number[]),
-                          }));
-                        }}
-                        disabled={saving}
                       >
-                        {tags.map((tag) => (
-                          <MenuItem
-                            key={tag.id}
-                            value={tag.id}
-                          >
-                            <Checkbox
-                              checked={form.tag_ids.includes(
-                                tag.id
-                              )}
-                            />
+                        {lookupSuccess}
+                      </Alert>
+                    </Grid>
+                  )}
 
-                            <ListItemText
-                              primary={tag.name}
-                              secondary={`/${tag.slug}`}
-                            />
+                  <Grid item xs={12} md={6}>
+                    <Stack spacing={1}>
+                      <Stack
+                        direction={{
+                          xs: "column",
+                          sm: "row",
+                        }}
+                        alignItems={{
+                          xs: "stretch",
+                          sm: "center",
+                        }}
+                        justifyContent="space-between"
+                        spacing={1}
+                      >
+                        <Typography fontWeight={800}>
+                          Categoría
+                        </Typography>
+
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<AddIcon />}
+                          onClick={
+                            openQuickCategoryDialog
+                          }
+                          disabled={
+                            saving || lookupsLoading
+                          }
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 800,
+                          }}
+                        >
+                          Nueva categoría
+                        </Button>
+                      </Stack>
+
+                      <FormControl fullWidth>
+                        <InputLabel id="post-form-category">
+                          Categoría
+                        </InputLabel>
+
+                        <Select
+                          labelId="post-form-category"
+                          label="Categoría"
+                          value={form.category_id}
+                          onChange={(event) => {
+                            const value =
+                              event.target.value;
+
+                            setForm((current) => ({
+                              ...current,
+                              category_id:
+                                value === ""
+                                  ? ""
+                                  : Number(value),
+                            }));
+                          }}
+                          disabled={
+                            saving || lookupsLoading
+                          }
+                        >
+                          <MenuItem value="">
+                            Sin categoría
                           </MenuItem>
-                        ))}
-                      </Select>
 
-                      <FormHelperText>
-                        Máximo 50 etiquetas.
-                      </FormHelperText>
-                    </FormControl>
+                          {categories.map((category) => (
+                            <MenuItem
+                              key={category.id}
+                              value={category.id}
+                            >
+                              {category.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+
+                        <FormHelperText>
+                          {categories.length === 0
+                            ? "No hay categorías registradas. Crea una desde este formulario."
+                            : "Selecciona una categoría o crea una nueva."}
+                        </FormHelperText>
+                      </FormControl>
+                    </Stack>
                   </Grid>
 
                   <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel id="post-cover-media">
-                        Imagen de portada
-                      </InputLabel>
-
-                      <Select
-                        labelId="post-cover-media"
-                        label="Imagen de portada"
-                        value={form.cover_media_id}
-                        onChange={(event) => {
-                          const value =
-                            event.target.value;
-
-                          setForm((current) => ({
-                            ...current,
-                            cover_media_id:
-                              value === ""
-                                ? ""
-                                : Number(value),
-                          }));
+                    <Stack spacing={1}>
+                      <Stack
+                        direction={{
+                          xs: "column",
+                          sm: "row",
                         }}
-                        disabled={saving}
+                        alignItems={{
+                          xs: "stretch",
+                          sm: "center",
+                        }}
+                        justifyContent="space-between"
+                        spacing={1}
                       >
-                        <MenuItem value="">
-                          Sin portada
-                        </MenuItem>
+                        <Typography fontWeight={800}>
+                          Etiquetas
+                        </Typography>
 
-                        {media.map((item) => (
-                          <MenuItem
-                            key={item.id}
-                            value={item.id}
-                          >
-                            {item.original_filename}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={
+                            <LocalOfferOutlinedIcon />
+                          }
+                          onClick={openQuickTagDialog}
+                          disabled={
+                            saving || lookupsLoading
+                          }
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 800,
+                          }}
+                        >
+                          Nueva etiqueta
+                        </Button>
+                      </Stack>
+
+                      <FormControl fullWidth>
+                        <InputLabel id="post-form-tags">
+                          Etiquetas
+                        </InputLabel>
+
+                        <Select
+                          multiple
+                          labelId="post-form-tags"
+                          label="Etiquetas"
+                          value={form.tag_ids}
+                          input={
+                            <OutlinedInput label="Etiquetas" />
+                          }
+                          renderValue={() =>
+                            selectedTagNames.length > 0
+                              ? selectedTagNames.join(", ")
+                              : "Sin etiquetas"
+                          }
+                          onChange={(event) => {
+                            const value =
+                              event.target.value;
+
+                            setForm((current) => ({
+                              ...current,
+                              tag_ids:
+                                typeof value === "string"
+                                  ? value
+                                      .split(",")
+                                      .map(Number)
+                                  : (value as number[]),
+                            }));
+                          }}
+                          disabled={
+                            saving || lookupsLoading
+                          }
+                        >
+                          {tags.map((tag) => (
+                            <MenuItem
+                              key={tag.id}
+                              value={tag.id}
+                            >
+                              <Checkbox
+                                checked={form.tag_ids.includes(
+                                  tag.id
+                                )}
+                              />
+
+                              <ListItemText
+                                primary={tag.name}
+                                secondary={`/${tag.slug}`}
+                              />
+                            </MenuItem>
+                          ))}
+                        </Select>
+
+                        <FormHelperText>
+                          {tags.length === 0
+                            ? "No hay etiquetas registradas. Crea la primera desde este formulario."
+                            : "Puedes seleccionar hasta 50 etiquetas."}
+                        </FormHelperText>
+                      </FormControl>
+                    </Stack>
                   </Grid>
 
                   <Grid item xs={12} md={6}>
-                    {selectedCoverMedia && (
+                    <Stack spacing={1}>
+                      <Stack
+                        direction={{
+                          xs: "column",
+                          sm: "row",
+                        }}
+                        alignItems={{
+                          xs: "stretch",
+                          sm: "center",
+                        }}
+                        justifyContent="space-between"
+                        spacing={1}
+                      >
+                        <Typography fontWeight={800}>
+                          Imagen de portada
+                        </Typography>
+
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={
+                            <CloudUploadOutlinedIcon />
+                          }
+                          onClick={openUploadMediaDialog}
+                          disabled={
+                            saving || lookupsLoading
+                          }
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 800,
+                          }}
+                        >
+                          Subir imagen
+                        </Button>
+                      </Stack>
+
+                      <FormControl fullWidth>
+                        <InputLabel id="post-cover-media">
+                          Imagen de portada
+                        </InputLabel>
+
+                        <Select
+                          labelId="post-cover-media"
+                          label="Imagen de portada"
+                          value={form.cover_media_id}
+                          onChange={(event) => {
+                            const value =
+                              event.target.value;
+
+                            setForm((current) => ({
+                              ...current,
+                              cover_media_id:
+                                value === ""
+                                  ? ""
+                                  : Number(value),
+                            }));
+                          }}
+                          disabled={
+                            saving || lookupsLoading
+                          }
+                        >
+                          <MenuItem value="">
+                            Sin portada
+                          </MenuItem>
+
+                          {media.map((item) => (
+                            <MenuItem
+                              key={item.id}
+                              value={item.id}
+                            >
+                              {item.original_filename}
+                            </MenuItem>
+                          ))}
+                        </Select>
+
+                        <FormHelperText>
+                          {media.length === 0
+                            ? "No hay imágenes cargadas. Sube una desde este formulario."
+                            : "Selecciona una imagen existente o carga una nueva."}
+                        </FormHelperText>
+                      </FormControl>
+                    </Stack>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    {selectedCoverMedia ? (
                       <Box
                         sx={{
-                          height: 160,
+                          height: 180,
                           borderRadius: 3,
                           overflow: "hidden",
                           border: "1px solid",
@@ -2594,8 +3242,40 @@ export default function BlogPostsSection({
                       >
                         <MediaThumbnail
                           media={selectedCoverMedia}
-                          height={160}
+                          height={180}
                         />
+                      </Box>
+                    ) : (
+                      <Box
+                        sx={{
+                          minHeight: 180,
+                          borderRadius: 3,
+                          border: "1px dashed",
+                          borderColor: "divider",
+                          bgcolor: "action.hover",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          textAlign: "center",
+                          p: 2,
+                        }}
+                      >
+                        <Stack
+                          alignItems="center"
+                          spacing={1}
+                        >
+                          <BrokenImageIcon
+                            color="action"
+                          />
+
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                          >
+                            Selecciona o sube una imagen
+                            para ver la vista previa.
+                          </Typography>
+                        </Stack>
                       </Box>
                     )}
                   </Grid>
@@ -2616,6 +3296,7 @@ export default function BlogPostsSection({
                                 event.target.checked,
                             }))
                           }
+                          disabled={saving}
                         />
                       }
                       label="Publicación destacada"
@@ -2634,6 +3315,7 @@ export default function BlogPostsSection({
                                 event.target.checked,
                             }))
                           }
+                          disabled={saving}
                         />
                       }
                       label="Permitir comentarios"
@@ -2940,6 +3622,416 @@ export default function BlogPostsSection({
               : editingPost
                 ? "Guardar cambios"
                 : "Crear borrador"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* CREAR CATEGORÍA DESDE LA PUBLICACIÓN */}
+      <Dialog
+        open={quickCategoryOpen}
+        onClose={closeQuickCategoryDialog}
+        fullWidth
+        maxWidth="sm"
+        fullScreen={!isDesktop}
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={900}>
+            Nueva categoría
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+          >
+            La categoría quedará activa y seleccionada
+            en esta publicación.
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Stack spacing={2.5} sx={{ mt: 0.5 }}>
+            {quickCategoryError && (
+              <Alert severity="error">
+                {quickCategoryError}
+              </Alert>
+            )}
+
+            <TextField
+              required
+              fullWidth
+              autoFocus
+              label="Nombre de la categoría"
+              placeholder="Ejemplo: Tecnología empresarial"
+              value={quickCategoryForm.name}
+              onChange={(event) =>
+                handleQuickCategoryNameChange(
+                  event.target.value
+                )
+              }
+              disabled={quickCategorySaving}
+            />
+
+            <TextField
+              required
+              fullWidth
+              label="Slug"
+              placeholder="tecnologia-empresarial"
+              value={quickCategoryForm.slug}
+              onChange={(event) =>
+                handleQuickCategorySlugChange(
+                  event.target.value
+                )
+              }
+              helperText="Se genera automáticamente a partir del nombre."
+              disabled={quickCategorySaving}
+            />
+
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Descripción"
+              placeholder="Describe el contenido que agrupará esta categoría."
+              value={quickCategoryForm.description}
+              onChange={(event) =>
+                setQuickCategoryForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
+              disabled={quickCategorySaving}
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            p: 2,
+            flexDirection: {
+              xs: "column-reverse",
+              sm: "row",
+            },
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={closeQuickCategoryDialog}
+            disabled={quickCategorySaving}
+            sx={{
+              width: { xs: "100%", sm: "auto" },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            variant="contained"
+            startIcon={
+              quickCategorySaving ? (
+                <CircularProgress
+                  size={18}
+                  color="inherit"
+                />
+              ) : (
+                <AddIcon />
+              )
+            }
+            onClick={() =>
+              void handleCreateQuickCategory()
+            }
+            disabled={quickCategorySaving}
+            sx={{
+              width: { xs: "100%", sm: "auto" },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            {quickCategorySaving
+              ? "Creando..."
+              : "Crear y seleccionar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* CREAR ETIQUETA DESDE LA PUBLICACIÓN */}
+      <Dialog
+        open={quickTagOpen}
+        onClose={closeQuickTagDialog}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={900}>
+            Nueva etiqueta
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+          >
+            La etiqueta se agregará automáticamente a
+            la publicación.
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Stack spacing={2.5} sx={{ mt: 0.5 }}>
+            {quickTagError && (
+              <Alert severity="error">
+                {quickTagError}
+              </Alert>
+            )}
+
+            <TextField
+              required
+              fullWidth
+              autoFocus
+              label="Nombre de la etiqueta"
+              placeholder="Ejemplo: Automatización"
+              value={quickTagForm.name}
+              onChange={(event) =>
+                handleQuickTagNameChange(
+                  event.target.value
+                )
+              }
+              disabled={quickTagSaving}
+            />
+
+            <TextField
+              required
+              fullWidth
+              label="Slug"
+              placeholder="automatizacion"
+              value={quickTagForm.slug}
+              onChange={(event) =>
+                handleQuickTagSlugChange(
+                  event.target.value
+                )
+              }
+              helperText="Se genera automáticamente a partir del nombre."
+              disabled={quickTagSaving}
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            p: 2,
+            flexDirection: {
+              xs: "column-reverse",
+              sm: "row",
+            },
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={closeQuickTagDialog}
+            disabled={quickTagSaving}
+            sx={{
+              width: { xs: "100%", sm: "auto" },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            variant="contained"
+            startIcon={
+              quickTagSaving ? (
+                <CircularProgress
+                  size={18}
+                  color="inherit"
+                />
+              ) : (
+                <LocalOfferOutlinedIcon />
+              )
+            }
+            onClick={() =>
+              void handleCreateQuickTag()
+            }
+            disabled={quickTagSaving}
+            sx={{
+              width: { xs: "100%", sm: "auto" },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            {quickTagSaving
+              ? "Creando..."
+              : "Crear y seleccionar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* SUBIR IMAGEN DESDE LA PUBLICACIÓN */}
+      <Dialog
+        open={uploadMediaOpen}
+        onClose={closeUploadMediaDialog}
+        fullWidth
+        maxWidth="sm"
+        fullScreen={!isDesktop}
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={900}>
+            Subir imagen de portada
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+          >
+            La imagen quedará guardada en multimedia y
+            seleccionada como portada.
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Stack spacing={2.5} sx={{ mt: 0.5 }}>
+            {uploadMediaError && (
+              <Alert severity="error">
+                {uploadMediaError}
+              </Alert>
+            )}
+
+            <Button
+              component="label"
+              variant="outlined"
+              startIcon={
+                <CloudUploadOutlinedIcon />
+              }
+              disabled={uploadingMedia}
+              sx={{
+                minHeight: 48,
+                textTransform: "none",
+                fontWeight: 800,
+              }}
+            >
+              {uploadFile
+                ? "Cambiar imagen"
+                : "Seleccionar imagen"}
+
+              <input
+                hidden
+                type="file"
+                accept="image/*"
+                onChange={(event) =>
+                  handleUploadFileSelected(
+                    event.target.files?.[0] ?? null
+                  )
+                }
+              />
+            </Button>
+
+            {uploadFile && (
+              <Alert severity="info" icon={false}>
+                <Typography fontWeight={800}>
+                  {uploadFile.name}
+                </Typography>
+
+                <Typography variant="body2">
+                  {(uploadFile.size / 1024).toFixed(2)} KB
+                  {uploadFile.type
+                    ? ` · ${uploadFile.type}`
+                    : ""}
+                </Typography>
+              </Alert>
+            )}
+
+            {uploadPreview && (
+              <Box
+                component="img"
+                src={uploadPreview}
+                alt="Vista previa de la imagen seleccionada"
+                sx={{
+                  width: "100%",
+                  maxHeight: 300,
+                  display: "block",
+                  objectFit: "contain",
+                  borderRadius: 3,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "action.hover",
+                }}
+              />
+            )}
+
+            <TextField
+              fullWidth
+              label="Texto alternativo"
+              placeholder="Describe brevemente la imagen"
+              value={uploadAltText}
+              onChange={(event) =>
+                setUploadAltText(event.target.value)
+              }
+              helperText="Ayuda a la accesibilidad y al SEO."
+              disabled={uploadingMedia}
+            />
+
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              label="Descripción o pie de imagen"
+              value={uploadCaption}
+              onChange={(event) =>
+                setUploadCaption(event.target.value)
+              }
+              disabled={uploadingMedia}
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            p: 2,
+            flexDirection: {
+              xs: "column-reverse",
+              sm: "row",
+            },
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={closeUploadMediaDialog}
+            disabled={uploadingMedia}
+            sx={{
+              width: { xs: "100%", sm: "auto" },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            variant="contained"
+            startIcon={
+              uploadingMedia ? (
+                <CircularProgress
+                  size={18}
+                  color="inherit"
+                />
+              ) : (
+                <CloudUploadOutlinedIcon />
+              )
+            }
+            onClick={() =>
+              void handleUploadMedia()
+            }
+            disabled={uploadingMedia || !uploadFile}
+            sx={{
+              width: { xs: "100%", sm: "auto" },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            {uploadingMedia
+              ? "Subiendo..."
+              : "Subir y seleccionar"}
           </Button>
         </DialogActions>
       </Dialog>
