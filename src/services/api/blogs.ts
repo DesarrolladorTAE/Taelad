@@ -175,6 +175,14 @@ export type BlogPost = {
   og_image_media?: BlogPostMedia | null;
   ogImageMedia?: BlogPostMedia | null;
 
+  /*
+   * Anuncios vinculados a la publicación.
+   * En los listados puede venir únicamente ads_count.
+   * En el detalle puede venir la colección ads completa.
+   */
+  ads_count?: number;
+  ads?: BlogPostAd[];
+
   created_at: string | null;
   updated_at: string | null;
 };
@@ -217,6 +225,13 @@ export type BlogPostPayload = {
   og_title: string | null;
   og_description: string | null;
   og_image_media_id: number | null;
+
+  /*
+   * Se guarda junto con la publicación.
+   * Puede enviarse vacío para retirar todos
+   * los bloques en una actualización.
+   */
+  ads?: BlogPostAdPayload[];
 };
 
 /*
@@ -229,6 +244,83 @@ export type BlogPostUpdatePayload =
 export type BlogPostSchedulePayload = {
   scheduled_at: string;
 };
+
+/*
+|--------------------------------------------------------------------------
+| ANUNCIOS DE PUBLICACIONES
+|--------------------------------------------------------------------------
+*/
+
+export type BlogPostAdStatus =
+  | "active"
+  | "inactive";
+
+export type BlogPostAdImage = {
+  id: number;
+  media_id: number;
+  sort_order: number;
+  media: BlogMedia | null;
+};
+
+export type BlogPostAd = {
+  id: number;
+  blog_post_id: number;
+
+  title: string;
+  description: string | null;
+
+  link_url: string;
+  link_text: string;
+
+  status: BlogPostAdStatus;
+  sort_order: number;
+
+  /*
+   * Facilita precargar el selector de imágenes
+   * dentro del formulario de edición.
+   */
+  media_ids: number[];
+  images_count: number;
+  images: BlogPostAdImage[];
+
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type BlogPostAdPayload = {
+  /*
+   * Solo se envía al actualizar un anuncio
+   * que ya existe en la base de datos.
+   */
+  id?: number;
+
+  title: string;
+  description: string | null;
+
+  link_url: string;
+  link_text: string;
+
+  status: BlogPostAdStatus;
+
+  /*
+   * Puede omitirse al crear para que el backend
+   * asigne automáticamente el siguiente orden.
+   */
+  sort_order?: number | null;
+
+  /*
+   * Debe contener entre 1 y 3 IDs distintos,
+   * todos pertenecientes al mismo blog.
+   */
+  media_ids: number[];
+};
+
+/*
+ * UpdateBlogPostAdRequest reutiliza las mismas
+ * reglas que StoreBlogPostAdRequest.
+ */
+export type BlogPostAdUpdatePayload =
+  BlogPostAdPayload;
 
 /*
 |--------------------------------------------------------------------------
@@ -368,8 +460,8 @@ export type BlogMediaUploader = {
 };
 
 export type BlogMediaUsage = {
-  cover_posts: number;
-  open_graph_posts: number;
+  cover_posts: number | null;
+  open_graph_posts: number | null;
 };
 
 export type BlogMedia = {
@@ -428,6 +520,10 @@ export type ApiResourceResponse<T> = {
   data: T;
 };
 
+export type ApiCollectionResponse<T> = {
+  data: T[];
+};
+
 /*
 |--------------------------------------------------------------------------
 | RUTAS
@@ -450,6 +546,28 @@ const postsRoute = (
   blogId: number | string
 ): string =>
   `${blogRoute(systemId, blogId)}/posts`;
+
+const postRoute = (
+  systemId: number | string,
+  blogId: number | string,
+  postId: number | string
+): string =>
+  `${postsRoute(systemId, blogId)}/${postId}`;
+
+const postAdsRoute = (
+  systemId: number | string,
+  blogId: number | string,
+  postId: number | string
+): string =>
+  `${postRoute(systemId, blogId, postId)}/ads`;
+
+const postAdRoute = (
+  systemId: number | string,
+  blogId: number | string,
+  postId: number | string,
+  adId: number | string
+): string =>
+  `${postAdsRoute(systemId, blogId, postId)}/${adId}`;
 
 const categoriesRoute = (
   systemId: number | string,
@@ -610,10 +728,100 @@ export const blogApi = {
     axiosClient.post<
       ApiResourceResponse<BlogPost>
     >(
-      `${postsRoute(
+      `${postRoute(
         systemId,
-        blogId
-      )}/${postId}/archive`
+        blogId,
+        postId
+      )}/archive`
+    ),
+
+  /*
+  |--------------------------------------------------------------------------
+  | ANUNCIOS DE PUBLICACIONES
+  |--------------------------------------------------------------------------
+  */
+
+  postAds: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string
+  ) =>
+    axiosClient.get<
+      ApiCollectionResponse<BlogPostAd>
+    >(
+      postAdsRoute(
+        systemId,
+        blogId,
+        postId
+      )
+    ),
+
+  postAd: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string,
+    adId: number | string
+  ) =>
+    axiosClient.get<
+      ApiResourceResponse<BlogPostAd>
+    >(
+      postAdRoute(
+        systemId,
+        blogId,
+        postId,
+        adId
+      )
+    ),
+
+  createPostAd: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string,
+    payload: BlogPostAdPayload
+  ) =>
+    axiosClient.post<
+      ApiResourceResponse<BlogPostAd>
+    >(
+      postAdsRoute(
+        systemId,
+        blogId,
+        postId
+      ),
+      payload
+    ),
+
+  updatePostAd: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string,
+    adId: number | string,
+    payload: BlogPostAdUpdatePayload
+  ) =>
+    axiosClient.put<
+      ApiResourceResponse<BlogPostAd>
+    >(
+      postAdRoute(
+        systemId,
+        blogId,
+        postId,
+        adId
+      ),
+      payload
+    ),
+
+  deletePostAd: (
+    systemId: number | string,
+    blogId: number | string,
+    postId: number | string,
+    adId: number | string
+  ) =>
+    axiosClient.delete<ApiMessageResponse>(
+      postAdRoute(
+        systemId,
+        blogId,
+        postId,
+        adId
+      )
     ),
 
   /*
@@ -770,30 +978,30 @@ export const blogApi = {
       )}/${mediaId}`
     ),
 
-    createMedia: (
-  systemId: number | string,
-  blogId: number | string,
-  payload: FormData
-) =>
-  axiosClient.post<
-    ApiResourceResponse<BlogMedia>
-  >(
-    mediaRoute(systemId, blogId),
-    payload,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
+  createMedia: (
+    systemId: number | string,
+    blogId: number | string,
+    payload: FormData
+  ) =>
+    axiosClient.post<
+      ApiResourceResponse<BlogMedia>
+    >(
+      mediaRoute(systemId, blogId),
+      payload,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
 
-      /*
-       * Evita que una configuración global de Axios
-       * convierta el FormData en JSON.
-       */
-      transformRequest: [
-        (data) => data,
-      ],
-    }
-  ),
+        /*
+         * Evita que una configuración global de Axios
+         * convierta el FormData en JSON.
+         */
+        transformRequest: [
+          (data) => data,
+        ],
+      }
+    ),
 
   updateMedia: (
     systemId: number | string,

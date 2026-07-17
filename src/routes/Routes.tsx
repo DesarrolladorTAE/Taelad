@@ -73,9 +73,7 @@ const LoadComponent = ({ component: Component }: any) => (
 const Blogs = React.lazy(() =>
   import("../pages/landings/Index1/Blogs")
 );
-const BlogDetail = React.lazy(() =>
-  import("../pages/landings/Index1/BlogDetail")
-);
+
 const BlogPostDetail = React.lazy(() =>
   import(
     "../pages/landings/Index1/BlogPostDetail"
@@ -145,10 +143,7 @@ export default function AllRoutes() {
     />
   ),
 },
-{
-  path: "blogs/:systemSlug/:blogSlug",
-  element: <LoadComponent component={BlogDetail} />,
-},
+
 {
   path: "blogs/:systemSlug/:blogSlug/posts/:postSlug",
   element: (

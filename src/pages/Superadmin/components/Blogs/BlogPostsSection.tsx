@@ -14,6 +14,7 @@ import {
   Box,
   Button,
   Card,
+  CardActionArea,
   CardContent,
   Checkbox,
   Chip,
@@ -66,6 +67,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import PublishOutlinedIcon from "@mui/icons-material/PublishOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
@@ -80,6 +82,9 @@ import {
   type BlogCategoryPayload,
   type BlogMedia,
   type BlogPost,
+  type BlogPostAd,
+  type BlogPostAdPayload,
+  type BlogPostAdStatus,
   type BlogPostListParams,
   type BlogPostMedia,
   type BlogPostPayload,
@@ -137,6 +142,29 @@ type PostFormErrors = {
   canonical_url?: string;
 };
 
+type AdForm = {
+  title: string;
+  description: string;
+  link_url: string;
+  link_text: string;
+  status: BlogPostAdStatus;
+  sort_order: number | "";
+  media_ids: number[];
+};
+
+type AdFormErrors = {
+  title?: string;
+  description?: string;
+  link_url?: string;
+  link_text?: string;
+  sort_order?: string;
+  media_ids?: string;
+};
+
+type UploadMediaTarget =
+  | "cover"
+  | "ad";
+
 type QuickCategoryForm = {
   name: string;
   slug: string;
@@ -186,6 +214,16 @@ const EMPTY_FORM: PostForm = {
   og_title: "",
   og_description: "",
   og_image_media_id: "",
+};
+
+const EMPTY_AD_FORM: AdForm = {
+  title: "",
+  description: "",
+  link_url: "",
+  link_text: "Ver más",
+  status: "active",
+  sort_order: "",
+  media_ids: [],
 };
 
 const EMPTY_QUICK_CATEGORY_FORM: QuickCategoryForm = {
@@ -360,6 +398,94 @@ function validateForm(
   }
 
   return errors;
+}
+
+function validateAdForm(
+  form: AdForm
+): AdFormErrors {
+  const errors: AdFormErrors = {};
+
+  if (!form.title.trim()) {
+    errors.title =
+      "El título del anuncio es obligatorio.";
+  } else if (form.title.trim().length > 160) {
+    errors.title =
+      "El título no puede superar 160 caracteres.";
+  }
+
+  if (form.description.length > 5000) {
+    errors.description =
+      "La descripción no puede superar 5000 caracteres.";
+  }
+
+  if (!form.link_url.trim()) {
+    errors.link_url =
+      "El hipervínculo es obligatorio.";
+  } else {
+    try {
+      const url = new URL(
+        form.link_url.trim()
+      );
+
+      if (
+        url.protocol !== "http:" &&
+        url.protocol !== "https:"
+      ) {
+        errors.link_url =
+          "El hipervínculo debe utilizar HTTP o HTTPS.";
+      }
+    } catch {
+      errors.link_url =
+        "El hipervínculo no es válido.";
+    }
+  }
+
+  if (!form.link_text.trim()) {
+    errors.link_text =
+      "El texto del vínculo es obligatorio.";
+  } else if (form.link_text.trim().length > 80) {
+    errors.link_text =
+      "El texto del vínculo no puede superar 80 caracteres.";
+  }
+
+  if (
+    form.sort_order !== "" &&
+    (
+      !Number.isInteger(Number(form.sort_order)) ||
+      Number(form.sort_order) < 0
+    )
+  ) {
+    errors.sort_order =
+      "El orden debe ser un número entero igual o mayor que cero.";
+  }
+
+  if (form.media_ids.length < 1) {
+    errors.media_ids =
+      "Selecciona al menos una imagen.";
+  } else if (form.media_ids.length > 3) {
+    errors.media_ids =
+      "Solo puedes seleccionar un máximo de tres imágenes.";
+  }
+
+  return errors;
+}
+
+function sortAds(
+  items: BlogPostAd[]
+): BlogPostAd[] {
+  return [...items].sort(
+    (first, second) =>
+      first.sort_order - second.sort_order ||
+      first.id - second.id
+  );
+}
+
+function getAdStatusLabel(
+  status: BlogPostAdStatus
+): string {
+  return status === "active"
+    ? "Activo"
+    : "Inactivo";
 }
 
 function getMinimumScheduleDate(): string {
@@ -557,6 +683,11 @@ export default function BlogPostsSection({
   const [uploadingMedia, setUploadingMedia] =
     useState(false);
 
+  const [
+    uploadMediaTarget,
+    setUploadMediaTarget,
+  ] = useState<UploadMediaTarget>("cover");
+
   /*
   |--------------------------------------------------------------------------
   | FORMULARIO
@@ -588,6 +719,42 @@ export default function BlogPostsSection({
     useState<FormTab>(0);
 
   const [slugEdited, setSlugEdited] =
+    useState(false);
+
+  /*
+  |--------------------------------------------------------------------------
+  | IMÁGENES CON HIPERVÍNCULO
+  |--------------------------------------------------------------------------
+  */
+
+  const [ads, setAds] =
+    useState<BlogPostAd[]>([]);
+
+  const [adsLoading, setAdsLoading] =
+    useState(false);
+
+  const [adDialogOpen, setAdDialogOpen] =
+    useState(false);
+
+  const [editingAd, setEditingAd] =
+    useState<BlogPostAd | null>(null);
+
+  const [adForm, setAdForm] =
+    useState<AdForm>(EMPTY_AD_FORM);
+
+  const [adFormErrors, setAdFormErrors] =
+    useState<AdFormErrors>({});
+
+  const [adError, setAdError] =
+    useState<string | null>(null);
+
+  const [adSaving, setAdSaving] =
+    useState(false);
+
+  const [adToDelete, setAdToDelete] =
+    useState<BlogPostAd | null>(null);
+
+  const [adDeleting, setAdDeleting] =
     useState(false);
 
   /*
@@ -1077,7 +1244,10 @@ export default function BlogPostsSection({
   |--------------------------------------------------------------------------
   */
 
-  function openUploadMediaDialog() {
+  function openUploadMediaDialog(
+    target: UploadMediaTarget = "cover"
+  ) {
+    setUploadMediaTarget(target);
     setUploadFile(null);
     setUploadPreview(null);
     setUploadAltText("");
@@ -1091,12 +1261,17 @@ export default function BlogPostsSection({
       return;
     }
 
+    if (uploadPreview) {
+      URL.revokeObjectURL(uploadPreview);
+    }
+
     setUploadMediaOpen(false);
     setUploadFile(null);
     setUploadPreview(null);
     setUploadAltText("");
     setUploadCaption("");
     setUploadMediaError(null);
+    setUploadMediaTarget("cover");
   }
 
   function handleUploadFileSelected(
@@ -1104,6 +1279,10 @@ export default function BlogPostsSection({
   ) {
     setUploadMediaError(null);
     setUploadFile(file);
+
+    if (uploadPreview) {
+      URL.revokeObjectURL(uploadPreview);
+    }
 
     if (!file) {
       setUploadPreview(null);
@@ -1174,14 +1353,47 @@ export default function BlogPostsSection({
         ),
       ]);
 
-      setForm((current) => ({
-        ...current,
-        cover_media_id: createdMedia.id,
-      }));
+      if (uploadMediaTarget === "ad") {
+        setAdForm((current) => {
+          if (
+            current.media_ids.includes(
+              createdMedia.id
+            )
+          ) {
+            return current;
+          }
 
-      setLookupSuccess(
-        `La imagen “${createdMedia.original_filename}” fue subida y seleccionada como portada.`
-      );
+          return {
+            ...current,
+            media_ids: [
+              ...current.media_ids,
+              createdMedia.id,
+            ].slice(0, 3),
+          };
+        });
+
+        setAdFormErrors((current) => ({
+          ...current,
+          media_ids: undefined,
+        }));
+
+        setLookupSuccess(
+          `La imagen “${createdMedia.original_filename}” fue subida y agregada al hipervínculo.`
+        );
+      } else {
+        setForm((current) => ({
+          ...current,
+          cover_media_id: createdMedia.id,
+        }));
+
+        setLookupSuccess(
+          `La imagen “${createdMedia.original_filename}” fue subida y seleccionada como portada.`
+        );
+      }
+
+      if (uploadPreview) {
+        URL.revokeObjectURL(uploadPreview);
+      }
 
       setUploadMediaOpen(false);
       setUploadFile(null);
@@ -1189,6 +1401,7 @@ export default function BlogPostsSection({
       setUploadAltText("");
       setUploadCaption("");
       setUploadMediaError(null);
+      setUploadMediaTarget("cover");
     } catch (requestError) {
       setUploadMediaError(
         getErrorMessage(
@@ -1284,6 +1497,14 @@ export default function BlogPostsSection({
     setFormTab(0);
     setSlugEdited(false);
     setFormLoading(false);
+    setAds([]);
+    setAdsLoading(false);
+    setAdDialogOpen(false);
+    setEditingAd(null);
+    setAdForm(EMPTY_AD_FORM);
+    setAdFormErrors({});
+    setAdError(null);
+    setAdToDelete(null);
     setFormOpen(true);
   }
 
@@ -1299,6 +1520,14 @@ export default function BlogPostsSection({
     setFormErrors({});
     setFormTab(0);
     setSlugEdited(true);
+    setAds([]);
+    setAdsLoading(true);
+    setAdDialogOpen(false);
+    setEditingAd(null);
+    setAdForm(EMPTY_AD_FORM);
+    setAdFormErrors({});
+    setAdError(null);
+    setAdToDelete(null);
 
     try {
       const response = await blogApi.post(
@@ -1309,8 +1538,24 @@ export default function BlogPostsSection({
 
       const detailedPost = response.data.data;
 
+      let detailedAds =
+        detailedPost.ads;
+
+      if (detailedAds === undefined) {
+        const adsResponse =
+          await blogApi.postAds(
+            systemId,
+            blogId,
+            post.id
+          );
+
+        detailedAds =
+          adsResponse.data.data ?? [];
+      }
+
       setEditingPost(detailedPost);
       setForm(mapPostToForm(detailedPost));
+      setAds(sortAds(detailedAds ?? []));
     } catch (requestError) {
       setFormError(
         getErrorMessage(
@@ -1320,6 +1565,7 @@ export default function BlogPostsSection({
       );
     } finally {
       setFormLoading(false);
+      setAdsLoading(false);
     }
   }
 
@@ -1333,6 +1579,14 @@ export default function BlogPostsSection({
     setSlugEdited(false);
     setFormLoading(false);
     setLookupSuccess(null);
+    setAds([]);
+    setAdsLoading(false);
+    setAdDialogOpen(false);
+    setEditingAd(null);
+    setAdForm(EMPTY_AD_FORM);
+    setAdFormErrors({});
+    setAdError(null);
+    setAdToDelete(null);
   }
 
   function closeFormDialog() {
@@ -1341,7 +1595,9 @@ export default function BlogPostsSection({
       formLoading ||
       quickCategorySaving ||
       quickTagSaving ||
-      uploadingMedia
+      uploadingMedia ||
+      adSaving ||
+      adDeleting
     ) {
       return;
     }
@@ -1495,6 +1751,278 @@ export default function BlogPostsSection({
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | IMÁGENES CON HIPERVÍNCULO
+  |--------------------------------------------------------------------------
+  */
+
+  function mapAdToForm(
+    ad: BlogPostAd
+  ): AdForm {
+    return {
+      title: ad.title ?? "",
+      description: ad.description ?? "",
+      link_url: ad.link_url ?? "",
+      link_text: ad.link_text ?? "Ver más",
+      status: ad.status,
+      sort_order: ad.sort_order,
+      media_ids:
+        ad.media_ids?.length > 0
+          ? ad.media_ids
+          : ad.images
+              ?.sort(
+                (first, second) =>
+                  first.sort_order -
+                  second.sort_order
+              )
+              .map(
+                (image) => image.media_id
+              ) ?? [],
+    };
+  }
+
+  function openCreateAdDialog() {
+    if (!editingPost) {
+      setFormError(
+        "Primero guarda la publicación como borrador y vuelve a abrirla para agregar imágenes con hipervínculo."
+      );
+      return;
+    }
+
+    setEditingAd(null);
+    setAdForm(EMPTY_AD_FORM);
+    setAdFormErrors({});
+    setAdError(null);
+    setLookupSuccess(null);
+    setAdDialogOpen(true);
+  }
+
+  function openEditAdDialog(
+    ad: BlogPostAd
+  ) {
+    setEditingAd(ad);
+    setAdForm(mapAdToForm(ad));
+    setAdFormErrors({});
+    setAdError(null);
+    setLookupSuccess(null);
+    setAdDialogOpen(true);
+  }
+
+  function closeAdDialog() {
+    if (adSaving || uploadingMedia) {
+      return;
+    }
+
+    setAdDialogOpen(false);
+    setEditingAd(null);
+    setAdForm(EMPTY_AD_FORM);
+    setAdFormErrors({});
+    setAdError(null);
+  }
+
+  function handleToggleAdMedia(
+    mediaId: number
+  ) {
+    setAdForm((current) => {
+      if (
+        current.media_ids.includes(mediaId)
+      ) {
+        return {
+          ...current,
+          media_ids:
+            current.media_ids.filter(
+              (id) => id !== mediaId
+            ),
+        };
+      }
+
+      if (current.media_ids.length >= 3) {
+        return current;
+      }
+
+      return {
+        ...current,
+        media_ids: [
+          ...current.media_ids,
+          mediaId,
+        ],
+      };
+    });
+
+    setAdFormErrors((current) => ({
+      ...current,
+      media_ids: undefined,
+    }));
+  }
+
+  async function handleSaveAd() {
+    if (!editingPost) {
+      setAdError(
+        "La publicación debe existir antes de agregar el hipervínculo."
+      );
+      return;
+    }
+
+    const validationErrors =
+      validateAdForm(adForm);
+
+    setAdFormErrors(validationErrors);
+    setAdError(null);
+
+    if (
+      Object.keys(validationErrors).length > 0
+    ) {
+      return;
+    }
+
+    const payload: BlogPostAdPayload = {
+      title: adForm.title.trim(),
+      description:
+        adForm.description.trim() || null,
+      link_url: adForm.link_url.trim(),
+      link_text:
+        adForm.link_text.trim() || "Ver más",
+      status: adForm.status,
+      media_ids: adForm.media_ids,
+    };
+
+    if (adForm.sort_order !== "") {
+      payload.sort_order =
+        Number(adForm.sort_order);
+    }
+
+    try {
+      setAdSaving(true);
+      setAdError(null);
+      setLookupSuccess(null);
+
+      if (editingAd) {
+        const response =
+          await blogApi.updatePostAd(
+            systemId,
+            blogId,
+            editingPost.id,
+            editingAd.id,
+            payload
+          );
+
+        const updatedAd =
+          response.data.data;
+
+        setAds((current) =>
+          sortAds([
+            ...current.filter(
+              (ad) => ad.id !== updatedAd.id
+            ),
+            updatedAd,
+          ])
+        );
+
+        setLookupSuccess(
+          response.data.message ||
+            "El bloque de imágenes con hipervínculo fue actualizado."
+        );
+      } else {
+        const response =
+          await blogApi.createPostAd(
+            systemId,
+            blogId,
+            editingPost.id,
+            payload
+          );
+
+        const createdAd =
+          response.data.data;
+
+        setAds((current) =>
+          sortAds([
+            ...current,
+            createdAd,
+          ])
+        );
+
+        setLookupSuccess(
+          response.data.message ||
+            "El bloque de imágenes con hipervínculo fue creado."
+        );
+      }
+
+      setAdDialogOpen(false);
+      setEditingAd(null);
+      setAdForm(EMPTY_AD_FORM);
+      setAdFormErrors({});
+      setAdError(null);
+    } catch (requestError) {
+      setAdError(
+        getErrorMessage(
+          requestError,
+          editingAd
+            ? "No fue posible actualizar el hipervínculo."
+            : "No fue posible crear el hipervínculo."
+        )
+      );
+    } finally {
+      setAdSaving(false);
+    }
+  }
+
+  function openDeleteAdDialog(
+    ad: BlogPostAd
+  ) {
+    setAdToDelete(ad);
+  }
+
+  function closeDeleteAdDialog() {
+    if (adDeleting) {
+      return;
+    }
+
+    setAdToDelete(null);
+  }
+
+  async function handleDeleteAd() {
+    if (!editingPost || !adToDelete) {
+      return;
+    }
+
+    try {
+      setAdDeleting(true);
+      setFormError(null);
+      setLookupSuccess(null);
+
+      const response =
+        await blogApi.deletePostAd(
+          systemId,
+          blogId,
+          editingPost.id,
+          adToDelete.id
+        );
+
+      setAds((current) =>
+        current.filter(
+          (ad) => ad.id !== adToDelete.id
+        )
+      );
+
+      setLookupSuccess(
+        response.data.message ||
+          "El bloque de imágenes con hipervínculo fue eliminado."
+      );
+
+      setAdToDelete(null);
+    } catch (requestError) {
+      setFormError(
+        getErrorMessage(
+          requestError,
+          "No fue posible eliminar el hipervínculo."
+        )
+      );
+    } finally {
+      setAdDeleting(false);
     }
   }
 
@@ -1806,6 +2334,20 @@ export default function BlogPostsSection({
       ) ?? null
     );
   }, [form.og_image_media_id, media]);
+
+  const selectedAdMedia = useMemo(() => {
+    return adForm.media_ids
+      .map(
+        (mediaId) =>
+          media.find(
+            (item) => item.id === mediaId
+          ) ?? null
+      )
+      .filter(
+        (item): item is BlogMedia =>
+          item !== null
+      );
+  }, [adForm.media_ids, media]);
 
   function getConfirmationTitle(): string {
     switch (confirmation?.action) {
@@ -2921,25 +3463,295 @@ export default function BlogPostsSection({
                   </Grid>
 
                   <Grid item xs={12}>
-                  <Stack spacing={1}>
-                   <Typography fontWeight={800}>
-              Contenido de la publicación
-                </Typography>
+                    <Stack spacing={1}>
+                      <Typography fontWeight={800}>
+                        Contenido de la publicación
+                      </Typography>
 
-                  <BlogRichTextEditor
-                   value={form.content}
-                   disabled={saving}
-                   minHeight={320}
-                   onChange={(html) =>
-        setForm((current) => ({
-          ...current,
-          content: html,
-        }))
-      }
-    />
-  </Stack>
-</Grid>
-            
+                      <BlogRichTextEditor
+                        value={form.content}
+                        disabled={saving}
+                        minHeight={320}
+                        onChange={(html) =>
+                          setForm((current) => ({
+                            ...current,
+                            content: html,
+                          }))
+                        }
+                      />
+                    </Stack>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Divider />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Card
+                      elevation={0}
+                      sx={{
+                        borderRadius: 3,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        bgcolor: "background.default",
+                      }}
+                    >
+                      <CardContent>
+                        <Stack spacing={2}>
+                          <Stack
+                            direction={{
+                              xs: "column",
+                              sm: "row",
+                            }}
+                            justifyContent="space-between"
+                            alignItems={{
+                              xs: "stretch",
+                              sm: "center",
+                            }}
+                            spacing={1.5}
+                          >
+                            <Box>
+                              <Stack
+                                direction="row"
+                                alignItems="center"
+                                spacing={1}
+                              >
+                                <LinkOutlinedIcon
+                                  color="primary"
+                                />
+
+                                <Typography
+                                  fontWeight={900}
+                                >
+                                  Imágenes con hipervínculo
+                                </Typography>
+                              </Stack>
+
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 0.5 }}
+                              >
+                                Cada bloque puede contener
+                                entre una y tres imágenes que
+                                abrirán el mismo vínculo.
+                              </Typography>
+                            </Box>
+
+                            <Button
+                              variant="contained"
+                              startIcon={<AddIcon />}
+                              onClick={
+                                openCreateAdDialog
+                              }
+                              disabled={
+                                !editingPost ||
+                                saving ||
+                                adsLoading
+                              }
+                              sx={{
+                                flexShrink: 0,
+                                textTransform: "none",
+                                fontWeight: 800,
+                              }}
+                            >
+                              Agregar imágenes
+                            </Button>
+                          </Stack>
+
+                          {!editingPost ? (
+                            <Alert severity="info">
+                              Guarda primero la publicación
+                              como borrador. Después vuelve a
+                              editarla para agregar imágenes
+                              con hipervínculo.
+                            </Alert>
+                          ) : adsLoading ? (
+                            <Box
+                              sx={{
+                                minHeight: 100,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <CircularProgress size={28} />
+                            </Box>
+                          ) : ads.length === 0 ? (
+                            <Alert severity="info">
+                              Esta publicación todavía no
+                              tiene imágenes con hipervínculo.
+                            </Alert>
+                          ) : (
+                            <Stack spacing={2}>
+                              {ads.map((ad) => (
+                                <Card
+                                  key={ad.id}
+                                  elevation={0}
+                                  sx={{
+                                    border: "1px solid",
+                                    borderColor: "divider",
+                                    borderRadius: 3,
+                                    bgcolor: "background.paper",
+                                  }}
+                                >
+                                  <CardContent>
+                                    <Stack spacing={1.5}>
+                                      <Stack
+                                        direction={{
+                                          xs: "column",
+                                          sm: "row",
+                                        }}
+                                        justifyContent="space-between"
+                                        alignItems={{
+                                          xs: "flex-start",
+                                          sm: "center",
+                                        }}
+                                        spacing={1}
+                                      >
+                                        <Box sx={{ minWidth: 0 }}>
+                                          <Typography
+                                            fontWeight={900}
+                                          >
+                                            {ad.title}
+                                          </Typography>
+
+                                          <Typography
+                                            component="a"
+                                            href={ad.link_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            variant="body2"
+                                            color="primary"
+                                            sx={{
+                                              display: "block",
+                                              wordBreak: "break-all",
+                                              textDecoration: "none",
+                                            }}
+                                          >
+                                            {ad.link_url}
+                                          </Typography>
+                                        </Box>
+
+                                        <Chip
+                                          size="small"
+                                          label={getAdStatusLabel(
+                                            ad.status
+                                          )}
+                                          color={
+                                            ad.status === "active"
+                                              ? "success"
+                                              : "default"
+                                          }
+                                        />
+                                      </Stack>
+
+                                      {ad.description && (
+                                        <Typography
+                                          variant="body2"
+                                          color="text.secondary"
+                                        >
+                                          {ad.description}
+                                        </Typography>
+                                      )}
+
+                                      <Grid
+                                        container
+                                        spacing={1.5}
+                                      >
+                                        {ad.images.map(
+                                          (image) => (
+                                            <Grid
+                                              item
+                                              xs={12}
+                                              sm={4}
+                                              key={image.id}
+                                            >
+                                              <Box
+                                                component="a"
+                                                href={ad.link_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer sponsored"
+                                                sx={{
+                                                  display: "block",
+                                                  borderRadius: 2,
+                                                  overflow: "hidden",
+                                                  border: "1px solid",
+                                                  borderColor: "divider",
+                                                  textDecoration: "none",
+                                                }}
+                                              >
+                                                <MediaThumbnail
+                                                  media={image.media}
+                                                  height={120}
+                                                />
+                                              </Box>
+                                            </Grid>
+                                          )
+                                        )}
+                                      </Grid>
+
+                                      <Stack
+                                        direction={{
+                                          xs: "column",
+                                          sm: "row",
+                                        }}
+                                        justifyContent="flex-end"
+                                        spacing={1}
+                                      >
+                                        <Button
+                                          size="small"
+                                          variant="outlined"
+                                          startIcon={
+                                            <EditOutlinedIcon />
+                                          }
+                                          onClick={() =>
+                                            openEditAdDialog(ad)
+                                          }
+                                          disabled={
+                                            adSaving ||
+                                            adDeleting
+                                          }
+                                          sx={{
+                                            textTransform: "none",
+                                            fontWeight: 800,
+                                          }}
+                                        >
+                                          Editar
+                                        </Button>
+
+                                        <Button
+                                          size="small"
+                                          color="error"
+                                          variant="outlined"
+                                          startIcon={
+                                            <DeleteOutlineIcon />
+                                          }
+                                          onClick={() =>
+                                            openDeleteAdDialog(ad)
+                                          }
+                                          disabled={
+                                            adSaving ||
+                                            adDeleting
+                                          }
+                                          sx={{
+                                            textTransform: "none",
+                                            fontWeight: 800,
+                                          }}
+                                        >
+                                          Eliminar
+                                        </Button>
+                                      </Stack>
+                                    </Stack>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </Stack>
+                          )}
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </Grid>
                 </Grid>
               )}
 
@@ -3168,7 +3980,7 @@ export default function BlogPostsSection({
                           startIcon={
                             <CloudUploadOutlinedIcon />
                           }
-                          onClick={openUploadMediaDialog}
+                         onClick={() => openUploadMediaDialog("cover")}
                           disabled={
                             saving || lookupsLoading
                           }
@@ -3626,6 +4438,624 @@ export default function BlogPostsSection({
         </DialogActions>
       </Dialog>
 
+      {/* IMÁGENES CON HIPERVÍNCULO */}
+      <Dialog
+        open={adDialogOpen}
+        onClose={closeAdDialog}
+        fullWidth
+        maxWidth="md"
+        fullScreen={!isDesktop}
+      >
+        <DialogTitle>
+          <Typography
+            variant="h6"
+            fontWeight={900}
+          >
+            {editingAd
+              ? "Editar imágenes con hipervínculo"
+              : "Agregar imágenes con hipervínculo"}
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+          >
+            Selecciona entre una y tres imágenes.
+            Todas abrirán el mismo vínculo.
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Stack spacing={2.5}>
+            {adError && (
+              <Alert severity="error">
+                {adError}
+              </Alert>
+            )}
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={8}>
+                <TextField
+                  required
+                  fullWidth
+                  autoFocus
+                  label="Título"
+                  value={adForm.title}
+                  onChange={(event) => {
+                    setAdForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }));
+
+                    setAdFormErrors((current) => ({
+                      ...current,
+                      title: undefined,
+                    }));
+                  }}
+                  error={Boolean(
+                    adFormErrors.title
+                  )}
+                  helperText={
+                    adFormErrors.title ??
+                    `${adForm.title.length}/160 caracteres`
+                  }
+                  inputProps={{
+                    maxLength: 160,
+                  }}
+                  disabled={adSaving}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth>
+                  <InputLabel id="post-ad-status">
+                    Estado
+                  </InputLabel>
+
+                  <Select
+                    labelId="post-ad-status"
+                    label="Estado"
+                    value={adForm.status}
+                    onChange={(event) =>
+                      setAdForm((current) => ({
+                        ...current,
+                        status:
+                          event.target
+                            .value as BlogPostAdStatus,
+                      }))
+                    }
+                    disabled={adSaving}
+                  >
+                    <MenuItem value="active">
+                      Activo
+                    </MenuItem>
+
+                    <MenuItem value="inactive">
+                      Inactivo
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  label="Descripción"
+                  value={adForm.description}
+                  onChange={(event) => {
+                    setAdForm((current) => ({
+                      ...current,
+                      description:
+                        event.target.value,
+                    }));
+
+                    setAdFormErrors((current) => ({
+                      ...current,
+                      description: undefined,
+                    }));
+                  }}
+                  error={Boolean(
+                    adFormErrors.description
+                  )}
+                  helperText={
+                    adFormErrors.description ??
+                    `${adForm.description.length}/5000 caracteres`
+                  }
+                  inputProps={{
+                    maxLength: 5000,
+                  }}
+                  disabled={adSaving}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={8}>
+                <TextField
+                  required
+                  fullWidth
+                  label="Hipervínculo"
+                  placeholder="https://ejemplo.com"
+                  value={adForm.link_url}
+                  onChange={(event) => {
+                    setAdForm((current) => ({
+                      ...current,
+                      link_url:
+                        event.target.value,
+                    }));
+
+                    setAdFormErrors((current) => ({
+                      ...current,
+                      link_url: undefined,
+                    }));
+                  }}
+                  error={Boolean(
+                    adFormErrors.link_url
+                  )}
+                  helperText={
+                    adFormErrors.link_url ??
+                    "Debe utilizar HTTP o HTTPS."
+                  }
+                  disabled={adSaving}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  required
+                  fullWidth
+                  label="Texto del vínculo"
+                  value={adForm.link_text}
+                  onChange={(event) => {
+                    setAdForm((current) => ({
+                      ...current,
+                      link_text:
+                        event.target.value,
+                    }));
+
+                    setAdFormErrors((current) => ({
+                      ...current,
+                      link_text: undefined,
+                    }));
+                  }}
+                  error={Boolean(
+                    adFormErrors.link_text
+                  )}
+                  helperText={
+                    adFormErrors.link_text ??
+                    `${adForm.link_text.length}/80`
+                  }
+                  inputProps={{
+                    maxLength: 80,
+                  }}
+                  disabled={adSaving}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Orden"
+                  value={adForm.sort_order}
+                  onChange={(event) => {
+                    const value =
+                      event.target.value;
+
+                    setAdForm((current) => ({
+                      ...current,
+                      sort_order:
+                        value === ""
+                          ? ""
+                          : Number(value),
+                    }));
+
+                    setAdFormErrors((current) => ({
+                      ...current,
+                      sort_order: undefined,
+                    }));
+                  }}
+                  error={Boolean(
+                    adFormErrors.sort_order
+                  )}
+                  helperText={
+                    adFormErrors.sort_order ??
+                    "Opcional. Se asigna automáticamente."
+                  }
+                  inputProps={{
+                    min: 0,
+                    step: 1,
+                  }}
+                  disabled={adSaving}
+                />
+              </Grid>
+            </Grid>
+
+            <Divider />
+
+            <Stack
+              direction={{
+                xs: "column",
+                sm: "row",
+              }}
+              justifyContent="space-between"
+              alignItems={{
+                xs: "stretch",
+                sm: "center",
+              }}
+              spacing={1}
+            >
+              <Box>
+                <Typography fontWeight={900}>
+                  Imágenes seleccionadas
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  color={
+                    adFormErrors.media_ids
+                      ? "error"
+                      : "text.secondary"
+                  }
+                >
+                  {adFormErrors.media_ids ??
+                    `${adForm.media_ids.length}/3 imágenes seleccionadas`}
+                </Typography>
+              </Box>
+
+              <Button
+                variant="outlined"
+                startIcon={
+                  <CloudUploadOutlinedIcon />
+                }
+                onClick={() =>
+                  openUploadMediaDialog("ad")
+                }
+                disabled={
+                  adSaving ||
+                  uploadingMedia ||
+                  adForm.media_ids.length >= 3
+                }
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 800,
+                }}
+              >
+                Subir imagen
+              </Button>
+            </Stack>
+
+            {selectedAdMedia.length > 0 && (
+              <Grid container spacing={1.5}>
+                {selectedAdMedia.map(
+                  (selectedMedia, index) => (
+                    <Grid
+                      item
+                      xs={12}
+                      sm={4}
+                      key={selectedMedia.id}
+                    >
+                      <Card
+                        elevation={0}
+                        sx={{
+                          border: "2px solid",
+                          borderColor: "primary.main",
+                          borderRadius: 2,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <MediaThumbnail
+                          media={selectedMedia}
+                          height={120}
+                        />
+
+                        <Box sx={{ p: 1 }}>
+                          <Typography
+                            variant="caption"
+                            fontWeight={800}
+                            noWrap
+                            sx={{
+                              display: "block",
+                            }}
+                          >
+                            {index + 1}.{" "}
+                            {selectedMedia.original_filename}
+                          </Typography>
+
+                          <Button
+                            fullWidth
+                            size="small"
+                            color="error"
+                            onClick={() =>
+                              handleToggleAdMedia(
+                                selectedMedia.id
+                              )
+                            }
+                            disabled={adSaving}
+                            sx={{
+                              mt: 0.5,
+                              textTransform: "none",
+                              fontWeight: 800,
+                            }}
+                          >
+                            Quitar
+                          </Button>
+                        </Box>
+                      </Card>
+                    </Grid>
+                  )
+                )}
+              </Grid>
+            )}
+
+            <Box>
+              <Typography
+                fontWeight={900}
+                sx={{ mb: 1 }}
+              >
+                Biblioteca multimedia
+              </Typography>
+
+              {media.length === 0 ? (
+                <Alert severity="info">
+                  No hay imágenes disponibles. Usa
+                  “Subir imagen” para agregar la primera.
+                </Alert>
+              ) : (
+                <Grid container spacing={1.5}>
+                  {media.map((item) => {
+                    const selected =
+                      adForm.media_ids.includes(
+                        item.id
+                      );
+
+                    const disabled =
+                      !selected &&
+                      adForm.media_ids.length >= 3;
+
+                    return (
+                      <Grid
+                        item
+                        xs={6}
+                        sm={4}
+                        md={3}
+                        key={item.id}
+                      >
+                        <Card
+                          elevation={0}
+                          sx={{
+                            height: "100%",
+                            border: "2px solid",
+                            borderColor: selected
+                              ? "primary.main"
+                              : "divider",
+                            borderRadius: 2,
+                            overflow: "hidden",
+                            opacity: disabled
+                              ? 0.55
+                              : 1,
+                          }}
+                        >
+                          <CardActionArea
+                            onClick={() =>
+                              handleToggleAdMedia(
+                                item.id
+                              )
+                            }
+                            disabled={disabled}
+                            sx={{
+                              height: "100%",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "stretch",
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                position: "relative",
+                              }}
+                            >
+                              <MediaThumbnail
+                                media={item}
+                                height={110}
+                              />
+
+                              <Checkbox
+                                checked={selected}
+                                tabIndex={-1}
+                                disableRipple
+                                sx={{
+                                  position: "absolute",
+                                  top: 4,
+                                  right: 4,
+                                  bgcolor:
+                                    "background.paper",
+                                  borderRadius: "50%",
+
+                                  "&:hover": {
+                                    bgcolor:
+                                      "background.paper",
+                                  },
+                                }}
+                              />
+                            </Box>
+
+                            <Box sx={{ p: 1 }}>
+                              <Typography
+                                variant="caption"
+                                fontWeight={800}
+                                noWrap
+                                sx={{
+                                  display: "block",
+                                }}
+                              >
+                                {item.original_filename}
+                              </Typography>
+                            </Box>
+                          </CardActionArea>
+                        </Card>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              )}
+            </Box>
+          </Stack>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            p: 2,
+            flexDirection: {
+              xs: "column-reverse",
+              sm: "row",
+            },
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={closeAdDialog}
+            disabled={adSaving}
+            sx={{
+              width: {
+                xs: "100%",
+                sm: "auto",
+              },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            variant="contained"
+            startIcon={
+              adSaving ? (
+                <CircularProgress
+                  size={18}
+                  color="inherit"
+                />
+              ) : editingAd ? (
+                <EditOutlinedIcon />
+              ) : (
+                <LinkOutlinedIcon />
+              )
+            }
+            onClick={() =>
+              void handleSaveAd()
+            }
+            disabled={adSaving}
+            sx={{
+              width: {
+                xs: "100%",
+                sm: "auto",
+              },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            {adSaving
+              ? "Guardando..."
+              : editingAd
+                ? "Guardar cambios"
+                : "Agregar hipervínculo"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ELIMINAR IMÁGENES CON HIPERVÍNCULO */}
+      <Dialog
+        open={Boolean(adToDelete)}
+        onClose={closeDeleteAdDialog}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          <Typography
+            variant="h6"
+            fontWeight={900}
+          >
+            Eliminar imágenes con hipervínculo
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2}>
+            <Typography>
+              ¿Deseas eliminar{" "}
+              <strong>
+                “{adToDelete?.title ?? ""}”
+              </strong>
+              ?
+            </Typography>
+
+            <Alert severity="warning">
+              Se eliminará la relación con las
+              imágenes, pero los archivos continuarán
+              disponibles en Multimedia.
+            </Alert>
+          </Stack>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            p: 2,
+            flexDirection: {
+              xs: "column-reverse",
+              sm: "row",
+            },
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={closeDeleteAdDialog}
+            disabled={adDeleting}
+            sx={{
+              width: {
+                xs: "100%",
+                sm: "auto",
+              },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={
+              adDeleting ? (
+                <CircularProgress
+                  size={18}
+                  color="inherit"
+                />
+              ) : (
+                <DeleteOutlineIcon />
+              )
+            }
+            onClick={() =>
+              void handleDeleteAd()
+            }
+            disabled={adDeleting}
+            sx={{
+              width: {
+                xs: "100%",
+                sm: "auto",
+              },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            {adDeleting
+              ? "Eliminando..."
+              : "Sí, eliminar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* CREAR CATEGORÍA DESDE LA PUBLICACIÓN */}
       <Dialog
         open={quickCategoryOpen}
@@ -3877,15 +5307,18 @@ export default function BlogPostsSection({
       >
         <DialogTitle>
           <Typography variant="h6" fontWeight={900}>
-            Subir imagen de portada
+            {uploadMediaTarget === "ad"
+              ? "Subir imagen para hipervínculo"
+              : "Subir imagen de portada"}
           </Typography>
 
           <Typography
             variant="body2"
             color="text.secondary"
           >
-            La imagen quedará guardada en multimedia y
-            seleccionada como portada.
+            {uploadMediaTarget === "ad"
+              ? "La imagen quedará guardada en Multimedia y se agregará al bloque actual."
+              : "La imagen quedará guardada en Multimedia y seleccionada como portada."}
           </Typography>
         </DialogTitle>
 
@@ -4031,7 +5464,9 @@ export default function BlogPostsSection({
           >
             {uploadingMedia
               ? "Subiendo..."
-              : "Subir y seleccionar"}
+              : uploadMediaTarget === "ad"
+                ? "Subir y agregar"
+                : "Subir y seleccionar"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -4214,6 +5649,145 @@ export default function BlogPostsSection({
                   La publicación no tiene contenido.
                 </Alert>
               )}
+
+              {selectedPost.ads &&
+                selectedPost.ads.length > 0 && (
+                  <Stack spacing={2}>
+                    <Divider />
+
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                    >
+                      <LinkOutlinedIcon
+                        color="primary"
+                      />
+
+                      <Typography
+                        variant="h6"
+                        fontWeight={900}
+                      >
+                        Imágenes con hipervínculo
+                      </Typography>
+                    </Stack>
+
+                    {sortAds(
+                      selectedPost.ads
+                    ).map((ad) => (
+                      <Card
+                        key={ad.id}
+                        elevation={0}
+                        sx={{
+                          border: "1px solid",
+                          borderColor: "divider",
+                          borderRadius: 3,
+                        }}
+                      >
+                        <CardContent>
+                          <Stack spacing={1.5}>
+                            <Stack
+                              direction={{
+                                xs: "column",
+                                sm: "row",
+                              }}
+                              justifyContent="space-between"
+                              alignItems={{
+                                xs: "flex-start",
+                                sm: "center",
+                              }}
+                              spacing={1}
+                            >
+                              <Box>
+                                <Typography
+                                  fontWeight={900}
+                                >
+                                  {ad.title}
+                                </Typography>
+
+                                {ad.description && (
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    {ad.description}
+                                  </Typography>
+                                )}
+                              </Box>
+
+                              <Chip
+                                size="small"
+                                label={getAdStatusLabel(
+                                  ad.status
+                                )}
+                                color={
+                                  ad.status === "active"
+                                    ? "success"
+                                    : "default"
+                                }
+                              />
+                            </Stack>
+
+                            <Grid
+                              container
+                              spacing={1.5}
+                            >
+                              {ad.images.map(
+                                (image) => (
+                                  <Grid
+                                    item
+                                    xs={12}
+                                    sm={4}
+                                    key={image.id}
+                                  >
+                                    <Box
+                                      component="a"
+                                      href={ad.link_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer sponsored"
+                                      aria-label={ad.title}
+                                      sx={{
+                                        display: "block",
+                                        borderRadius: 2,
+                                        overflow: "hidden",
+                                        border: "1px solid",
+                                        borderColor: "divider",
+                                      }}
+                                    >
+                                      <MediaThumbnail
+                                        media={image.media}
+                                        height={150}
+                                      />
+                                    </Box>
+                                  </Grid>
+                                )
+                              )}
+                            </Grid>
+
+                            <Button
+                              component="a"
+                              href={ad.link_url}
+                              target="_blank"
+                              rel="noopener noreferrer sponsored"
+                              variant="outlined"
+                              startIcon={
+                                <LinkOutlinedIcon />
+                              }
+                              sx={{
+                                alignSelf:
+                                  "flex-start",
+                                textTransform: "none",
+                                fontWeight: 800,
+                              }}
+                            >
+                              {ad.link_text}
+                            </Button>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                )}
 
               <Divider />
 
