@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -12,6 +13,7 @@ import {
   MenuItem,
   Select,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -40,11 +42,32 @@ import {
   useEditor,
 } from "@tiptap/react";
 
+import {
+  Node,
+} from "@tiptap/core";
+
 import StarterKit from "@tiptap/starter-kit";
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
+
+export type BlogRichTextImageInput = {
+  /*
+   * URL pública generada automáticamente por
+   * Multimedia. En el editor se representa como
+   * hipervínculo y en la página pública como imagen.
+   */
+  url: string;
+
+  altText?: string | null;
+  title?: string | null;
+  caption?: string | null;
+};
+
+export type BlogRichTextImageInserter = (
+  image: BlogRichTextImageInput
+) => boolean;
 
 type Props = {
   value: string;
@@ -53,10 +76,16 @@ type Props = {
   minHeight?: number;
 
   /*
-   * Se conectará después con el selector
-   * del módulo Multimedia.
+   * El componente padre recibe una función para
+   * insertar la imagen exactamente en la posición
+   * donde estaba el cursor.
+   *
+   * El padre puede subir una imagen a Multimedia
+   * y después entregar su URL pública.
    */
-  onSelectImage?: () => void;
+  onSelectImage?: (
+    insertImage: BlogRichTextImageInserter
+  ) => void;
 };
 
 type BlockType =
@@ -185,6 +214,214 @@ function getValidColor(
   return fallback;
 }
 
+function isValidHttpUrl(
+  value: string
+): boolean {
+  try {
+    const parsedUrl = new URL(value);
+
+    return (
+      parsedUrl.protocol === "http:" ||
+      parsedUrl.protocol === "https:"
+    );
+  } catch {
+    return false;
+  }
+}
+
+const BlogImageReference = Node.create({
+  name: "blogImageReference",
+
+  group: "block",
+  atom: true,
+  draggable: true,
+  selectable: true,
+
+  addAttributes() {
+    return {
+      src: {
+        default: null,
+      },
+
+      alt: {
+        default: null,
+      },
+
+      title: {
+        default: null,
+      },
+
+      caption: {
+        default: null,
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      /*
+       * Nuevo formato: en el editor se muestra
+       * únicamente la URL pública como vínculo.
+       */
+      {
+        tag: "figure[data-blog-image-reference]",
+        getAttrs: (element) => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
+
+          const link =
+            element.querySelector<HTMLAnchorElement>(
+              "a[href]"
+            );
+
+          const caption =
+            element.querySelector(
+              "figcaption"
+            );
+
+          const src =
+            element.getAttribute(
+              "data-image-src"
+            ) ||
+            link?.getAttribute("href") ||
+            "";
+
+          if (!isValidHttpUrl(src)) {
+            return false;
+          }
+
+          return {
+            src,
+
+            alt:
+              element.getAttribute(
+                "data-image-alt"
+              ) || null,
+
+            title:
+              element.getAttribute(
+                "data-image-title"
+              ) || null,
+
+            caption:
+              caption?.textContent?.trim() ||
+              null,
+          };
+        },
+      },
+
+      /*
+       * Compatibilidad con imágenes insertadas
+       * previamente por versiones anteriores.
+       */
+      {
+        tag: "figure[data-blog-image]",
+        getAttrs: (element) => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
+
+          const image =
+            element.querySelector<HTMLImageElement>(
+              "img[src]"
+            );
+
+          if (!image) {
+            return false;
+          }
+
+          const caption =
+            element.querySelector(
+              "figcaption"
+            );
+
+          const src =
+            image.getAttribute("src") ||
+            "";
+
+          if (!isValidHttpUrl(src)) {
+            return false;
+          }
+
+          return {
+            src,
+
+            alt:
+              image.getAttribute("alt"),
+
+            title:
+              image.getAttribute("title"),
+
+            caption:
+              caption?.textContent?.trim() ||
+              null,
+          };
+        },
+      },
+    ];
+  },
+
+  renderHTML({ node }) {
+    const {
+      src,
+      alt,
+      title,
+      caption,
+    } = node.attrs;
+
+    const attributes: Record<
+      string,
+      string
+    > = {
+      "data-blog-image-reference": "true",
+      "data-image-src": src,
+      class: "blog-image-reference",
+    };
+
+    if (alt) {
+      attributes["data-image-alt"] =
+        alt;
+    }
+
+    if (title) {
+      attributes["data-image-title"] =
+        title;
+    }
+
+    const link = [
+      "a",
+      {
+        href: src,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        "data-image-reference-link":
+          "true",
+      },
+      src,
+    ];
+
+    if (caption) {
+      return [
+        "figure",
+        attributes,
+        link,
+        [
+          "figcaption",
+          {},
+          caption,
+        ],
+      ];
+    }
+
+    return [
+      "figure",
+      attributes,
+      link,
+    ];
+  },
+});
+
 function ColorPickerButton({
   title,
   value,
@@ -298,6 +535,13 @@ export default function BlogRichTextEditor({
   const [revision, setRevision] =
     useState(0);
 
+  /*
+   * Conserva la posición del cursor aunque se abra
+   * un diálogo de carga o de selección multimedia.
+   */
+  const imageInsertionPositionRef =
+    useRef<number | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -333,6 +577,8 @@ export default function BlogRichTextEditor({
         inline: false,
         allowBase64: false,
       }),
+
+      BlogImageReference,
     ],
 
     content: value || "<p></p>",
@@ -662,8 +908,82 @@ export default function BlogRichTextEditor({
       .run();
   }
 
+  function rememberImageInsertionPosition() {
+    imageInsertionPositionRef.current =
+      editor.state.selection.anchor;
+  }
+
+  const insertImageAtSavedPosition:
+    BlogRichTextImageInserter = (
+      image
+    ) => {
+      const cleanUrl = image.url.trim();
+
+      if (!isValidHttpUrl(cleanUrl)) {
+        return false;
+      }
+
+      const maximumPosition =
+        editor.state.doc.content.size;
+
+      const requestedPosition =
+        imageInsertionPositionRef.current ??
+        editor.state.selection.anchor;
+
+      const insertionPosition = Math.min(
+        Math.max(requestedPosition, 0),
+        maximumPosition
+      );
+
+      const altText =
+        image.altText?.trim() || null;
+
+      const title =
+        image.title?.trim() || null;
+
+      const caption =
+        image.caption?.trim() || null;
+
+      const inserted = editor
+        .chain()
+        .focus()
+        .setTextSelection(insertionPosition)
+        .insertContent({
+          type: "blogImageReference",
+
+          attrs: {
+            src: cleanUrl,
+            alt: altText,
+            title,
+            caption,
+          },
+        })
+        .run();
+
+      imageInsertionPositionRef.current =
+        null;
+
+      return inserted;
+    };
+
+  function requestImageUpload() {
+    if (
+      disabled ||
+      !onSelectImage
+    ) {
+      return;
+    }
+
+    rememberImageInsertionPosition();
+
+    onSelectImage(
+      insertImageAtSavedPosition
+    );
+  }
+
   return (
-    <Box
+    <>
+      <Box
       sx={{
         width: "100%",
         minWidth: 0,
@@ -1193,7 +1513,7 @@ export default function BlogRichTextEditor({
               </span>
             </Tooltip>
 
-            <Tooltip title="Insertar imagen desde Multimedia">
+            <Tooltip title="Seleccionar imagen de Multimedia">
               <span>
                 <IconButton
                   size="small"
@@ -1201,7 +1521,7 @@ export default function BlogRichTextEditor({
                     disabled ||
                     !onSelectImage
                   }
-                  onClick={onSelectImage}
+                  onClick={requestImageUpload}
                 >
                   <ImageOutlinedIcon />
                 </IconButton>
@@ -1380,12 +1700,45 @@ export default function BlogRichTextEditor({
               cursor: "pointer",
             },
 
-            "& img": {
+            "& figure.blog-image-reference": {
+              width: "100%",
+              my: 2,
+              mx: 0,
+              p: 1.5,
+              border: "1px solid",
+              borderColor: "divider",
+              borderLeft: "4px solid",
+              borderLeftColor: "primary.main",
+              borderRadius: 2,
+              bgcolor: "action.hover",
+            },
+
+            "& figure.blog-image-reference > a": {
               display: "block",
+              color: "primary.main",
+              fontWeight: 700,
+              lineHeight: 1.55,
+              overflowWrap: "anywhere",
+              textDecoration: "underline",
+            },
+
+            "& figure.blog-image-reference figcaption": {
+              mt: 1,
+              color: "text.secondary",
+              fontSize: "0.9rem",
+              lineHeight: 1.55,
+            },
+
+            "& > img": {
+              display: "block",
+              width: "100%",
               maxWidth: "100%",
               height: "auto",
               my: 2,
-              borderRadius: 1,
+              borderRadius: 2,
+              border: "1px solid",
+              borderColor: "divider",
+              objectFit: "contain",
             },
 
             "& pre": {
@@ -1437,10 +1790,15 @@ export default function BlogRichTextEditor({
           variant="caption"
           color="text.secondary"
         >
-          Selecciona el texto para aplicar fuente,
-          tamaño, color, alineación o estilos.
+          Coloca el cursor donde debe aparecer la imagen.
+          En el editor se mostrará su hipervínculo y el pie
+          de imagen; la imagen centrada se renderizará
+          únicamente en la página pública. No existe límite
+          de tres imágenes dentro del contenido.
         </Typography>
       </Box>
     </Box>
+
+    </>
   );
 }

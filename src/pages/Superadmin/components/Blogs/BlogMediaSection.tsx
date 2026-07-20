@@ -43,9 +43,11 @@ import {
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import BrokenImageIcon from "@mui/icons-material/BrokenImage";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ImageIcon from "@mui/icons-material/Image";
+import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -190,6 +192,53 @@ function getUsageTotal(media: BlogMedia): number {
 
 function isMediaInUse(media: BlogMedia): boolean {
   return getUsageTotal(media) > 0;
+}
+
+async function copyTextToClipboard(
+  value: string
+): Promise<boolean> {
+  try {
+    if (
+      navigator.clipboard &&
+      window.isSecureContext
+    ) {
+      await navigator.clipboard.writeText(
+        value
+      );
+
+      return true;
+    }
+
+    const textarea =
+      document.createElement("textarea");
+
+    textarea.value = value;
+    textarea.setAttribute(
+      "readonly",
+      "true"
+    );
+
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+
+    document.body.appendChild(textarea);
+
+    textarea.select();
+    textarea.setSelectionRange(
+      0,
+      textarea.value.length
+    );
+
+    const copied =
+      document.execCommand("copy");
+
+    textarea.remove();
+
+    return copied;
+  } catch {
+    return false;
+  }
 }
 
 function MediaPreview({
@@ -786,6 +835,43 @@ export default function BlogMediaSection({
 
   /*
   |--------------------------------------------------------------------------
+  | URL PÚBLICA
+  |--------------------------------------------------------------------------
+  */
+
+  async function handleCopyMediaUrl(
+    item: BlogMedia
+  ) {
+    if (!item.url) {
+      setError(
+        "La imagen no tiene una URL pública disponible."
+      );
+
+      return;
+    }
+
+    const copied =
+      await copyTextToClipboard(
+        item.url
+      );
+
+    if (!copied) {
+      setError(
+        "No fue posible copiar la URL pública de la imagen."
+      );
+
+      return;
+    }
+
+    setError(null);
+
+    setSuccess(
+      `La URL pública de “${item.original_filename}” fue copiada.`
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
   | ACCIONES
   |--------------------------------------------------------------------------
   */
@@ -810,6 +896,22 @@ export default function BlogMediaSection({
             sx={{ p: 0.5 }}
           >
             <VisibilityOutlinedIcon
+              sx={{ fontSize: 18 }}
+            />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Copiar URL pública">
+          <IconButton
+            size="small"
+            color="primary"
+            aria-label={`Copiar URL de ${item.original_filename}`}
+            onClick={() =>
+              void handleCopyMediaUrl(item)
+            }
+            sx={{ p: 0.5 }}
+          >
+            <ContentCopyOutlinedIcon
               sx={{ fontSize: 18 }}
             />
           </IconButton>
@@ -1165,13 +1267,14 @@ export default function BlogMediaSection({
             <TableContainer
               sx={{
                 width: "100%",
-                overflowX: "hidden",
+                overflowX: "auto",
               }}
             >
               <Table
                 size="small"
                 sx={{
                   width: "100%",
+                  minWidth: 1180,
                   tableLayout: "fixed",
 
                   "& .MuiTableCell-root": {
@@ -1192,38 +1295,44 @@ export default function BlogMediaSection({
                 <TableHead>
                   <TableRow>
                     <TableCell
-                      sx={{ width: "8%" }}
+                      sx={{ width: "7%" }}
                     >
                       Vista
                     </TableCell>
 
                     <TableCell
-                      sx={{ width: "20%" }}
+                      sx={{ width: "15%" }}
                     >
                       Archivo
                     </TableCell>
 
                     <TableCell
-                      sx={{ width: "16%" }}
+                      sx={{ width: "11%" }}
                     >
                       Detalles
                     </TableCell>
 
                     <TableCell
-                      sx={{ width: "30%" }}
+                      sx={{ width: "17%" }}
                     >
                       Información
                     </TableCell>
 
                     <TableCell
-                      sx={{ width: "16%" }}
+                      sx={{ width: "25%" }}
+                    >
+                      URL pública
+                    </TableCell>
+
+                    <TableCell
+                      sx={{ width: "13%" }}
                     >
                       Uso
                     </TableCell>
 
                     <TableCell
                       align="center"
-                      sx={{ width: "10%" }}
+                      sx={{ width: "12%" }}
                     >
                       Acciones
                     </TableCell>
@@ -1402,6 +1511,86 @@ export default function BlogMediaSection({
                         </Tooltip>
                       </TableCell>
 
+                      {/* URL PÚBLICA */}
+                      <TableCell>
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          alignItems="center"
+                        >
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={item.url}
+                            aria-label={`URL pública de ${item.original_filename}`}
+                            InputProps={{
+                              readOnly: true,
+                            }}
+                            inputProps={{
+                              onFocus: (
+                                event
+                              ) => {
+                                event.currentTarget.select();
+                              },
+                              onClick: (
+                                event
+                              ) => {
+                                event.currentTarget.select();
+                              },
+                            }}
+                            sx={{
+                              minWidth: 0,
+
+                              "& .MuiInputBase-root": {
+                                height: 32,
+                              },
+
+                              "& input": {
+                                px: 1,
+                                py: 0.5,
+                                fontSize: "0.67rem",
+                              },
+                            }}
+                          />
+
+                          <Tooltip title="Copiar URL">
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() =>
+                                void handleCopyMediaUrl(
+                                  item
+                                )
+                              }
+                              aria-label={`Copiar URL pública de ${item.original_filename}`}
+                            >
+                              <ContentCopyOutlinedIcon
+                                sx={{
+                                  fontSize: 18,
+                                }}
+                              />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip title="Abrir imagen">
+                            <IconButton
+                              component="a"
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              size="small"
+                              aria-label={`Abrir ${item.original_filename}`}
+                            >
+                              <OpenInNewOutlinedIcon
+                                sx={{
+                                  fontSize: 18,
+                                }}
+                              />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+
                       {/* USO */}
                       <TableCell>
                         <Stack spacing={0.3}>
@@ -1572,6 +1761,67 @@ export default function BlogMediaSection({
                           "Sin registrar"}
                       </Typography>
 
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          fontWeight={800}
+                          sx={{ mb: 0.75 }}
+                        >
+                          URL pública
+                        </Typography>
+
+                        <Stack
+                          direction="row"
+                          spacing={0.75}
+                          alignItems="center"
+                        >
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={item.url}
+                            InputProps={{
+                              readOnly: true,
+                            }}
+                            inputProps={{
+                              onFocus: (
+                                event
+                              ) => {
+                                event.currentTarget.select();
+                              },
+                              onClick: (
+                                event
+                              ) => {
+                                event.currentTarget.select();
+                              },
+                            }}
+                          />
+
+                          <Tooltip title="Copiar URL">
+                            <IconButton
+                              color="primary"
+                              onClick={() =>
+                                void handleCopyMediaUrl(
+                                  item
+                                )
+                              }
+                            >
+                              <ContentCopyOutlinedIcon />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip title="Abrir imagen">
+                            <IconButton
+                              component="a"
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <OpenInNewOutlinedIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </Box>
+
                       <Stack
                         direction="row"
                         spacing={1}
@@ -1623,6 +1873,26 @@ export default function BlogMediaSection({
                       <Divider />
 
                       <Stack spacing={1}>
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          startIcon={
+                            <ContentCopyOutlinedIcon />
+                          }
+                          onClick={() =>
+                            void handleCopyMediaUrl(
+                              item
+                            )
+                          }
+                          sx={{
+                            textTransform:
+                              "none",
+                            fontWeight: 800,
+                          }}
+                        >
+                          Copiar URL pública
+                        </Button>
+
                         <Button
                           fullWidth
                           variant="outlined"
@@ -2094,6 +2364,93 @@ export default function BlogMediaSection({
                   objectFit="contain"
                 />
               </Box>
+
+              <Card
+                elevation={0}
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 3,
+                }}
+              >
+                <CardContent>
+                  <Stack spacing={1.25}>
+                    <Typography fontWeight={900}>
+                      URL pública
+                    </Typography>
+
+                    <Stack
+                      direction={{
+                        xs: "column",
+                        sm: "row",
+                      }}
+                      spacing={1}
+                      alignItems={{
+                        xs: "stretch",
+                        sm: "center",
+                      }}
+                    >
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={selectedMedia.url}
+                        InputProps={{
+                          readOnly: true,
+                        }}
+                        inputProps={{
+                          onFocus: (
+                            event
+                          ) => {
+                            event.currentTarget.select();
+                          },
+                          onClick: (
+                            event
+                          ) => {
+                            event.currentTarget.select();
+                          },
+                        }}
+                      />
+
+                      <Button
+                        variant="contained"
+                        startIcon={
+                          <ContentCopyOutlinedIcon />
+                        }
+                        onClick={() =>
+                          void handleCopyMediaUrl(
+                            selectedMedia
+                          )
+                        }
+                        sx={{
+                          flexShrink: 0,
+                          textTransform: "none",
+                          fontWeight: 800,
+                        }}
+                      >
+                        Copiar URL
+                      </Button>
+
+                      <Button
+                        component="a"
+                        href={selectedMedia.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="outlined"
+                        startIcon={
+                          <OpenInNewOutlinedIcon />
+                        }
+                        sx={{
+                          flexShrink: 0,
+                          textTransform: "none",
+                          fontWeight: 800,
+                        }}
+                      >
+                        Abrir
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </CardContent>
+              </Card>
 
               <Grid container spacing={2}>
                 <Grid

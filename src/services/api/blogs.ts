@@ -255,6 +255,16 @@ export type BlogPostAdStatus =
   | "active"
   | "inactive";
 
+/*
+ * Cada anuncio utiliza exactamente tres imágenes.
+ * El backend también debe validar esta regla con size:3.
+ */
+export type BlogPostAdMediaIds = [
+  number,
+  number,
+  number,
+];
+
 export type BlogPostAdImage = {
   id: number;
   media_id: number;
@@ -309,10 +319,10 @@ export type BlogPostAdPayload = {
   sort_order?: number | null;
 
   /*
-   * Debe contener entre 1 y 3 IDs distintos,
+   * Debe contener exactamente tres IDs distintos,
    * todos pertenecientes al mismo blog.
    */
-  media_ids: number[];
+  media_ids: BlogPostAdMediaIds;
 };
 
 /*
@@ -526,6 +536,123 @@ export type ApiCollectionResponse<T> = {
 
 /*
 |--------------------------------------------------------------------------
+| VALIDACIÓN LOCAL DE ANUNCIOS
+|--------------------------------------------------------------------------
+*/
+
+function assertHttpUrl(
+  value: string,
+  fieldName: string
+): void {
+  try {
+    const parsedUrl = new URL(value.trim());
+
+    if (
+      parsedUrl.protocol !== "http:" &&
+      parsedUrl.protocol !== "https:"
+    ) {
+      throw new Error();
+    }
+  } catch {
+    throw new Error(
+      `${fieldName} debe ser una URL HTTP o HTTPS válida.`
+    );
+  }
+}
+
+function assertPostAdPayload(
+  payload: BlogPostAdPayload,
+  index?: number
+): void {
+  const prefix =
+    typeof index === "number"
+      ? `Anuncio ${index + 1}: `
+      : "";
+
+  if (!payload.title.trim()) {
+    throw new Error(
+      `${prefix}el título es obligatorio.`
+    );
+  }
+
+  if (!payload.link_url.trim()) {
+    throw new Error(
+      `${prefix}la URL de destino es obligatoria.`
+    );
+  }
+
+  assertHttpUrl(
+    payload.link_url,
+    `${prefix}la URL de destino`
+  );
+
+  if (!payload.link_text.trim()) {
+    throw new Error(
+      `${prefix}el texto del vínculo es obligatorio.`
+    );
+  }
+
+  if (
+    !Array.isArray(payload.media_ids) ||
+    payload.media_ids.length !== 3
+  ) {
+    throw new Error(
+      `${prefix}debe seleccionar exactamente tres imágenes.`
+    );
+  }
+
+  const normalizedIds =
+    payload.media_ids.map(Number);
+
+  if (
+    normalizedIds.some(
+      (mediaId) =>
+        !Number.isInteger(mediaId) ||
+        mediaId <= 0
+    )
+  ) {
+    throw new Error(
+      `${prefix}las imágenes seleccionadas no son válidas.`
+    );
+  }
+
+  if (
+    new Set(normalizedIds).size !== 3
+  ) {
+    throw new Error(
+      `${prefix}las tres imágenes deben ser diferentes.`
+    );
+  }
+
+  if (
+    payload.sort_order !== undefined &&
+    payload.sort_order !== null &&
+    (
+      !Number.isInteger(payload.sort_order) ||
+      payload.sort_order < 0
+    )
+  ) {
+    throw new Error(
+      `${prefix}el orden debe ser un entero igual o mayor que cero.`
+    );
+  }
+}
+
+function assertPostAdsPayload(
+  ads: BlogPostAdPayload[] | undefined
+): void {
+  if (!ads) {
+    return;
+  }
+
+  ads.forEach(
+    (ad, index) =>
+      assertPostAdPayload(ad, index)
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
 | RUTAS
 |--------------------------------------------------------------------------
 */
@@ -654,21 +781,26 @@ export const blogApi = {
     systemId: number | string,
     blogId: number | string,
     payload: BlogPostPayload
-  ) =>
-    axiosClient.post<
+  ) => {
+    assertPostAdsPayload(payload.ads);
+
+    return axiosClient.post<
       ApiResourceResponse<BlogPost>
     >(
       postsRoute(systemId, blogId),
       payload
-    ),
+    );
+  },
 
   updatePost: (
     systemId: number | string,
     blogId: number | string,
     postId: number | string,
     payload: BlogPostUpdatePayload
-  ) =>
-    axiosClient.put<
+  ) => {
+    assertPostAdsPayload(payload.ads);
+
+    return axiosClient.put<
       ApiResourceResponse<BlogPost>
     >(
       `${postsRoute(
@@ -676,7 +808,8 @@ export const blogApi = {
         blogId
       )}/${postId}`,
       payload
-    ),
+    );
+  },
 
   deletePost: (
     systemId: number | string,
@@ -778,8 +911,10 @@ export const blogApi = {
     blogId: number | string,
     postId: number | string,
     payload: BlogPostAdPayload
-  ) =>
-    axiosClient.post<
+  ) => {
+    assertPostAdPayload(payload);
+
+    return axiosClient.post<
       ApiResourceResponse<BlogPostAd>
     >(
       postAdsRoute(
@@ -788,7 +923,8 @@ export const blogApi = {
         postId
       ),
       payload
-    ),
+    );
+  },
 
   updatePostAd: (
     systemId: number | string,
@@ -796,8 +932,10 @@ export const blogApi = {
     postId: number | string,
     adId: number | string,
     payload: BlogPostAdUpdatePayload
-  ) =>
-    axiosClient.put<
+  ) => {
+    assertPostAdPayload(payload);
+
+    return axiosClient.put<
       ApiResourceResponse<BlogPostAd>
     >(
       postAdRoute(
@@ -807,7 +945,8 @@ export const blogApi = {
         adId
       ),
       payload
-    ),
+    );
+  },
 
   deletePostAd: (
     systemId: number | string,
@@ -987,20 +1126,7 @@ export const blogApi = {
       ApiResourceResponse<BlogMedia>
     >(
       mediaRoute(systemId, blogId),
-      payload,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-
-        /*
-         * Evita que una configuración global de Axios
-         * convierta el FormData en JSON.
-         */
-        transformRequest: [
-          (data) => data,
-        ],
-      }
+      payload
     ),
 
   updateMedia: (

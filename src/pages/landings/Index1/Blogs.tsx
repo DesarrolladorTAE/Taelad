@@ -386,6 +386,15 @@ export default function Blogs() {
             --blog-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
           }
 
+          .elad-blog-shell {
+            width: 100%;
+            max-width: 1800px;
+            margin-right: auto;
+            margin-left: auto;
+            padding-right: clamp(16px, 3vw, 56px);
+            padding-left: clamp(16px, 3vw, 56px);
+          }
+
           .elad-blog-hero {
             position: relative;
             display: flex;
@@ -406,6 +415,24 @@ export default function Blogs() {
               );
             background-position: center;
             background-size: cover;
+          }
+
+          .elad-blog-content {
+            width: 100%;
+            padding: 64px 0 90px;
+          }
+
+          .elad-blog-toolbar {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            justify-content: flex-start;
+            margin-bottom: 28px;
+          }
+
+          .elad-blog-grid {
+            --bs-gutter-x: 2rem;
+            --bs-gutter-y: 2rem;
           }
 
           .elad-blog-hero::before {
@@ -558,17 +585,23 @@ export default function Blogs() {
           }
 
           .elad-blog-search-panel {
-            width: 100%;
+            width: 0;
             max-width: 0;
             overflow: hidden;
             opacity: 0;
-            transform: translateX(12px);
-            transition: max-width 0.3s ease, opacity 0.22s ease, transform 0.3s ease;
+            transform: translateX(-12px);
+            transition:
+              width 0.3s ease,
+              max-width 0.3s ease,
+              margin-left 0.3s ease,
+              opacity 0.22s ease,
+              transform 0.3s ease;
           }
 
           .elad-blog-search-panel.open {
+            width: min(540px, calc(100% - 60px));
             max-width: 540px;
-            margin-right: 12px;
+            margin-left: 12px;
             opacity: 1;
             transform: translateX(0);
           }
@@ -689,9 +722,9 @@ export default function Blogs() {
 
           .elad-blog-card-body {
             display: flex;
-            min-height: 295px;
+            min-height: 305px;
             flex-direction: column;
-            padding: 24px;
+            padding: 28px;
           }
 
           .elad-blog-category {
@@ -837,6 +870,11 @@ export default function Blogs() {
           }
 
           @media (max-width: 575.98px) {
+            .elad-blog-shell {
+              padding-right: 14px;
+              padding-left: 14px;
+            }
+
             .elad-blog-hero {
               min-height: auto;
               padding-top: 104px;
@@ -873,7 +911,9 @@ export default function Blogs() {
             }
 
             .elad-blog-search-panel.open {
-              margin-right: 8px;
+              width: calc(100% - 56px);
+              max-width: calc(100% - 56px);
+              margin-left: 8px;
             }
 
             .elad-blog-card {
@@ -904,7 +944,10 @@ export default function Blogs() {
         ].join(" ")}
       >
         <section className="elad-blog-hero">
-          <Container>
+          <Container
+            fluid
+            className="elad-blog-shell"
+          >
             <Row
               className="elad-blog-hero-row align-items-center"
             >
@@ -950,8 +993,32 @@ export default function Blogs() {
         </section>
 
         <section className="elad-blog-content">
-          <Container>
+          <Container
+            fluid
+            className="elad-blog-shell"
+          >
             <div className="elad-blog-toolbar">
+              <button
+                type="button"
+                className="elad-blog-search-toggle"
+                aria-label={
+                  searchOpen
+                    ? "Cerrar buscador"
+                    : "Abrir buscador"
+                }
+                aria-expanded={searchOpen}
+                onClick={toggleSearch}
+              >
+                <i
+                  className={
+                    searchOpen
+                      ? "mdi mdi-close"
+                      : "mdi mdi-magnify"
+                  }
+                  aria-hidden="true"
+                />
+              </button>
+
               <div
                 className={[
                   "elad-blog-search-panel",
@@ -992,27 +1059,6 @@ export default function Blogs() {
                   )}
                 </div>
               </div>
-
-              <button
-                type="button"
-                className="elad-blog-search-toggle"
-                aria-label={
-                  searchOpen
-                    ? "Cerrar buscador"
-                    : "Abrir buscador"
-                }
-                aria-expanded={searchOpen}
-                onClick={toggleSearch}
-              >
-                <i
-                  className={
-                    searchOpen
-                      ? "mdi mdi-close"
-                      : "mdi mdi-magnify"
-                  }
-                  aria-hidden="true"
-                />
-              </button>
             </div>
 
             {!loading &&
@@ -1085,13 +1131,13 @@ export default function Blogs() {
             {!loading &&
               !error &&
               filteredPosts.length > 0 && (
-                <Row className="g-4">
+                <Row className="elad-blog-grid">
                   {filteredPosts.map((post) => (
                     <Col
                       key={post.slug}
                       xs={12}
                       md={6}
-                      lg={4}
+                      xl={4}
                     >
                       <Card className="elad-blog-card">
                         {post.cover?.url ? (
