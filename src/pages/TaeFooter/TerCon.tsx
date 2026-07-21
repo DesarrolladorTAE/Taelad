@@ -1,54 +1,93 @@
 import React from "react";
-import { Container, Row, Col } from "react-bootstrap";
+import { Helmet } from "react-helmet-async";
+import {
+  Col,
+  Container,
+  Row,
+} from "react-bootstrap";
+
 import bgImg from "../../assets/images/TaeFooter/20943526.jpg";
 
-// Navbar y footer
 import { Navbar1 } from "../../components/navbar";
 import TaeFooter from "../../components/TaeFooter";
 import BackToTop from "../../components/BackToTop";
-import Login from "../auth/Login";
-import Signin from "../auth/Signin";
 
-const TerminosCondiciones: React.FC = () => (
-    <>
-        {/* navbar */}
-        <Navbar1 classname="navbar-light" isLogoDark={false} />
+const SITE_URL =
+  "https://tecnologiasadministrativas.com";
 
-        {/* Banner superior */}
-        <div
-            style={{
-                background: `linear-gradient(rgba(24,54,122,0.7),rgba(24,54,122,0.7)), url('${bgImg}') center/cover no-repeat`,
-                minHeight: 250,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-            }}
-        >
-            <h1
-                className="text-white fw-bold"
-                style={{ fontSize: "2.3rem", letterSpacing: 1, textAlign: "center" }}
-            >
-                Términos y Condiciones
-            </h1>
-        </div>
+const PAGE_CANONICAL_URL =
+  `${SITE_URL}/terminos-condiciones`;
 
-        {/* Contenido principal */}
-        <Container className="py-5">
-            <Row className="justify-content-center">
-                <Col md={11} lg={10}>
-                    <div
-                        style={{
-                            background: "#f8fafc",
-                            borderRadius: 12,
-                            boxShadow: "0 2px 8px rgba(24,54,122,0.06)",
-                            padding: "2.5rem 2rem",
-                        }}
-                    >
-                        {/* <h2 className="fw-bold mb-4 text-center" style={{ color: "#2061b2" }}>
-                            Términos y Condiciones
-                        </h2> */}
-                        <div style={{ whiteSpace: "pre-line", fontSize: "1.08rem" }}>
-                            {`INFORMACIÓN GENERAL
+const PAGE_TITLE =
+  "Términos y condiciones | Tecnologías Administrativas ELAD";
+
+const PAGE_DESCRIPTION =
+  "Consulta los términos y condiciones de uso y contratación de los productos y servicios ofrecidos por Tecnologías Administrativas ELAD.";
+
+const PAGE_KEYWORDS = [
+  "términos y condiciones",
+  "condiciones de uso",
+  "contratación de servicios",
+  "servicios tecnológicos",
+  "Tecnologías Administrativas ELAD",
+];
+
+const PAGE_IMAGE_URL =
+  new URL(
+    bgImg,
+    SITE_URL
+  ).toString();
+
+const LAST_UPDATED =
+  "2025-06-09";
+
+const PAGE_STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "Tecnologías Administrativas ELAD",
+      url: `${SITE_URL}/`,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/logo192.png`,
+      },
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${PAGE_CANONICAL_URL}#webpage`,
+      url: PAGE_CANONICAL_URL,
+      name: PAGE_TITLE,
+      description: PAGE_DESCRIPTION,
+      inLanguage: "es-MX",
+      dateModified: LAST_UPDATED,
+      isPartOf: {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: `${SITE_URL}/`,
+        name: "Tecnologías Administrativas ELAD",
+      },
+      about: {
+        "@id": `${SITE_URL}/#organization`,
+      },
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: PAGE_IMAGE_URL,
+      },
+    },
+  ],
+};
+
+const contentCardStyle: React.CSSProperties = {
+  background: "#f8fafc",
+  borderRadius: 12,
+  boxShadow:
+    "0 2px 8px rgba(24, 54, 122, 0.06)",
+  padding: "2.5rem 2rem",
+};
+
+const termsText = `INFORMACIÓN GENERAL
 📄 Términos y Condiciones de Uso
 Tecnologías Administrativas ELAD®
 
@@ -148,20 +187,171 @@ Interrupciones temporales por mantenimiento.
 
 12. Jurisdicción y Legislación Aplicable
 Estos Términos se rigen por las leyes mexicanas. Para cualquier controversia, ambas partes se someten a los tribunales competentes de Cuernavaca, Morelos, México, renunciando a cualquier otro fuero.
-Preguntas acerca de los Términos de Servicio deben ser enviadas a raul.alvarez@tecnologiasadministrativas.com`}
-                        </div>
-                    </div>
-                </Col>
-            </Row>
-        </Container>
+Preguntas acerca de los Términos de Servicio deben ser enviadas a raul.alvarez@tecnologiasadministrativas.com`;
 
-        {/* footer */}
-        <TaeFooter />
-        {/* back to top, login y signin */}
-        <BackToTop />
-        <Login />
-        <Signin />
+const TerminosCondiciones: React.FC = () => {
+  return (
+    <>
+      <Helmet>
+        <html lang="es-MX" />
+
+        <title>{PAGE_TITLE}</title>
+
+        <meta
+          name="description"
+          content={PAGE_DESCRIPTION}
+        />
+
+        <meta
+          name="keywords"
+          content={PAGE_KEYWORDS.join(", ")}
+        />
+
+        <meta
+          name="robots"
+          content="index, follow"
+        />
+
+        <link
+          rel="canonical"
+          href={PAGE_CANONICAL_URL}
+        />
+
+        <meta
+          property="og:locale"
+          content="es_MX"
+        />
+
+        <meta
+          property="og:type"
+          content="website"
+        />
+
+        <meta
+          property="og:site_name"
+          content="Tecnologías Administrativas ELAD"
+        />
+
+        <meta
+          property="og:title"
+          content={PAGE_TITLE}
+        />
+
+        <meta
+          property="og:description"
+          content={PAGE_DESCRIPTION}
+        />
+
+        <meta
+          property="og:url"
+          content={PAGE_CANONICAL_URL}
+        />
+
+        <meta
+          property="og:image"
+          content={PAGE_IMAGE_URL}
+        />
+
+        <meta
+          property="og:image:alt"
+          content="Términos y condiciones de Tecnologías Administrativas ELAD"
+        />
+
+        <meta
+          name="twitter:card"
+          content="summary_large_image"
+        />
+
+        <meta
+          name="twitter:title"
+          content={PAGE_TITLE}
+        />
+
+        <meta
+          name="twitter:description"
+          content={PAGE_DESCRIPTION}
+        />
+
+        <meta
+          name="twitter:image"
+          content={PAGE_IMAGE_URL}
+        />
+
+        <meta
+          name="twitter:image:alt"
+          content="Términos y condiciones de Tecnologías Administrativas ELAD"
+        />
+
+        <script type="application/ld+json">
+          {JSON.stringify(
+            PAGE_STRUCTURED_DATA
+          ).replace(
+            /</g,
+            "\\u003c"
+          )}
+        </script>
+      </Helmet>
+
+      <Navbar1
+        classname="navbar-light"
+        isLogoDark={false}
+      />
+
+      <main>
+        <header
+          style={{
+            background: `linear-gradient(rgba(24, 54, 122, 0.7), rgba(24, 54, 122, 0.7)), url('${bgImg}') center/cover no-repeat`,
+            minHeight: 250,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <h1
+            className="text-white fw-bold text-center"
+            style={{
+              fontSize: "2.3rem",
+              letterSpacing: 1,
+            }}
+          >
+            Términos y Condiciones
+          </h1>
+        </header>
+
+        <section
+          aria-labelledby="terms-content-title"
+        >
+          <h2
+            id="terms-content-title"
+            className="visually-hidden"
+          >
+            Contenido de los términos y condiciones
+          </h2>
+
+          <Container className="py-5">
+            <Row className="justify-content-center">
+              <Col md={11} lg={10}>
+                <article style={contentCardStyle}>
+                  <div
+                    style={{
+                      whiteSpace: "pre-line",
+                      fontSize: "1.08rem",
+                    }}
+                  >
+                    {termsText}
+                  </div>
+                </article>
+              </Col>
+            </Row>
+          </Container>
+        </section>
+      </main>
+
+      <TaeFooter />
+
+      <BackToTop />
     </>
-);
+  );
+};
 
 export default TerminosCondiciones;

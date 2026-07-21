@@ -1,6 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
-import { BrowserRouter } from "react-router-dom";
-import { ThemeProvider, CssBaseline } from "@mui/material";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  BrowserRouter,
+} from "react-router-dom";
+
+import {
+  CssBaseline,
+  ThemeProvider,
+} from "@mui/material";
+
 import AOS from "aos";
 
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -15,9 +27,14 @@ import { getTheme } from "./theme";
 import AllRoutes from "./routes/Routes";
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem("theme") === "dark";
-  });
+  const [darkMode, setDarkMode] =
+    useState<boolean>(() => {
+      return (
+        localStorage.getItem(
+          "theme"
+        ) === "dark"
+      );
+    });
 
   useEffect(() => {
     AOS.init();
@@ -25,23 +42,45 @@ export default function App() {
 
   useEffect(() => {
     const syncTheme = () => {
-      setDarkMode(localStorage.getItem("theme") === "dark");
+      setDarkMode(
+        localStorage.getItem(
+          "theme"
+        ) === "dark"
+      );
     };
 
-    window.addEventListener("storage", syncTheme);
-    const interval = setInterval(syncTheme, 300);
+    window.addEventListener(
+      "storage",
+      syncTheme
+    );
+
+    const interval =
+      window.setInterval(
+        syncTheme,
+        300
+      );
 
     return () => {
-      window.removeEventListener("storage", syncTheme);
-      clearInterval(interval);
+      window.removeEventListener(
+        "storage",
+        syncTheme
+      );
+
+      window.clearInterval(
+        interval
+      );
     };
   }, []);
 
-  const theme = useMemo(() => getTheme(darkMode), [darkMode]);
+  const theme = useMemo(
+    () => getTheme(darkMode),
+    [darkMode]
+  );
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+
       <BrowserRouter>
         <AllRoutes />
       </BrowserRouter>

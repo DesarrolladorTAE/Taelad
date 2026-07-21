@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import axios from "axios";
+import { Helmet } from "react-helmet-async";
 
 import {
   Alert,
@@ -80,6 +81,28 @@ const API_BASE_URL = (
 const POSTS_ENDPOINT =
   `${API_BASE_URL}/public/v1/${SYSTEM_SLUG}/blogs/${BLOG_SLUG}/posts`;
 
+const PUBLIC_SITE_URL =
+  "https://tecnologiasadministrativas.com";
+
+const BLOG_CANONICAL_URL =
+  `${PUBLIC_SITE_URL}/blogs`;
+
+const BLOG_SEO_TITLE =
+  "Blog | Tecnologías Administrativas ELAD";
+
+const BLOG_SEO_DESCRIPTION =
+  "Publicaciones sobre tecnología empresarial, inteligencia artificial, automatización, productividad, administración y transformación digital.";
+
+const BLOG_SEO_KEYWORDS = [
+  "tecnología empresarial",
+  "inteligencia artificial",
+  "automatización",
+  "productividad",
+  "administración empresarial",
+  "transformación digital",
+  "software empresarial",
+];
+
 function formatDate(value: string | null): string {
   if (!value) {
     return "Sin fecha";
@@ -99,7 +122,7 @@ function formatDate(value: string | null): string {
 }
 
 function getPostRoute(post: PublicBlogPost): string {
-  return `/blogs/${SYSTEM_SLUG}/${BLOG_SLUG}/posts/${encodeURIComponent(
+  return `/blogs/${encodeURIComponent(
     post.slug
   )}`;
 }
@@ -110,6 +133,31 @@ function normalizeText(value: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+
+function toAbsoluteUrl(
+  value: string
+): string {
+  try {
+    return new URL(
+      value,
+      PUBLIC_SITE_URL
+    ).toString();
+  } catch {
+    return value;
+  }
+}
+
+function serializeStructuredData(
+  value: Record<string, unknown>
+): string {
+  return JSON.stringify(
+    value
+  ).replace(
+    /</g,
+    "\\u003c"
+  );
 }
 
 export default function Blogs() {
@@ -151,17 +199,6 @@ export default function Blogs() {
       left: 0,
       behavior: "auto",
     });
-  }, []);
-
-  useEffect(() => {
-    const previousTitle = document.title;
-
-    document.title =
-      "Blog | Tecnologías Administrativas ELAD";
-
-    return () => {
-      document.title = previousTitle;
-    };
   }, []);
 
   useEffect(() => {
@@ -336,6 +373,84 @@ export default function Blogs() {
     });
   }, [posts, search]);
 
+  const blogImageUrl = useMemo(
+    () =>
+      toAbsoluteUrl(
+        blogPrincipal
+      ),
+    []
+  );
+
+  const structuredData = useMemo(
+    () => ({
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      name:
+        "Blog de Tecnologías Administrativas ELAD",
+      description:
+        BLOG_SEO_DESCRIPTION,
+      url:
+        BLOG_CANONICAL_URL,
+      inLanguage:
+        "es-MX",
+      publisher: {
+        "@type":
+          "Organization",
+        name:
+          "Tecnologías Administrativas ELAD",
+        url:
+          PUBLIC_SITE_URL,
+      },
+      image:
+        blogImageUrl,
+      blogPost: posts.map(
+        (post) => ({
+          "@type":
+            "BlogPosting",
+          headline:
+            post.title,
+          description:
+            post.excerpt ||
+            undefined,
+          url:
+            `${PUBLIC_SITE_URL}${getPostRoute(
+              post
+            )}`,
+          datePublished:
+            post.published_at ||
+            undefined,
+          dateModified:
+            post.updated_at ||
+            post.published_at ||
+            undefined,
+          image:
+            post.cover?.url ||
+            undefined,
+          author: {
+            "@type":
+              "Person",
+            name:
+              post.author?.name ||
+              "Tecnologías Administrativas",
+          },
+        })
+      ),
+    }),
+    [
+      blogImageUrl,
+      posts,
+    ]
+  );
+
+  const serializedStructuredData =
+    useMemo(
+      () =>
+        serializeStructuredData(
+          structuredData
+        ),
+      [structuredData]
+    );
+
   function toggleSearch() {
     setSearchOpen((current) => {
       const next = !current;
@@ -355,6 +470,129 @@ export default function Blogs() {
 
   return (
     <>
+      <Helmet>
+        <html lang="es-MX" />
+
+        <title>
+          {BLOG_SEO_TITLE}
+        </title>
+
+        <meta
+          name="description"
+          content={
+            BLOG_SEO_DESCRIPTION
+          }
+        />
+
+        <meta
+          name="keywords"
+          content={
+            BLOG_SEO_KEYWORDS.join(
+              ", "
+            )
+          }
+        />
+
+        <meta
+          name="robots"
+          content="index, follow"
+        />
+
+        <link
+          rel="canonical"
+          href={
+            BLOG_CANONICAL_URL
+          }
+        />
+
+        <meta
+          property="og:locale"
+          content="es_MX"
+        />
+
+        <meta
+          property="og:type"
+          content="website"
+        />
+
+        <meta
+          property="og:site_name"
+          content="Tecnologías Administrativas ELAD"
+        />
+
+        <meta
+          property="og:title"
+          content={
+            BLOG_SEO_TITLE
+          }
+        />
+
+        <meta
+          property="og:description"
+          content={
+            BLOG_SEO_DESCRIPTION
+          }
+        />
+
+        <meta
+          property="og:url"
+          content={
+            BLOG_CANONICAL_URL
+          }
+        />
+
+        <meta
+          property="og:image"
+          content={
+            blogImageUrl
+          }
+        />
+
+        <meta
+          property="og:image:alt"
+          content="Blog de Tecnologías Administrativas ELAD"
+        />
+
+        <meta
+          name="twitter:card"
+          content="summary_large_image"
+        />
+
+        <meta
+          name="twitter:title"
+          content={
+            BLOG_SEO_TITLE
+          }
+        />
+
+        <meta
+          name="twitter:description"
+          content={
+            BLOG_SEO_DESCRIPTION
+          }
+        />
+
+        <meta
+          name="twitter:image"
+          content={
+            blogImageUrl
+          }
+        />
+
+        <meta
+          name="twitter:image:alt"
+          content="Blog de Tecnologías Administrativas ELAD"
+        />
+
+        <script
+          type="application/ld+json"
+        >
+          {
+            serializedStructuredData
+          }
+        </script>
+      </Helmet>
+
       <style>
         {`
           .elad-blog-page {
@@ -1134,11 +1372,11 @@ export default function Blogs() {
                 <Row className="elad-blog-grid">
                   {filteredPosts.map((post) => (
                     <Col
-                      key={post.slug}
-                      xs={12}
-                      md={6}
-                      xl={4}
-                    >
+                  key={post.slug}
+                  xs={6}
+                  md={6}
+                  xl={4}
+                  >
                       <Card className="elad-blog-card">
                         {post.cover?.url ? (
                           <Link

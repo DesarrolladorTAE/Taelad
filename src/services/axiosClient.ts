@@ -1,14 +1,18 @@
-// src/services/axiosClient.ts
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  InternalAxiosRequestConfig,
+} from "axios";
 
-import axios, { AxiosError, AxiosInstance } from "axios";
-
-const BASE_URL = "https://api.tecnologiasadministrativas.com/api";
+const BASE_URL =
+  "https://api.tecnologiasadministrativas.com/api";
 
 let AUTH_TOKEN: string | null = null;
 
 type UnauthorizedHandler = () => void;
 
-let onUnauthorizedCb: UnauthorizedHandler | null = null;
+let onUnauthorizedCb: UnauthorizedHandler | null =
+  null;
 
 /* =========================
    TOKEN
@@ -32,7 +36,9 @@ function getAuthToken(): string | null {
   return null;
 }
 
-export function setAuthToken(token: string | null) {
+export function setAuthToken(
+  token: string | null
+): void {
   AUTH_TOKEN = token;
 
   if (typeof window !== "undefined") {
@@ -44,7 +50,9 @@ export function setAuthToken(token: string | null) {
   }
 }
 
-export function onUnauthorized(handler: UnauthorizedHandler) {
+export function onUnauthorized(
+  handler: UnauthorizedHandler
+): void {
   onUnauthorizedCb = handler;
 }
 
@@ -52,30 +60,39 @@ export function onUnauthorized(handler: UnauthorizedHandler) {
    AXIOS CLIENT
 ========================= */
 
-const axiosClient: AxiosInstance = axios.create({
-  baseURL: BASE_URL,
+const axiosClient: AxiosInstance =
+  axios.create({
+    baseURL: BASE_URL,
+    timeout: 60000,
+    withCredentials: false,
 
-  // Antes estaba en 20000 y cortaba la petición de métricas.
-  timeout: 60000,
-
-  withCredentials: false,
-
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
-});
+    headers: {
+      Accept: "application/json",
+    },
+  });
 
 /* =========================
-   REQUEST TOKEN
+   REQUEST
 ========================= */
 
 axiosClient.interceptors.request.use(
-  (config) => {
+  (
+    config: InternalAxiosRequestConfig
+  ) => {
     const token = getAuthToken();
 
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization =
+        `Bearer ${token}`;
+    }
+
+    /*
+     * FormData necesita que el navegador genere:
+     * multipart/form-data; boundary=...
+     */
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+      delete config.headers["content-type"];
     }
 
     return config;
@@ -91,11 +108,14 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
   (response) => response,
 
-  (error: AxiosError<any>) => {
+  (error: AxiosError<unknown>) => {
     const status = error.response?.status;
 
     if (status === 401 || status === 419) {
-      localStorage.removeItem("token");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+      }
+
       AUTH_TOKEN = null;
 
       if (onUnauthorizedCb) {

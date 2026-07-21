@@ -1,3 +1,8 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+
+Disallow: /panel/
+Disallow: /superadmin/
+Disallow: /taeconta/
+
+Sitemap: https://api.tecnologiasadministrativas.com/sitemap.xmls

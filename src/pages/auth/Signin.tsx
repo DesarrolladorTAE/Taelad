@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Box,
   Button,
@@ -302,6 +303,24 @@ export default function Signin() {
 
   return (
     <ThemeProvider theme={theme}>
+      <Helmet>
+        <html lang="es-MX" />
+
+        <title>
+          Crear cuenta | Tecnologías Administrativas ELAD
+        </title>
+
+        <meta
+          name="robots"
+          content="noindex, nofollow, noarchive, nosnippet"
+        />
+
+        <meta
+          name="googlebot"
+          content="noindex, nofollow, noarchive, nosnippet"
+        />
+      </Helmet>
+
       <CssBaseline />
 
       <Container maxWidth={false} disableGutters sx={{ minHeight: "100vh" }} />
@@ -502,11 +521,11 @@ export default function Signin() {
                   label={
                     <Typography variant="body2">
                       Acepto los{" "}
-                      <MLink href="#" underline="hover">
+                      <MLink href="/terminos-condiciones" underline="hover">
                         Términos
                       </MLink>{" "}
                       y la{" "}
-                      <MLink href="#" underline="hover">
+                      <MLink href="/aviso-privacidad" underline="hover">
                         Política de privacidad
                       </MLink>
                       .

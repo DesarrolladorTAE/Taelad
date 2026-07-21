@@ -7,6 +7,7 @@ import {
 
 import axios from "axios";
 import DOMPurify from "dompurify";
+import { Helmet } from "react-helmet-async";
 
 import {
   Alert,
@@ -138,6 +139,21 @@ const API_BASE_URL = (
 ).replace(/\/+$/, "");
 
 const AD_ROTATION_INTERVAL_MS = 5000;
+
+const PUBLIC_SYSTEM_SLUG =
+  "tecnologias-administrativas-elad";
+
+const PUBLIC_BLOG_SLUG =
+  "blog-tecnologias-administrativas-elad";
+
+const PUBLIC_SITE_URL =
+  "https://tecnologiasadministrativas.com";
+
+const PUBLIC_SITE_NAME =
+  "Tecnologías Administrativas ELAD";
+
+const PUBLIC_DEFAULT_DESCRIPTION =
+  "Información sobre tecnología empresarial, automatización, inteligencia artificial y transformación digital.";
 
 function formatDate(
   value: string | null
@@ -776,17 +792,23 @@ function transformPublicContent(
 
 
 function getRecentPostRoute(
-  systemSlug: string,
-  blogSlug: string,
   postSlug: string
 ): string {
   return `/blogs/${encodeURIComponent(
-    systemSlug
-  )}/${encodeURIComponent(
-    blogSlug
-  )}/posts/${encodeURIComponent(
     postSlug
   )}`;
+}
+
+
+function serializeStructuredData(
+  value: Record<string, unknown>
+): string {
+  return JSON.stringify(
+    value
+  ).replace(
+    /</g,
+    "\\u003c"
+  );
 }
 
 function PublicAdCard({
@@ -955,15 +977,16 @@ function PublicAdCard({
 
 
 export default function BlogPostDetail() {
-  const {
-    systemSlug = "",
-    blogSlug = "",
-    postSlug = "",
-  } = useParams<{
-    systemSlug: string;
-    blogSlug: string;
-    postSlug: string;
-  }>();
+  const { postSlug = "" } =
+    useParams<{
+      postSlug: string;
+    }>();
+
+  const systemSlug =
+    PUBLIC_SYSTEM_SLUG;
+
+  const blogSlug =
+    PUBLIC_BLOG_SLUG;
 
   const [post, setPost] =
     useState<PublicBlogPostDetailData | null>(
@@ -1258,64 +1281,146 @@ export default function BlogPostDetail() {
       );
   }, [post?.ads]);
 
-  useEffect(() => {
-    if (!post) {
-      return;
+  const canonicalUrl = useMemo(() => {
+    if (!postSlug) {
+      return `${PUBLIC_SITE_URL}/blogs`;
     }
 
-    const previousTitle =
-      document.title;
+    return `${PUBLIC_SITE_URL}/blogs/${encodeURIComponent(
+      postSlug
+    )}`;
+  }, [postSlug]);
 
-    document.title =
-      post.seo?.title ||
-      `${post.title} | Blog`;
+  const seoTitle =
+    post?.seo?.title?.trim() ||
+    post?.open_graph?.title?.trim() ||
+    post?.title?.trim() ||
+    "Blog";
 
-    const description =
-      document.querySelector<HTMLMetaElement>(
-        'meta[name="description"]'
-      );
+  const completeSeoTitle =
+    seoTitle.includes(
+      PUBLIC_SITE_NAME
+    )
+      ? seoTitle
+      : `${seoTitle} | ${PUBLIC_SITE_NAME}`;
 
-    const previousDescription =
-      description?.content || "";
+  const seoDescription =
+    post?.seo?.description?.trim() ||
+    post?.open_graph?.description?.trim() ||
+    post?.excerpt?.trim() ||
+    PUBLIC_DEFAULT_DESCRIPTION;
 
-    if (description) {
-      description.content =
-        post.seo?.description ||
-        post.excerpt ||
+  const rawSeoKeywords =
+  post?.seo?.keywords;
+
+const seoKeywords =
+  Array.isArray(
+    rawSeoKeywords
+  )
+    ? rawSeoKeywords
+        .map((keyword) =>
+          keyword.trim()
+        )
+        .filter(Boolean)
+    : [];
+
+  const robotsContent = [
+    post?.seo?.robots_index === false
+      ? "noindex"
+      : "index",
+
+    post?.seo?.robots_follow === false
+      ? "nofollow"
+      : "follow",
+  ].join(", ");
+
+  const openGraphImageUrl =
+    typeof post?.open_graph?.image ===
+    "string"
+      ? post.open_graph.image.trim()
+      : post?.open_graph?.image?.url?.trim() ||
+        post?.cover?.url?.trim() ||
         "";
+
+  const openGraphImageAlt =
+    typeof post?.open_graph?.image ===
+    "object" &&
+    post.open_graph.image
+      ? post.open_graph.image.alt_text?.trim() ||
+        post.cover?.alt_text?.trim() ||
+        post.title
+      : post?.cover?.alt_text?.trim() ||
+        post?.title ||
+        PUBLIC_SITE_NAME;
+
+  const structuredData = useMemo(() => {
+    if (!post) {
+      return null;
     }
 
-    const structuredData =
-      document.createElement("script");
+    const baseStructuredData =
+      post.structured_data &&
+      typeof post.structured_data ===
+        "object"
+        ? post.structured_data
+        : {};
 
-    structuredData.type =
-      "application/ld+json";
-
-    structuredData.setAttribute(
-      "data-blog-structured-data",
-      "true"
-    );
-
-    structuredData.textContent =
-      JSON.stringify(
-        post.structured_data || {}
-      );
-
-    document.head.appendChild(
-      structuredData
-    );
-
-    return () => {
-      document.title = previousTitle;
-
-      if (description) {
-        description.content =
-          previousDescription;
-      }
-
-      structuredData.remove();
+    return {
+      ...baseStructuredData,
+      "@context":
+        baseStructuredData[
+          "@context"
+        ] ||
+        "https://schema.org",
+      "@type":
+        baseStructuredData[
+          "@type"
+        ] ||
+        "BlogPosting",
+      headline: post.title,
+      description:
+        seoDescription,
+      url: canonicalUrl,
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": canonicalUrl,
+      },
+      datePublished:
+        post.published_at ||
+        undefined,
+      dateModified:
+        post.updated_at ||
+        post.published_at ||
+        undefined,
+      author: {
+        "@type": "Person",
+        name:
+          post.author?.name ||
+          "Tecnologías Administrativas",
+      },
+      publisher: {
+        "@type":
+          "Organization",
+        name: PUBLIC_SITE_NAME,
+        url: PUBLIC_SITE_URL,
+      },
+      image:
+        openGraphImageUrl ||
+        undefined,
     };
-  }, [post]);
+  }, [
+    canonicalUrl,
+    openGraphImageUrl,
+    post,
+    seoDescription,
+  ]);
+
+  const serializedStructuredData =
+    structuredData
+      ? serializeStructuredData(
+          structuredData
+        )
+      : "";
 
   return (
     <>
@@ -1329,6 +1434,50 @@ export default function BlogPostDetail() {
           .blog-post-public-header {
             padding: 125px 0 65px;
             color: #ffffff;
+          }
+
+          .blog-post-public-header-layout {
+            display: grid;
+            grid-template-columns:
+              minmax(0, 1fr)
+              minmax(420px, 0.95fr);
+            gap: clamp(32px, 5vw, 72px);
+            align-items: center;
+          }
+
+          .blog-post-public-header-layout:not(.has-cover) {
+            grid-template-columns: minmax(0, 920px);
+          }
+
+          .blog-post-public-header-copy {
+            min-width: 0;
+          }
+
+          .blog-post-public-header-media {
+            min-width: 0;
+          }
+
+          .blog-post-public-header-cover-frame {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            aspect-ratio: 16 / 10;
+            border: 1px solid rgba(255, 255, 255, 0.20);
+            border-radius: 22px;
+            background: transparent;
+            box-shadow:
+              0 24px 65px
+              rgba(4, 17, 47, 0.32);
+          }
+
+          .blog-post-public-header-cover {
+            display: block;
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            object-fit: cover;
+            object-position: center;
+            background: transparent;
           }
 
           .blog-post-public-back {
@@ -1346,7 +1495,7 @@ export default function BlogPostDetail() {
           }
 
           .blog-post-public-title {
-            max-width: 900px;
+            max-width: 760px;
             margin: 0;
             color: #ffffff;
             font-size: clamp(2.2rem, 5vw, 4rem);
@@ -1396,11 +1545,32 @@ export default function BlogPostDetail() {
               0 18px 55px
               rgba(22, 53, 85, 0.12);
           }
+          .blog-post-public-cover-frame {
+            display: block;
+            width: 100%;
+            margin: 0 auto 32px;
+            overflow: hidden;
+            border-radius: 15px;
+            background: #f6f8fb;
+            line-height: 0;
+            text-align: center;
+            box-shadow:
+              0 10px 30px
+              rgba(22, 53, 85, 0.10);
+          }
 
           .blog-post-public-cover {
-            width: 100%;
-            max-height: 500px;
-            object-fit: cover;
+            display: block;
+            width: auto;
+            max-width: 100%;
+            height: auto;
+            max-height: 760px;
+            margin: 0 auto;
+            object-fit: contain;
+            object-position: center;
+            border-radius: 15px;
+            background: #f6f8fb;
+            box-shadow: none;
           }
 
           .blog-post-public-body {
@@ -1808,6 +1978,13 @@ export default function BlogPostDetail() {
           }
 
           @media (max-width: 1199.98px) {
+            .blog-post-public-header-layout {
+              grid-template-columns:
+                minmax(0, 1fr)
+                minmax(360px, 0.9fr);
+              gap: 34px;
+            }
+
             .blog-post-public-layout {
               grid-template-columns:
                 minmax(0, 1fr)
@@ -1834,6 +2011,15 @@ export default function BlogPostDetail() {
           }
 
           @media (max-width: 991.98px) {
+            .blog-post-public-header-layout,
+            .blog-post-public-header-layout:not(.has-cover) {
+              grid-template-columns: 1fr;
+            }
+
+            .blog-post-public-header-media {
+              max-width: 760px;
+            }
+
             .blog-post-public-layout {
               grid-template-columns: 1fr;
             }
@@ -1855,6 +2041,15 @@ export default function BlogPostDetail() {
               padding-bottom: 50px;
             }
 
+            .blog-post-public-header-layout {
+              gap: 26px;
+            }
+
+            .blog-post-public-header-cover-frame {
+              aspect-ratio: 16 / 10;
+              border-radius: 16px;
+            }
+
             .blog-post-public-main {
               padding-top: 35px;
               padding-bottom: 60px;
@@ -1862,6 +2057,23 @@ export default function BlogPostDetail() {
 
             .blog-post-public-body {
               padding: 25px 20px;
+            }
+
+            .blog-post-public-cover-frame {
+              min-height: 0;
+              margin-bottom: 24px;
+              padding: 0;
+              border-radius: 12px;
+            }
+
+            .blog-post-public-cover {
+              min-height: 0;
+              max-height: 420px;
+              border-radius: 12px;
+            }
+
+            .blog-post-public-header-cover {
+              padding: 0;
             }
 
             .blog-post-public-content {
@@ -1959,6 +2171,188 @@ export default function BlogPostDetail() {
 
         {!loading && !error && post && (
           <>
+            <Helmet>
+              <html lang="es-MX" />
+
+              <title>
+                {completeSeoTitle}
+              </title>
+
+              <meta
+                name="description"
+                content={seoDescription}
+              />
+
+              <meta
+                name="robots"
+                content={robotsContent}
+              />
+
+              {seoKeywords.length > 0 && (
+                <meta
+                  name="keywords"
+                  content={seoKeywords.join(
+                    ", "
+                  )}
+                />
+              )}
+
+              <link
+                rel="canonical"
+                href={canonicalUrl}
+              />
+
+              <meta
+                property="og:locale"
+                content="es_MX"
+              />
+
+              <meta
+                property="og:site_name"
+                content={PUBLIC_SITE_NAME}
+              />
+
+              <meta
+                property="og:type"
+                content={
+                  post.open_graph?.type ||
+                  "article"
+                }
+              />
+
+              <meta
+                property="og:title"
+                content={
+                  post.open_graph?.title?.trim() ||
+                  completeSeoTitle
+                }
+              />
+
+              <meta
+                property="og:description"
+                content={
+                  post.open_graph?.description?.trim() ||
+                  seoDescription
+                }
+              />
+
+              <meta
+                property="og:url"
+                content={canonicalUrl}
+              />
+
+              {openGraphImageUrl && (
+                <meta
+                  property="og:image"
+                  content={
+                    openGraphImageUrl
+                  }
+                />
+              )}
+
+              {openGraphImageUrl && (
+                <meta
+                  property="og:image:alt"
+                  content={
+                    openGraphImageAlt
+                  }
+                />
+              )}
+
+              <meta
+                name="twitter:card"
+                content="summary_large_image"
+              />
+
+              <meta
+                name="twitter:title"
+                content={
+                  post.open_graph?.title?.trim() ||
+                  completeSeoTitle
+                }
+              />
+
+              <meta
+                name="twitter:description"
+                content={
+                  post.open_graph?.description?.trim() ||
+                  seoDescription
+                }
+              />
+
+              {openGraphImageUrl && (
+                <meta
+                  name="twitter:image"
+                  content={
+                    openGraphImageUrl
+                  }
+                />
+              )}
+
+              {openGraphImageUrl && (
+                <meta
+                  name="twitter:image:alt"
+                  content={
+                    openGraphImageAlt
+                  }
+                />
+              )}
+
+              {post.published_at && (
+                <meta
+                  property="article:published_time"
+                  content={
+                    post.published_at
+                  }
+                />
+              )}
+
+              {post.updated_at && (
+                <meta
+                  property="article:modified_time"
+                  content={
+                    post.updated_at
+                  }
+                />
+              )}
+
+              {post.author?.name && (
+                <meta
+                  property="article:author"
+                  content={
+                    post.author.name
+                  }
+                />
+              )}
+
+              {post.category?.name && (
+                <meta
+                  property="article:section"
+                  content={
+                    post.category.name
+                  }
+                />
+              )}
+
+              {post.tags.map((tag) => (
+                <meta
+                  key={tag.slug}
+                  property="article:tag"
+                  content={tag.name}
+                />
+              ))}
+
+              {serializedStructuredData && (
+                <script
+                  type="application/ld+json"
+                >
+                  {
+                    serializedStructuredData
+                  }
+                </script>
+              )}
+            </Helmet>
+
             <header
               className="blog-post-public-header"
               style={{
@@ -1970,51 +2364,79 @@ export default function BlogPostDetail() {
               }}
             >
               <Container>
-                <Link
-                  to="/blogs"
-                  className="blog-post-public-back"
+                <div
+                  className={[
+                    "blog-post-public-header-layout",
+                    post.cover?.url
+                      ? "has-cover"
+                      : "",
+                  ].join(" ")}
                 >
-                  <i className="mdi mdi-arrow-left" />
-                  Regresar al blog
-                </Link>
+                  <div className="blog-post-public-header-copy">
+                    <Link
+                      to="/blogs"
+                      className="blog-post-public-back"
+                    >
+                      <i className="mdi mdi-arrow-left" />
+                      Regresar al blog
+                    </Link>
 
-                {post.is_featured && (
-                  <div className="mb-3">
-                    <Badge bg="warning">
-                      Publicación destacada
-                    </Badge>
-                  </div>
-                )}
-
-                <h1 className="blog-post-public-title">
-                  {post.title}
-                </h1>
-
-                {post.excerpt && (
-                  <p className="blog-post-public-excerpt">
-                    {post.excerpt}
-                  </p>
-                )}
-
-                <div className="blog-post-public-meta">
-                  <span>
-                    <i className="mdi mdi-account-outline me-1" />
-                    {post.author?.name ||
-                      "Tecnologías Administrativas"}
-                  </span>
-
-                  <span>
-                    <i className="mdi mdi-calendar-outline me-1" />
-                    {formatDate(
-                      post.published_at
+                    {post.is_featured && (
+                      <div className="mb-3">
+                        <Badge bg="warning">
+                          Publicación destacada
+                        </Badge>
+                      </div>
                     )}
-                  </span>
 
-                  {post.category && (
-                    <span>
-                      <i className="mdi mdi-folder-outline me-1" />
-                      {post.category.name}
-                    </span>
+                    <h1 className="blog-post-public-title">
+                      {post.title}
+                    </h1>
+
+                    {post.excerpt && (
+                      <p className="blog-post-public-excerpt">
+                        {post.excerpt}
+                      </p>
+                    )}
+
+                    <div className="blog-post-public-meta">
+                      <span>
+                        <i className="mdi mdi-account-outline me-1" />
+                        {post.author?.name ||
+                          "Tecnologías Administrativas"}
+                      </span>
+
+                      <span>
+                        <i className="mdi mdi-calendar-outline me-1" />
+                        {formatDate(
+                          post.published_at
+                        )}
+                      </span>
+
+                      {post.category && (
+                        <span>
+                          <i className="mdi mdi-folder-outline me-1" />
+                          {post.category.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {post.cover?.url && (
+                    <div className="blog-post-public-header-media">
+                      <div className="blog-post-public-header-cover-frame">
+                        <img
+                          src={post.cover.url}
+                          alt={
+                            post.cover.alt_text ||
+                            post.title
+                          }
+                          className="blog-post-public-header-cover"
+                          loading="eager"
+                          decoding="async"
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
               </Container>
@@ -2026,18 +2448,22 @@ export default function BlogPostDetail() {
               >
                 <div className="blog-post-public-layout">
                   <article className="blog-post-public-article">
-                    {post.cover?.url && (
-                      <img
-                        src={post.cover.url}
-                        alt={
-                          post.cover.alt_text ||
-                          post.title
-                        }
-                        className="blog-post-public-cover"
-                      />
-                    )}
-
                     <div className="blog-post-public-body">
+                      {post.cover?.url && (
+                        <div className="blog-post-public-cover-frame">
+                          <img
+                            src={post.cover.url}
+                            alt={
+                              post.cover.alt_text ||
+                              post.title
+                            }
+                            className="blog-post-public-cover"
+                            loading="eager"
+                            decoding="async"
+                          />
+                        </div>
+                      )}
+
                       <div
                         className="blog-post-public-content"
                         dangerouslySetInnerHTML={{
@@ -2123,8 +2549,6 @@ export default function BlogPostDetail() {
                               >
                                 <Link
                                   to={getRecentPostRoute(
-                                    systemSlug,
-                                    blogSlug,
                                     recentPost.slug
                                   )}
                                   className="blog-post-public-recent-link"

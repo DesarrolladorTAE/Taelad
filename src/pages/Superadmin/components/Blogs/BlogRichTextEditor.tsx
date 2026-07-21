@@ -7,6 +7,12 @@ import {
 
 import {
   Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   FormControl,
   IconButton,
@@ -51,6 +57,7 @@ import { TextStyleKit } from "@tiptap/extension-text-style";
 import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
 
 export type BlogRichTextImageInput = {
   /*
@@ -227,6 +234,41 @@ function isValidHttpUrl(
   } catch {
     return false;
   }
+}
+
+
+function normalizeLinkUrl(
+  value: string
+): string {
+  const cleanValue = value.trim();
+
+  if (!cleanValue) {
+    return "";
+  }
+
+  if (
+    cleanValue.startsWith("http://") ||
+    cleanValue.startsWith("https://") ||
+    cleanValue.startsWith("mailto:") ||
+    cleanValue.startsWith("tel:")
+  ) {
+    return cleanValue;
+  }
+
+  return `https://${cleanValue}`;
+}
+
+function isValidLinkUrl(
+  value: string
+): boolean {
+  if (
+    value.startsWith("mailto:") ||
+    value.startsWith("tel:")
+  ) {
+    return value.length > 7;
+  }
+
+  return isValidHttpUrl(value);
 }
 
 const BlogImageReference = Node.create({
@@ -535,6 +577,18 @@ export default function BlogRichTextEditor({
   const [revision, setRevision] =
     useState(0);
 
+  const [linkDialogOpen, setLinkDialogOpen] =
+    useState(false);
+
+  const [linkUrl, setLinkUrl] =
+    useState("");
+
+  const linkSelectionRef =
+    useRef<{
+      from: number;
+      to: number;
+    } | null>(null);
+
   /*
    * Conserva la posición del cursor aunque se abra
    * un diálogo de carga o de selección multimedia.
@@ -547,6 +601,20 @@ export default function BlogRichTextEditor({
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3],
+        },
+
+        link: false,
+      }),
+
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        defaultProtocol: "https",
+
+        HTMLAttributes: {
+          target: "_blank",
+          rel: "noopener noreferrer",
         },
       }),
 
@@ -868,44 +936,121 @@ export default function BlogRichTextEditor({
       .run();
   }
 
-  function configureLink() {
-    const previousUrl =
-      editor.getAttributes(
-        "link"
-      ).href ?? "";
+  function openLinkDialog() {
+    if (disabled) {
+      return;
+    }
 
-    const url = window.prompt(
-      "Ingresa la dirección del enlace:",
-      previousUrl
+    const {
+      from,
+      to,
+      empty,
+    } = editor.state.selection;
+
+    const isEditingLink =
+      editor.isActive("link");
+
+    if (
+      empty &&
+      !isEditingLink
+    ) {
+      window.alert(
+        "Selecciona primero la palabra o frase que funcionará como hipervínculo."
+      );
+
+      return;
+    }
+
+    linkSelectionRef.current = {
+      from,
+      to,
+    };
+
+    const currentHref =
+      String(
+        editor.getAttributes(
+          "link"
+        ).href ?? ""
+      );
+
+    setLinkUrl(
+      currentHref ||
+        "https://mitiendaenlineamx.com.mx/"
     );
 
-    if (url === null) {
+    setLinkDialogOpen(true);
+  }
+
+  function closeLinkDialog() {
+    setLinkDialogOpen(false);
+    setLinkUrl("");
+    linkSelectionRef.current = null;
+  }
+
+  function applyLink() {
+    const normalizedUrl =
+      normalizeLinkUrl(
+        linkUrl
+      );
+
+    if (!normalizedUrl) {
+      window.alert(
+        "Ingresa la URL de destino."
+      );
+
       return;
     }
 
-    const cleanUrl = url.trim();
+    if (
+      !isValidLinkUrl(
+        normalizedUrl
+      )
+    ) {
+      window.alert(
+        "La URL ingresada no es válida."
+      );
 
-    if (!cleanUrl) {
+      return;
+    }
+
+    const savedSelection =
+      linkSelectionRef.current;
+
+    const chain =
       editor
         .chain()
-        .focus()
-        .extendMarkRange("link")
-        .unsetLink()
-        .run();
+        .focus();
 
-      return;
+    if (savedSelection) {
+      chain.setTextSelection(
+        savedSelection
+      );
+    } else {
+      chain.extendMarkRange(
+        "link"
+      );
     }
 
-    editor
-      .chain()
-      .focus()
-      .extendMarkRange("link")
+    chain
       .setLink({
-        href: cleanUrl,
+        href: normalizedUrl,
         target: "_blank",
         rel: "noopener noreferrer",
       })
       .run();
+
+    closeLinkDialog();
+  }
+
+  function removeCurrentLink() {
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange("link")
+      .unsetLink()
+      .run();
+
+    closeLinkDialog();
   }
 
   function rememberImageInsertionPosition() {
@@ -1476,19 +1621,29 @@ export default function BlogRichTextEditor({
               sx={{ mx: 0.5 }}
             />
 
-            <Tooltip title="Agregar o editar enlace">
-              <IconButton
-                size="small"
-                disabled={disabled}
-                color={
-                  editor.isActive("link")
-                    ? "primary"
-                    : "default"
-                }
-                onClick={configureLink}
-              >
-                <LinkIcon />
-              </IconButton>
+            <Tooltip title="Agregar o editar hipervínculo">
+              <span>
+                <Button
+                  size="small"
+                  variant={
+                    editor.isActive("link")
+                      ? "contained"
+                      : "outlined"
+                  }
+                  disabled={disabled}
+                  startIcon={<LinkIcon />}
+                  onClick={openLinkDialog}
+                  sx={{
+                    minHeight: 32,
+                    px: 1.25,
+                    textTransform: "none",
+                    fontWeight: 800,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Hipervínculo
+                </Button>
+              </span>
             </Tooltip>
 
             <Tooltip title="Quitar enlace">
@@ -1696,8 +1851,16 @@ export default function BlogRichTextEditor({
 
             "& a": {
               color: "primary.main",
+              fontWeight: 700,
               textDecoration: "underline",
+              textDecorationThickness: "1px",
+              textUnderlineOffset: "3px",
               cursor: "pointer",
+            },
+
+            "& a:hover": {
+              color: "primary.dark",
+              textDecorationThickness: "2px",
             },
 
             "& figure.blog-image-reference": {
@@ -1798,6 +1961,72 @@ export default function BlogRichTextEditor({
         </Typography>
       </Box>
     </Box>
+
+      <Dialog
+        open={linkDialogOpen}
+        onClose={closeLinkDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          Agregar hipervínculo
+        </DialogTitle>
+
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            La palabra o frase seleccionada abrirá esta
+            dirección en una pestaña nueva.
+          </DialogContentText>
+
+          <TextField
+            autoFocus
+            fullWidth
+            label="URL de destino"
+            placeholder="https://mitiendaenlineamx.com.mx/"
+            value={linkUrl}
+            onChange={(event) =>
+              setLinkUrl(
+                event.target.value
+              )
+            }
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter"
+              ) {
+                event.preventDefault();
+                applyLink();
+              }
+            }}
+            helperText="Ejemplo: https://mitiendaenlineamx.com.mx/"
+          />
+        </DialogContent>
+
+        <DialogActions>
+          {editor.isActive("link") && (
+            <Button
+              color="error"
+              onClick={removeCurrentLink}
+            >
+              Quitar vínculo
+            </Button>
+          )}
+
+          <Box sx={{ flexGrow: 1 }} />
+
+          <Button
+            onClick={closeLinkDialog}
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={applyLink}
+          >
+            Aplicar vínculo
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </>
   );
