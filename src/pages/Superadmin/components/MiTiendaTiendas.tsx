@@ -57,6 +57,44 @@ type ChipColor =
   | "success"
   | "warning";
 
+type EstadoTiendasFiltro =
+  | "todas"
+  | "activas"
+  | "vencidas"
+  | "demo_activo"
+  | "demo_vencido"
+  | "plan_activo"
+  | "plan_vencido";
+
+type EstadoTiendaClasificado =
+  | "demo_activo"
+  | "demo_vencido"
+  | "plan_activo"
+  | "plan_vencido";
+
+const MITIENDA_FILTRO_STORAGE_KEY = "mitienda_filtro_tiendas";
+const PLAN_DEMO_ID = 1;
+
+const ESTADOS_FILTRO_VALIDOS: EstadoTiendasFiltro[] = [
+  "todas",
+  "activas",
+  "vencidas",
+  "demo_activo",
+  "demo_vencido",
+  "plan_activo",
+  "plan_vencido",
+];
+
+const ESTADO_LABELS: Record<EstadoTiendasFiltro, string> = {
+  todas: "Todas",
+  activas: "Activas",
+  vencidas: "Vencidas",
+  demo_activo: "Demo activo",
+  demo_vencido: "Demo vencido",
+  plan_activo: "Plan activo",
+  plan_vencido: "Plan vencido",
+};
+
 type Tienda = {
   id: number | string;
   plan_id?: number | string | null;
@@ -64,7 +102,28 @@ type Tienda = {
   nombre_plan?: string | null;
   trial_ends_at?: string | null;
   plan_expiration?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  expires_at?: string | null;
   fecha_vencimiento_plan?: string | null;
+  current_subscription?: {
+    starts_at?: string | null;
+    ends_at?: string | null;
+    expires_at?: string | null;
+    status?: string | null;
+  } | null;
+  latest_subscription?: {
+    starts_at?: string | null;
+    ends_at?: string | null;
+    expires_at?: string | null;
+    status?: string | null;
+  } | null;
+  subscription?: {
+    starts_at?: string | null;
+    ends_at?: string | null;
+    expires_at?: string | null;
+    status?: string | null;
+  } | null;
   fecha_vencimiento_label?: string | null;
   estado_plan?: "activo" | "vencido" | string | null;
   is_active?: boolean | null;
@@ -223,10 +282,22 @@ function getPlanTienda(tienda: Tienda) {
 function getFechaVencimientoTienda(tienda: Tienda | null | undefined) {
   if (!tienda) return null;
 
+  const planId = Number(tienda.plan_id ?? 0);
+  const isDemo =
+    planId === PLAN_DEMO_ID ||
+    normalizeText(getPlanTienda(tienda)).includes("demo");
+
   return (
+    tienda.current_subscription?.ends_at ??
+    tienda.current_subscription?.expires_at ??
+    tienda.latest_subscription?.ends_at ??
+    tienda.latest_subscription?.expires_at ??
+    tienda.subscription?.ends_at ??
+    tienda.subscription?.expires_at ??
+    tienda.ends_at ??
+    tienda.expires_at ??
     tienda.fecha_vencimiento_plan ??
-    tienda.plan_expiration ??
-    tienda.trial_ends_at ??
+    (isDemo ? tienda.trial_ends_at : tienda.plan_expiration) ??
     tienda.plan?.vence ??
     tienda.plan?.fecha_vencimiento ??
     tienda.plan?.expires_at ??
@@ -240,20 +311,114 @@ function getFechaVencimientoLabel(tienda: Tienda | null | undefined) {
   return tienda.fecha_vencimiento_label ?? "Plan vence";
 }
 
-function getEstadoPlanTienda(tienda: Tienda | null | undefined) {
-  if (!tienda) return "Sin plan";
+function parseFechaComparacion(value?: string | null) {
+  if (!value) return null;
 
-  return tienda.estado_plan ?? tienda.plan?.estado ?? "Sin plan";
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+  const date = new Date(
+    dateOnly
+      ? `${value}T23:59:59`
+      : value
+  );
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function esDemoTienda(tienda: Tienda) {
+  const planId = Number(tienda.plan_id ?? 0);
+
+  if (planId === PLAN_DEMO_ID) {
+    return true;
+  }
+
+  return normalizeText(getPlanTienda(tienda)).includes("demo");
+}
+
+function estaActivaPorFecha(tienda: Tienda) {
+  const vencimiento = parseFechaComparacion(
+    getFechaVencimientoTienda(tienda)
+  );
+
+  if (vencimiento) {
+    const inicioHoy = new Date();
+    inicioHoy.setHours(0, 0, 0, 0);
+
+    return vencimiento.getTime() >= inicioHoy.getTime();
+  }
+
+  if (typeof tienda.is_plan_active === "boolean") {
+    return tienda.is_plan_active;
+  }
+
+  if (typeof tienda.is_active === "boolean") {
+    return tienda.is_active;
+  }
+
+  const estado = normalizeText(
+    tienda.estado_plan ??
+      tienda.plan?.estado ??
+      tienda.current_subscription?.status ??
+      tienda.latest_subscription?.status ??
+      tienda.subscription?.status ??
+      ""
+  );
+
+  return ["activo", "activa", "active", "vigente"].includes(estado);
+}
+
+function getClasificacionTienda(
+  tienda: Tienda | null | undefined
+): EstadoTiendaClasificado {
+  if (!tienda) {
+    return "plan_vencido";
+  }
+
+  const demo = esDemoTienda(tienda);
+  const activa = estaActivaPorFecha(tienda);
+
+  if (demo && activa) return "demo_activo";
+  if (demo && !activa) return "demo_vencido";
+  if (!demo && activa) return "plan_activo";
+
+  return "plan_vencido";
+}
+
+function getEstadoPlanTienda(tienda: Tienda | null | undefined) {
+  return getClasificacionTienda(tienda);
 }
 
 function getEstadoPlanLabel(tienda: Tienda | null | undefined) {
-  const estado = normalizeText(getEstadoPlanTienda(tienda));
+  const estado = getClasificacionTienda(tienda);
 
-  if (estado === "activo" || estado === "activa") return "Activo";
-  if (estado === "vencido" || estado === "vencida") return "Vencido";
-  if (estado === "inactivo" || estado === "inactiva") return "Vencido";
+  return ESTADO_LABELS[estado];
+}
 
-  return getEstadoPlanTienda(tienda);
+function coincideFiltroEstado(
+  tienda: Tienda,
+  filtro: EstadoTiendasFiltro
+) {
+  if (filtro === "todas") {
+    return true;
+  }
+
+  const clasificacion = getClasificacionTienda(tienda);
+
+  if (filtro === "activas") {
+    return (
+      clasificacion === "demo_activo" ||
+      clasificacion === "plan_activo"
+    );
+  }
+
+  if (filtro === "vencidas") {
+    return (
+      clasificacion === "demo_vencido" ||
+      clasificacion === "plan_vencido"
+    );
+  }
+
+  return clasificacion === filtro;
 }
 
 function getFechaFiltro(tienda: Tienda) {
@@ -323,6 +488,17 @@ export default function MiTiendaTiendas({ setView }: Props) {
   const [mes, setMes] = useState("");
   const [anio, setAnio] = useState("");
   const [plan, setPlan] = useState("");
+  const [estadoFiltro, setEstadoFiltro] =
+    useState<EstadoTiendasFiltro>(() => {
+      const guardado = sessionStorage.getItem(
+        MITIENDA_FILTRO_STORAGE_KEY
+      ) as EstadoTiendasFiltro | null;
+
+      return guardado &&
+        ESTADOS_FILTRO_VALIDOS.includes(guardado)
+        ? guardado
+        : "todas";
+    });
 
   const [page, setPage] = useState(1);
 
@@ -402,6 +578,13 @@ export default function MiTiendaTiendas({ setView }: Props) {
     cargarTiendas();
   }, [cargarTiendas]);
 
+  useEffect(() => {
+    sessionStorage.setItem(
+      MITIENDA_FILTRO_STORAGE_KEY,
+      estadoFiltro
+    );
+  }, [estadoFiltro]);
+
   const cargarDetalleTienda = async (tiendaId: number | string) => {
     const res = await axiosClient.get(
       `${SUPERADMIN_TIENDAS_ENDPOINT}/${tiendaId}`
@@ -434,6 +617,35 @@ export default function MiTiendaTiendas({ setView }: Props) {
     return Array.from(new Set(anios)).sort((a, b) => Number(b) - Number(a));
   }, [data]);
 
+  const resumenEstados = useMemo(() => {
+    const resumen = {
+      todas: data.length,
+      activas: 0,
+      vencidas: 0,
+      demo_activo: 0,
+      demo_vencido: 0,
+      plan_activo: 0,
+      plan_vencido: 0,
+    };
+
+    data.forEach((tienda) => {
+      const clasificacion = getClasificacionTienda(tienda);
+
+      resumen[clasificacion] += 1;
+
+      if (
+        clasificacion === "demo_activo" ||
+        clasificacion === "plan_activo"
+      ) {
+        resumen.activas += 1;
+      } else {
+        resumen.vencidas += 1;
+      }
+    });
+
+    return resumen;
+  }, [data]);
+
   const filteredData = useMemo(() => {
     const value = normalizeText(search);
 
@@ -450,6 +662,10 @@ export default function MiTiendaTiendas({ setView }: Props) {
         email.includes(value);
 
       const coincidePlan = !plan || planNombre === plan;
+      const coincideEstado = coincideFiltroEstado(
+        tienda,
+        estadoFiltro
+      );
 
       let coincideFecha = true;
 
@@ -473,9 +689,21 @@ export default function MiTiendaTiendas({ setView }: Props) {
         }
       }
 
-      return coincideBusqueda && coincidePlan && coincideFecha;
+      return (
+        coincideBusqueda &&
+        coincidePlan &&
+        coincideEstado &&
+        coincideFecha
+      );
     });
-  }, [data, search, mes, anio, plan]);
+  }, [
+    data,
+    search,
+    mes,
+    anio,
+    plan,
+    estadoFiltro,
+  ]);
 
   const totalPages = Math.max(
     1,
@@ -500,8 +728,25 @@ export default function MiTiendaTiendas({ setView }: Props) {
 
     const value = normalizeText(estado);
 
-    if (value === "activa" || value === "activo") return "success";
-    if (value === "vencida" || value === "inactiva") return "error";
+    if (
+      value === "demo_activo" ||
+      value === "plan_activo" ||
+      value === "activa" ||
+      value === "activo"
+    ) {
+      return "success";
+    }
+
+    if (
+      value === "demo_vencido" ||
+      value === "plan_vencido" ||
+      value === "vencida" ||
+      value === "vencido" ||
+      value === "inactiva" ||
+      value === "inactivo"
+    ) {
+      return "error";
+    }
 
     return "default";
   };
@@ -848,56 +1093,6 @@ const renderRegimenFiscalField = () => {
     </TextField>
   );
 
-    return (
-      <TextField
-        select
-        fullWidth
-        label="Régimen fiscal"
-        value={datosFiscales.regimen_fiscal}
-        {...noAutocomplete("mitienda_regimen_fiscal")}
-        onChange={(e) =>
-          setDatosFiscales((prev) => ({
-            ...prev,
-            regimen_fiscal: e.target.value,
-          }))
-        }
-        SelectProps={{
-          MenuProps: {
-            PaperProps: {
-              sx: {
-                maxHeight: 260,
-                maxWidth: 620,
-              },
-            },
-            anchorOrigin: {
-              vertical: "bottom",
-              horizontal: "left",
-            },
-            transformOrigin: {
-              vertical: "top",
-              horizontal: "left",
-            },
-          },
-        }}
-      >
-        <MenuItem value="">Selecciona un régimen</MenuItem>
-
-        {datosFiscales.regimen_fiscal &&
-          !REGIMENES_FISCALES.some(
-            (item) => item.value === datosFiscales.regimen_fiscal
-          ) && (
-            <MenuItem value={datosFiscales.regimen_fiscal}>
-              {datosFiscales.regimen_fiscal}
-            </MenuItem>
-          )}
-
-        {REGIMENES_FISCALES.map((item) => (
-          <MenuItem key={item.value} value={item.value}>
-            {item.label}
-          </MenuItem>
-        ))}
-      </TextField>
-    );
   };
 
   return (
@@ -905,7 +1100,12 @@ const renderRegimenFiscalField = () => {
       <Button
         variant="outlined"
         startIcon={<ArrowBackIcon />}
-        onClick={() => setView?.("mitienda-dashboard")}
+        onClick={() => {
+          sessionStorage.removeItem(
+            MITIENDA_FILTRO_STORAGE_KEY
+          );
+          setView?.("mitienda-dashboard");
+        }}
         sx={{ borderRadius: 3, mb: 2 }}
       >
         Volver a Mi Tienda
@@ -918,9 +1118,44 @@ const renderRegimenFiscalField = () => {
           </Typography>
 
           <Typography color="text.secondary">
-            Listado general de tiendas registradas en Mi Tienda.
+            {estadoFiltro === "todas"
+              ? "Listado general de tiendas registradas en Mi Tienda."
+              : `Mostrando: ${ESTADO_LABELS[estadoFiltro]}.`}
           </Typography>
         </Box>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          flexWrap="wrap"
+          useFlexGap
+        >
+          {ESTADOS_FILTRO_VALIDOS.map((item) => (
+            <Chip
+              key={item}
+              label={`${ESTADO_LABELS[item]}: ${resumenEstados[item]}`}
+              color={
+                estadoFiltro === item
+                  ? item.includes("vencid")
+                    ? "error"
+                    : item === "todas"
+                    ? "primary"
+                    : "success"
+                  : "default"
+              }
+              variant={
+                estadoFiltro === item
+                  ? "filled"
+                  : "outlined"
+              }
+              onClick={() => {
+                setEstadoFiltro(item);
+                setPage(1);
+              }}
+              sx={{ fontWeight: 800 }}
+            />
+          ))}
+        </Stack>
 
         <Paper
           variant="outlined"
@@ -931,7 +1166,7 @@ const renderRegimenFiscalField = () => {
           }}
         >
           <Grid container spacing={2}>
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 size="small"
@@ -1003,7 +1238,7 @@ const renderRegimenFiscalField = () => {
               </TextField>
             </Grid>
 
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2}>
               <TextField
                 select
                 fullWidth
@@ -1020,6 +1255,29 @@ const renderRegimenFiscalField = () => {
                 {planesDisponibles.map((item) => (
                   <MenuItem key={item} value={item}>
                     {item}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} md={2}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Estado"
+                value={estadoFiltro}
+                {...noAutocomplete("mitienda_filtro_estado")}
+                onChange={(e) => {
+                  setEstadoFiltro(
+                    e.target.value as EstadoTiendasFiltro
+                  );
+                  setPage(1);
+                }}
+              >
+                {ESTADOS_FILTRO_VALIDOS.map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {ESTADO_LABELS[item]}
                   </MenuItem>
                 ))}
               </TextField>
@@ -1164,7 +1422,22 @@ const renderRegimenFiscalField = () => {
 
       <Stack
         direction={{ xs: "column", sm: "row" }}
-        justifyContent="flex-end"
+        justifyContent="space-between"
+        alignItems={{ xs: "stretch", sm: "center" }}
+        spacing={2}
+        mt={3}
+      >
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          textAlign={{ xs: "center", sm: "left" }}
+        >
+          Mostrando {paginated.length} de {filteredData.length} tienda(s)
+        </Typography>
+
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          justifyContent="flex-end"
         alignItems={{ xs: "stretch", sm: "center" }}
         spacing={2}
         mt={3}
@@ -1190,6 +1463,7 @@ const renderRegimenFiscalField = () => {
         >
           Siguiente
         </Button>
+        </Stack>
       </Stack>
 
       <Dialog

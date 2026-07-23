@@ -14,6 +14,7 @@ import {
   Grid,
   LinearProgress,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 
@@ -243,26 +244,72 @@ function monthlyValue(
 function annualValue(
   charts: Record<string, any>,
   systemKey: "mitienda" | "clicmenu",
-  year: number
+  year: number,
+  maximumMonth = 12
 ) {
-  return monthlySeries(charts, systemKey, year).reduce(
-    (total, value) => total + Number(value || 0),
-    0
-  );
+  return monthlySeries(charts, systemKey, year)
+    .slice(0, Math.max(0, Math.min(maximumMonth, 12)))
+    .reduce((total, value) => total + Number(value || 0), 0);
 }
 
-function chartIncomeBySystem(charts: Record<string, any>, search: string) {
+function normalizeSystemText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function chartIncomeBySystem(
+  charts: Record<string, any>,
+  searches: string | string[]
+) {
   const list = Array.isArray(charts?.ingresos_por_sistema)
     ? charts.ingresos_por_sistema
     : [];
 
-  const found = list.find((item: any) =>
-    String(item?.name || item?.system_name || "")
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  const aliases = (Array.isArray(searches) ? searches : [searches])
+    .map(normalizeSystemText)
+    .filter(Boolean);
 
-  return Number(found?.value || found?.amount || 0);
+  const found = list.find((item: any) => {
+    const candidates = [
+      item?.system_key,
+      item?.system,
+      item?.key,
+      item?.name,
+      item?.system_name,
+      item?.label,
+    ]
+      .map(normalizeSystemText)
+      .filter(Boolean);
+
+    return candidates.some((candidate) =>
+      aliases.some(
+        (alias) =>
+          candidate === alias ||
+          candidate.includes(alias) ||
+          alias.includes(candidate)
+      )
+    );
+  });
+
+  return firstNumber(
+    [
+      {
+        source: found,
+        keys: [
+          "value",
+          "amount",
+          "total",
+          "income",
+          "ingresos",
+          "total_ingresos_planes",
+        ],
+      },
+    ],
+    0
+  );
 }
 
 function alertSeverity(
@@ -430,38 +477,129 @@ export default function Dashboard({ darkMode }: Props) {
 
   const ventasMitiendaMes =
     monthlyValue(consolidatedCharts, "mitienda", currentYear, currentMonth) ||
-    chartIncomeBySystem(consolidatedCharts, "mitienda");
-
-  const ventasClicMenuMes =
-    monthlyValue(consolidatedCharts, "clicmenu", currentYear, currentMonth) ||
-    chartIncomeBySystem(consolidatedCharts, "clic") ||
     firstNumber([
       {
-        source: clicmenuKpis,
-        keys: ["total_ingresos_planes", "total_ingresos", "ingreso_total"],
+        source: mitiendaKpis,
+        keys: [
+          "ingresos_periodo_actual",
+          "ventas_mes",
+          "ingresos_mes",
+        ],
       },
     ]);
 
-  const ventasMitiendaAnual = annualValue(
-    consolidatedCharts,
-    "mitienda",
-    currentYear
-  );
+  const ventasClicMenuMes =
+    monthlyValue(consolidatedCharts, "clicmenu", currentYear, currentMonth) ||
+    firstNumber([
+      {
+        source: clicmenuKpis,
+        keys: [
+          "ingresos_periodo_actual",
+          "ventas_mes",
+          "ingresos_mes",
+        ],
+      },
+    ]);
+
+  const ventasMitiendaAnual =
+    annualValue(
+      consolidatedCharts,
+      "mitienda",
+      currentYear,
+      currentMonth
+    ) ||
+    firstNumber([
+      {
+        source: mitiendaKpis,
+        keys: [
+          "total_ingresos_planes",
+          "total_ingresos",
+          "ingreso_total",
+        ],
+      },
+    ]);
 
   const ventasClicMenuAnual =
-    annualValue(consolidatedCharts, "clicmenu", currentYear) ||
-    ventasClicMenuMes;
+    annualValue(
+      consolidatedCharts,
+      "clicmenu",
+      currentYear,
+      currentMonth
+    ) ||
+    firstNumber([
+      {
+        source: clicmenuKpis,
+        keys: [
+          "total_ingresos_planes",
+          "total_ingresos",
+          "ingreso_total",
+        ],
+      },
+    ]);
 
   const incomeBySystem = [
     {
+      key: "mitienda",
       name: "MiTiendaEnLineaMx",
-      value: chartIncomeBySystem(consolidatedCharts, "mitienda"),
+      value:
+        chartIncomeBySystem(consolidatedCharts, [
+          "mitienda",
+          "mi tienda",
+          "mitiendaenlineamx",
+        ]) || ventasMitiendaAnual,
     },
     {
+      key: "clicmenu",
       name: "Clic Menú",
-      value: chartIncomeBySystem(consolidatedCharts, "clic") || ventasClicMenuMes,
+      value:
+        chartIncomeBySystem(consolidatedCharts, [
+          "clicmenu",
+          "clic menu",
+          "clic menú",
+        ]) || ventasClicMenuAnual,
     },
   ];
+
+  const monthLabels = [
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+  ];
+
+  const monthlyMitienda = monthlySeries(
+    consolidatedCharts,
+    "mitienda",
+    currentYear
+  ).slice(0, currentMonth);
+
+  const monthlyClicMenu = monthlySeries(
+    consolidatedCharts,
+    "clicmenu",
+    currentYear
+  ).slice(0, currentMonth);
+
+  const monthlyComparison = Array.from(
+    { length: currentMonth },
+    (_, index) => ({
+      month: monthLabels[index],
+      mitienda: Number(monthlyMitienda[index] || 0),
+      clicmenu: Number(monthlyClicMenu[index] || 0),
+    })
+  );
+
+  const maxMonthlyIncome = Math.max(
+    ...monthlyComparison.flatMap((item) => [item.mitienda, item.clicmenu]),
+    1
+  );
 
   const maxIncome = Math.max(...incomeBySystem.map((item) => item.value), 1);
 
@@ -746,6 +884,183 @@ export default function Dashboard({ darkMode }: Props) {
               ))}
             </Grid>
 
+            <Card
+              sx={(theme) => ({
+                mt: 3,
+                overflow: "hidden",
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 4,
+                boxShadow: darkMode
+                  ? "0 18px 45px rgba(0,0,0,.28)"
+                  : "0 16px 40px rgba(15,23,42,.07)",
+              })}
+            >
+              <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+                <Stack
+                  direction={{ xs: "column", md: "row" }}
+                  justifyContent="space-between"
+                  alignItems={{ xs: "flex-start", md: "center" }}
+                  spacing={2}
+                  mb={3}
+                >
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Avatar
+                      sx={(theme) => ({
+                        width: 42,
+                        height: 42,
+                        backgroundColor: theme.palette.action.hover,
+                        color: theme.palette.primary.main,
+                      })}
+                    >
+                      <TrendingUp />
+                    </Avatar>
+
+                    <Box>
+                      <Typography variant="h6" fontWeight={900}>
+                        Evolución mensual de ingresos
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Comparativo de ingresos por planes hasta el mes actual.
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Stack direction="row" spacing={1}>
+                    <Chip
+                      size="small"
+                      label="MiTiendaEnLineaMx"
+                      sx={(theme) => ({
+                        fontWeight: 800,
+                        color: theme.palette.primary.main,
+                        borderColor: theme.palette.primary.main,
+                      })}
+                      variant="outlined"
+                    />
+                    <Chip
+                      size="small"
+                      label="Clic Menú"
+                      sx={(theme) => ({
+                        fontWeight: 800,
+                        color: theme.palette.warning.main,
+                        borderColor: theme.palette.warning.main,
+                      })}
+                      variant="outlined"
+                    />
+                  </Stack>
+                </Stack>
+
+                <Box
+                  sx={{
+                    overflowX: "auto",
+                    pb: 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      minWidth: Math.max(currentMonth * 96, 680),
+                      height: 290,
+                      display: "flex",
+                      alignItems: "flex-end",
+                      gap: 1.5,
+                      px: 1,
+                      pt: 2,
+                      borderBottom: (theme) =>
+                        `1px solid ${theme.palette.divider}`,
+                      background: (theme) =>
+                        `linear-gradient(to top, ${theme.palette.action.hover}, transparent 42%)`,
+                    }}
+                  >
+                    {monthlyComparison.map((item) => {
+                      const mitiendaHeight = Math.max(
+                        (item.mitienda / maxMonthlyIncome) * 210,
+                        item.mitienda > 0 ? 8 : 2
+                      );
+                      const clicmenuHeight = Math.max(
+                        (item.clicmenu / maxMonthlyIncome) * 210,
+                        item.clicmenu > 0 ? 8 : 2
+                      );
+
+                      return (
+                        <Box
+                          key={item.month}
+                          sx={{
+                            flex: 1,
+                            minWidth: 78,
+                            height: "100%",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "flex-end",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            fontWeight={700}
+                            sx={{ mb: 1 }}
+                          >
+                            {formatMoney(item.mitienda + item.clicmenu)}
+                          </Typography>
+
+                          <Box
+                            sx={{
+                              height: 215,
+                              width: "100%",
+                              display: "flex",
+                              alignItems: "flex-end",
+                              justifyContent: "center",
+                              gap: 0.8,
+                            }}
+                          >
+                            <Tooltip
+                              arrow
+                              title={`MiTiendaEnLineaMx: ${formatMoney(
+                                item.mitienda
+                              )}`}
+                            >
+                              <Box
+                                sx={(theme) => ({
+                                  width: 24,
+                                  height: mitiendaHeight,
+                                  borderRadius: "8px 8px 2px 2px",
+                                  bgcolor: theme.palette.primary.main,
+                                  opacity: item.mitienda > 0 ? 1 : 0.18,
+                                  transition: "height .25s ease",
+                                })}
+                              />
+                            </Tooltip>
+
+                            <Tooltip
+                              arrow
+                              title={`Clic Menú: ${formatMoney(
+                                item.clicmenu
+                              )}`}
+                            >
+                              <Box
+                                sx={(theme) => ({
+                                  width: 24,
+                                  height: clicmenuHeight,
+                                  borderRadius: "8px 8px 2px 2px",
+                                  bgcolor: theme.palette.warning.main,
+                                  opacity: item.clicmenu > 0 ? 1 : 0.18,
+                                  transition: "height .25s ease",
+                                })}
+                              />
+                            </Tooltip>
+                          </Box>
+
+                          <Typography fontWeight={900} sx={{ mt: 1 }}>
+                            {item.month}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+
             <Grid container spacing={3} sx={{ mt: 1 }}>
               <Grid item xs={12} md={8}>
                 <Card
@@ -787,7 +1102,7 @@ export default function Dashboard({ darkMode }: Props) {
                         );
 
                         return (
-                          <Box key={item.name}>
+                          <Box key={item.key}>
                             <Box
                               sx={{
                                 display: "flex",

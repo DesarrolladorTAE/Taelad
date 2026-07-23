@@ -17,7 +17,6 @@ import ClicMenuDashboard from "./components/ClicMenu/ClicMenuDashboard";
 import ClicMenuInicio from "./components/ClicMenu/ClicMenuInicio";
 
 import TeaTeDaMas from "./components/TeaTeDaMas";
-
 import BlogAdminShell from "./components/Blogs/BlogAdminShell";
 
 export default function SuperAdminPanel() {
@@ -29,7 +28,12 @@ export default function SuperAdminPanel() {
             return <Dashboard darkMode={darkMode} />;
 
           case "metricas":
-            return <Metricas darkMode={darkMode} />;
+            return (
+              <Metricas
+                darkMode={darkMode}
+                setView={setView}
+              />
+            );
 
           case "sistemas":
             return <Sistemas setView={setView} />;
@@ -67,53 +71,58 @@ export default function SuperAdminPanel() {
           case "mitienda-suscripciones":
             return <MiTiendaSuscripcionesGlobal setView={setView} />;
 
-        case "mitienda-blogs":
-  return (
-    <BlogAdminShell
-      systemId={2}
-      systemName="Mi Tienda en Línea MX"
-      backView="mitienda-dashboard"
-      setView={setView}
-    />
-  );
+          case "mitienda-blogs":
+            return (
+              <BlogAdminShell
+                systemId={2}
+                systemName="Mi Tienda en Línea MX"
+                backView="mitienda-dashboard"
+                setView={setView}
+              />
+            );
 
-/*
-|--------------------------------------------------------------------------
-| CLICMENU
-|--------------------------------------------------------------------------
-*/
+          /*
+          |--------------------------------------------------------------------------
+          | CLIC MENÚ
+          |--------------------------------------------------------------------------
+          */
 
-case "clicmenu-inicio":
-  return <ClicMenuInicio setView={setView} />;
+          case "clicmenu-inicio":
+            return <ClicMenuInicio setView={setView} />;
 
-case "clicmenu":
-  return <ClicMenuDashboard />;
+          case "clicmenu":
+            return <ClicMenuDashboard />;
 
-case "clicmenu-blogs":
-  return (
-    <BlogAdminShell
-      systemId={3}
-      systemName="ClicMenu"
-      backView="clicmenu-inicio"
-      setView={setView}
-    />
-  );
-  case "elad-blog":
-  return (
-    <BlogAdminShell
-      systemId={5}
-      systemName="Tecnologías Administrativas ELAD"
-      backView="sistemas"
-      setView={setView}
-    />
-  );
+          case "clicmenu-blogs":
+            return (
+              <BlogAdminShell
+                systemId={3}
+                systemName="ClicMenu"
+                backView="clicmenu-inicio"
+                setView={setView}
+              />
+            );
 
+          /*
+          |--------------------------------------------------------------------------
+          | TECNOLOGÍAS ADMINISTRATIVAS ELAD
+          |--------------------------------------------------------------------------
+          */
 
-default:
-  return <Dashboard darkMode={darkMode} />;
+          case "elad-blog":
+            return (
+              <BlogAdminShell
+                systemId={5}
+                systemName="Tecnologías Administrativas ELAD"
+                backView="sistemas"
+                setView={setView}
+              />
+            );
+
+          default:
+            return <Dashboard darkMode={darkMode} />;
         }
       }}
     </Shell>
   );
-
 }
