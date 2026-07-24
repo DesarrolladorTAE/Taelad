@@ -1,3 +1,5 @@
+import type { KeyboardEvent } from "react";
+
 import {
   alpha,
   Box,
@@ -12,12 +14,15 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
+type LogoMode = "normal" | "remove-white-dark";
+
 type Sistema = {
   id: string;
   nombre: string;
   logo: string;
   descripcion: string;
   estado: string;
+  logoMode?: LogoMode;
 };
 
 type Props = {
@@ -61,6 +66,7 @@ const sistemas: Sistema[] = [
     descripcion:
       "Administración del blog institucional de Tecnologías Administrativas ELAD",
     estado: "Activo",
+    logoMode: "remove-white-dark",
   },
 ];
 
@@ -104,7 +110,7 @@ export default function Sistemas({ setView }: Props) {
   };
 
   const manejarTeclado = (
-    event: React.KeyboardEvent<HTMLDivElement>,
+    event: KeyboardEvent<HTMLDivElement>,
     sistema: Sistema
   ) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -113,8 +119,45 @@ export default function Sistemas({ setView }: Props) {
     }
   };
 
+  const getLogoFilter = (sistema: Sistema) => {
+    if (!isDark) {
+      return "none";
+    }
+
+    if (sistema.logoMode === "remove-white-dark") {
+      /*
+       * El PNG de ELAD tiene fondo blanco:
+       * - invert convierte el blanco en negro;
+       * - hue-rotate recupera los colores;
+       * - screen hace que el negro se mezcle con el fondo oscuro.
+       */
+      return [
+        "invert(1)",
+        "hue-rotate(180deg)",
+        "saturate(1.28)",
+        "contrast(1.12)",
+        "brightness(1.15)",
+        "drop-shadow(0 3px 8px rgba(0,0,0,.28))",
+      ].join(" ");
+    }
+
+    return [
+      "drop-shadow(0 0 1px rgba(255,255,255,.60))",
+      "drop-shadow(0 3px 8px rgba(0,0,0,.25))",
+    ].join(" ");
+  };
+
   return (
-    <Box sx={{ width: "100%", minWidth: 0, pb: { xs: 2, md: 4 } }}>
+    <Box
+      sx={{
+        width: "100%",
+        minWidth: 0,
+        pb: {
+          xs: 2,
+          md: 4,
+        },
+      }}
+    >
       <Box mb={{ xs: 2.5, md: 3.5 }}>
         <Typography
           variant="h4"
@@ -146,205 +189,274 @@ export default function Sistemas({ setView }: Props) {
       </Box>
 
       <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
-        {sistemas.map((sistema) => (
-          <Grid item xs={12} sm={6} lg={4} key={sistema.id}>
-            <Card
-              role="button"
-              tabIndex={0}
-              aria-label={`Abrir ${sistema.nombre}`}
-              onClick={() => abrirSistema(sistema)}
-              onKeyDown={(event) => manejarTeclado(event, sistema)}
-              elevation={0}
-              sx={{
-                height: "100%",
-                minHeight: {
-                  xs: 290,
-                  sm: 310,
-                  md: 320,
-                },
-                display: "flex",
-                flexDirection: "column",
-                cursor: "pointer",
-                borderRadius: {
-                  xs: 3,
-                  md: 4,
-                },
-                border: "1px solid",
-                borderColor: "divider",
-                bgcolor: "background.paper",
-                color: "text.primary",
-                overflow: "hidden",
-                outline: "none",
-                boxShadow: isDark
-                  ? "0 16px 36px rgba(0, 0, 0, 0.24)"
-                  : "0 16px 36px rgba(15, 23, 42, 0.07)",
-                transition:
-                  "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
+        {sistemas.map((sistema) => {
+          const isElad = sistema.id === "elad";
+          const removeWhiteBackground =
+            isDark && sistema.logoMode === "remove-white-dark";
 
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  borderColor: "primary.main",
-                  boxShadow: isDark
-                    ? "0 22px 48px rgba(0, 0, 0, 0.36)"
-                    : "0 22px 48px rgba(15, 23, 42, 0.13)",
-                },
-
-                "&:focus-visible": {
-                  borderColor: "primary.main",
-                  boxShadow: `0 0 0 3px ${alpha(
-                    theme.palette.primary.main,
-                    0.22
-                  )}`,
-                },
-              }}
-            >
-              <CardContent
+          return (
+            <Grid item xs={12} sm={6} lg={4} key={sistema.id}>
+              <Card
+                role="button"
+                tabIndex={0}
+                aria-label={`Abrir ${sistema.nombre}`}
+                onClick={() => abrirSistema(sistema)}
+                onKeyDown={(event) =>
+                  manejarTeclado(event, sistema)
+                }
+                elevation={0}
                 sx={{
-                  p: {
-                    xs: 2,
-                    sm: 2.5,
-                    md: 3,
+                  height: "100%",
+                  minHeight: {
+                    xs: 290,
+                    sm: 310,
+                    md: 320,
                   },
-                  "&:last-child": {
-                    pb: {
+                  display: "flex",
+                  flexDirection: "column",
+                  cursor: "pointer",
+                  borderRadius: {
+                    xs: 3,
+                    md: 4,
+                  },
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                  color: "text.primary",
+                  overflow: "hidden",
+                  outline: "none",
+                  boxShadow: isDark
+                    ? "0 16px 36px rgba(0,0,0,.24)"
+                    : "0 16px 36px rgba(15,23,42,.07)",
+                  transition:
+                    "transform .2s ease, box-shadow .2s ease, border-color .2s ease",
+
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    borderColor: "primary.main",
+                    boxShadow: isDark
+                      ? "0 22px 48px rgba(0,0,0,.36)"
+                      : "0 22px 48px rgba(15,23,42,.13)",
+                  },
+
+                  "&:focus-visible": {
+                    borderColor: "primary.main",
+                    boxShadow: `0 0 0 3px ${alpha(
+                      theme.palette.primary.main,
+                      0.22
+                    )}`,
+                  },
+                }}
+              >
+                <CardContent
+                  sx={{
+                    p: {
                       xs: 2,
                       sm: 2.5,
                       md: 3,
                     },
-                  },
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: {
-                      xs: 100,
-                      sm: 108,
-                      md: 116,
+                    "&:last-child": {
+                      pb: {
+                        xs: 2,
+                        sm: 2.5,
+                        md: 3,
+                      },
                     },
-                    mb: {
-                      xs: 2,
-                      md: 2.5,
-                    },
-                    px: {
-                      xs: 1.5,
-                      md: 2,
-                    },
-                    py: 1.5,
-                    display: "grid",
-                    placeItems: "center",
-                    overflow: "hidden",
-                    borderRadius: 3,
-                    border: "1px solid",
-                    borderColor: isDark
-                      ? alpha(theme.palette.common.white, 0.12)
-                      : alpha(theme.palette.common.black, 0.07),
-                    bgcolor: isDark
-                      ? alpha(theme.palette.common.white, 0.035)
-                      : alpha(theme.palette.common.black, 0.025),
-                    boxShadow: isDark
-                      ? `inset 0 0 0 1px ${alpha(
-                          theme.palette.common.white,
-                          0.025
-                        )}`
-                      : "none",
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
                   }}
                 >
                   <Box
-                    component="img"
-                    src={sistema.logo}
-                    alt={`Logo de ${sistema.nombre}`}
-                    loading="lazy"
                     sx={{
-                      display: "block",
-                      width: "auto",
-                      height: "auto",
-                      maxWidth:
-                        sistema.id === "elad"
+                      width: "100%",
+                      height: {
+                        xs: 100,
+                        sm: 108,
+                        md: 116,
+                      },
+                      mb: {
+                        xs: 2,
+                        md: 2.5,
+                      },
+                      px: {
+                        xs: 1.5,
+                        md: 2,
+                      },
+                      py: 1.5,
+                      display: "grid",
+                      placeItems: "center",
+                      overflow: "hidden",
+                      borderRadius: 3,
+                      border: "1px solid",
+                      borderColor: isDark
+                        ? alpha(theme.palette.common.white, 0.11)
+                        : alpha(theme.palette.common.black, 0.07),
+                      bgcolor: isDark
+                        ? alpha(theme.palette.common.white, 0.018)
+                        : alpha(theme.palette.common.black, 0.018),
+                      backgroundImage: isDark
+                        ? `radial-gradient(
+                            circle at center,
+                            ${alpha(
+                              theme.palette.common.white,
+                              0.035
+                            )} 0%,
+                            transparent 70%
+                          )`
+                        : `linear-gradient(
+                            145deg,
+                            ${alpha(
+                              theme.palette.common.white,
+                              0.84
+                            )},
+                            ${alpha(
+                              theme.palette.common.black,
+                              0.018
+                            )}
+                          )`,
+                      boxShadow: isDark
+                        ? `inset 0 0 0 1px ${alpha(
+                            theme.palette.common.white,
+                            0.018
+                          )}`
+                        : `inset 0 1px 0 ${alpha(
+                            theme.palette.common.white,
+                            0.84
+                          )}`,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={sistema.logo}
+                      alt={`Logo de ${sistema.nombre}`}
+                      loading="lazy"
+                      draggable={false}
+                      sx={{
+                        display: "block",
+
+                        /*
+                         * Una sola propiedad width.
+                         * El error anterior era causado por tener width duplicado.
+                         */
+                        width: isElad
                           ? {
-                              xs: 130,
-                              sm: 140,
-                              md: 150,
+                              xs: 170,
+                              sm: 190,
+                              md: 205,
+                            }
+                          : "auto",
+
+                        height: "auto",
+
+                        maxWidth: isElad
+                          ? {
+                              xs: "92%",
+                              sm: "90%",
+                              md: "88%",
                             }
                           : {
                               xs: "88%",
                               sm: "84%",
                               md: "80%",
                             },
-                      maxHeight:
-                        sistema.id === "elad"
+
+                        maxHeight: isElad
                           ? {
-                              xs: 78,
-                              sm: 84,
-                              md: 90,
+                              xs: 88,
+                              sm: 94,
+                              md: 100,
                             }
                           : {
                               xs: 64,
                               sm: 70,
                               md: 76,
                             },
-                      objectFit: "contain",
-                      objectPosition: "center",
-                      filter: isDark
-                        ? [
-                            "drop-shadow(0 0 1px rgba(255,255,255,.95))",
-                            "drop-shadow(0 0 3px rgba(255,255,255,.42))",
-                          ].join(" ")
-                        : "none",
-                    }}
-                  />
-                </Box>
 
-                <Typography
-                  component="h2"
-                  fontWeight={900}
-                  sx={{
-                    fontSize: {
-                      xs: 18,
-                      md: 20,
-                    },
-                    lineHeight: 1.25,
-                    minHeight: {
-                      xs: "auto",
-                      md: sistema.id === "elad" ? 50 : 25,
-                    },
-                  }}
-                >
-                  {sistema.nombre}
-                </Typography>
+                        objectFit: "contain",
+                        objectPosition: "center",
+                        pointerEvents: "none",
+                        userSelect: "none",
 
-                <Typography
-                  color="text.secondary"
-                  sx={{
-                    mt: 0.8,
-                    fontSize: {
-                      xs: 13,
-                      md: 14,
-                    },
-                    lineHeight: 1.55,
-                  }}
-                >
-                  {sistema.descripcion}
-                </Typography>
+                        /*
+                         * En oscuro, el fondo convertido a negro desaparece
+                         * visualmente sobre el contenedor mediante screen.
+                         */
+                        mixBlendMode: removeWhiteBackground
+                          ? "screen"
+                          : "normal",
 
-                <Stack direction="row" justifyContent="flex-start" mt="auto" pt={2.5}>
-                  <Chip
-                    label={sistema.estado}
-                    size="small"
-                    color={sistema.estado === "Activo" ? "success" : "default"}
+                        filter: getLogoFilter(sistema),
+
+                        opacity: removeWhiteBackground ? 0.98 : 1,
+
+                        transition:
+                          "filter .2s ease, opacity .2s ease, transform .2s ease",
+
+                        ".MuiCard-root:hover &": {
+                          transform: "scale(1.025)",
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  <Typography
+                    component="h2"
+                    fontWeight={900}
                     sx={{
-                      fontWeight: 800,
-                      borderRadius: 2,
+                      fontSize: {
+                        xs: 18,
+                        md: 20,
+                      },
+                      lineHeight: 1.25,
+                      minHeight: {
+                        xs: "auto",
+                        md: isElad ? 50 : 25,
+                      },
                     }}
-                  />
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  >
+                    {sistema.nombre}
+                  </Typography>
+
+                  <Typography
+                    color="text.secondary"
+                    sx={{
+                      mt: 0.8,
+                      fontSize: {
+                        xs: 13,
+                        md: 14,
+                      },
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {sistema.descripcion}
+                  </Typography>
+
+                  <Stack
+                    direction="row"
+                    justifyContent="flex-start"
+                    mt="auto"
+                    pt={2.5}
+                  >
+                    <Chip
+                      label={sistema.estado}
+                      size="small"
+                      color={
+                        sistema.estado === "Activo"
+                          ? "success"
+                          : "default"
+                      }
+                      sx={{
+                        fontWeight: 800,
+                        borderRadius: 2,
+                      }}
+                    />
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
     </Box>
   );

@@ -1258,24 +1258,6 @@ export default function Dashboard({ darkMode }: Props) {
                           {formatNumber(mitiendaPlanesVencidos)}
                         </Typography>
                       </Grid>
-
-                      <Grid item xs={6}>
-                        <Typography color="text.secondary" variant="body2">
-                          MRR
-                        </Typography>
-                        <Typography fontWeight={900}>
-                          {formatMoney(mitiendaMrr)}
-                        </Typography>
-                      </Grid>
-
-                      <Grid item xs={6}>
-                        <Typography color="text.secondary" variant="body2">
-                          Antigüedad promedio
-                        </Typography>
-                        <Typography fontWeight={900}>
-                          {formatNumber(mitiendaAntiguedad)} días
-                        </Typography>
-                      </Grid>
                     </Grid>
                   </CardContent>
                 </Card>
