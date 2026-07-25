@@ -5,7 +5,7 @@ import Usuarios from "./components/Usuarios";
 import Metricas from "./components/Metricas";
 import Sistemas from "./components/Sistemas";
 import Facturacion from "./components/Facturacion";
-import Administradores from "./components/Administradores";
+import Administradores from "./components/TablaServices";
 import Configuracion from "./components/Configuracion";
 
 import MiTiendaDashboard from "./components/MiTiendaDashboard";
@@ -18,6 +18,7 @@ import ClicMenuInicio from "./components/ClicMenu/ClicMenuInicio";
 
 import TeaTeDaMas from "./components/TeaTeDaMas";
 import BlogAdminShell from "./components/Blogs/BlogAdminShell";
+import TablaServices from "./components/TablaServices";
 
 export default function SuperAdminPanel() {
   return (
@@ -45,13 +46,17 @@ export default function SuperAdminPanel() {
             return <Facturacion />;
 
           case "usuarios":
-            return <Usuarios />;
+  return <Usuarios />;
 
-          case "administradores":
-            return <Administradores />;
+case "tabla_services":
+  return (
+    <TablaServices
+      volver={() => setView("dashboard")}
+    />
+  );
 
-          case "configuracion":
-            return <Configuracion />;
+case "configuracion":
+  return <Configuracion />;
 
           /*
           |--------------------------------------------------------------------------

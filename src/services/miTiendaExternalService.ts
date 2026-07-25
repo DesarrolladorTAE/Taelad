@@ -326,4 +326,39 @@ export async function getPlanTienda(id: Id): Promise<PlanTienda> {
       data.dentro_del_rango ??
       false,
   };
+  
+}
+export type ActualizarFechaPlanPayload = {
+  plan_id: Id;
+  fecha_vencimiento: string;
+};
+
+export type ActualizarFechaPlanResponse = {
+  message: string;
+  data: {
+    store_id: Id;
+    plan_anterior_id?: Id | null;
+    plan_id: Id;
+    subscription_id?: Id | null;
+    campo_actualizado: string;
+    fecha_anterior?: string | null;
+    fecha_vencimiento: string;
+    estado: string;
+    is_active: boolean;
+  };
+};
+
+export async function updateFechaVencimientoPlan(
+  id: Id,
+  payload: ActualizarFechaPlanPayload
+): Promise<ActualizarFechaPlanResponse> {
+  const response = await axiosClient.patch(
+    `${TIENDAS_ENDPOINT}/${id}/plan/fecha-vencimiento`,
+    {
+      plan_id: payload.plan_id,
+      fecha_vencimiento: payload.fecha_vencimiento,
+    }
+  );
+
+  return response.data as ActualizarFechaPlanResponse;
 }

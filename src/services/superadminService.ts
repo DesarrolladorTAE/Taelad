@@ -10,8 +10,12 @@ function headers() {
     localStorage.getItem("AUTH_TOKEN");
 
   return {
-    Authorization: `Bearer ${token}`,
     Accept: "application/json",
+    ...(token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {}),
   };
 }
 
@@ -21,11 +25,29 @@ function headers() {
 
 export const getEmpresasTaeconta = async () => {
   const res = await axiosClient.get(
-    "/superadmin/taeconta/empresas"
+    "/superadmin/taeconta/empresas",
   );
 
   return res.data;
 };
+// =========================
+// TAECONTA EMPRESAS
+// =========================
+
+export async function fetchTaecontaEmpresas(
+  page = 1,
+) {
+  const res = await axiosClient.get(
+    "/taeconta/empresas",
+    {
+      params: {
+        page,
+      },
+    },
+  );
+
+  return res.data;
+}
 
 // =========================
 // DASHBOARD
@@ -36,7 +58,7 @@ export async function getSuperAdminDashboard() {
     `${API_URL}/superadmin/dashboard`,
     {
       headers: headers(),
-    }
+    },
   );
 
   return res.data;
@@ -51,7 +73,7 @@ export async function getSuperAdminSystems() {
     `${API_URL}/superadmin/systems`,
     {
       headers: headers(),
-    }
+    },
   );
 
   return res.data;
@@ -68,9 +90,8 @@ export type GetSuperAdminUsersParams = {
   role?: number | string;
 };
 
-// LISTAR
 export async function getSuperAdminUsers(
-  params: GetSuperAdminUsersParams = {}
+  params: GetSuperAdminUsersParams = {},
 ) {
   const {
     page = 1,
@@ -85,10 +106,10 @@ export async function getSuperAdminUsers(
       params: {
         page,
         per_page: perPage,
-        search: search || undefined,
+        search: search?.trim() || undefined,
         role: role || undefined,
       },
-    }
+    },
   );
 
   return res.data;
@@ -102,14 +123,14 @@ export async function createUser(data: any) {
   try {
     const res = await axiosClient.post(
       "/superadmin/users",
-      data
+      data,
     );
 
     return res.data;
   } catch (error: any) {
-    console.log(
+    console.error(
       "CREATE USER ERROR:",
-      error.response?.data
+      error.response?.data || error,
     );
 
     throw error;
@@ -122,19 +143,19 @@ export async function createUser(data: any) {
 
 export async function updateUser(
   id: number,
-  data: any
+  data: any,
 ) {
   try {
     const res = await axiosClient.put(
       `/superadmin/users/${id}`,
-      data
+      data,
     );
 
     return res.data;
   } catch (error: any) {
-    console.log(
+    console.error(
       "UPDATE USER ERROR:",
-      error.response?.data
+      error.response?.data || error,
     );
 
     throw error;
@@ -148,14 +169,14 @@ export async function updateUser(
 export async function deleteUser(id: number) {
   try {
     const res = await axiosClient.delete(
-      `/superadmin/users/${id}`
+      `/superadmin/users/${id}`,
     );
 
     return res.data;
   } catch (error: any) {
-    console.log(
+    console.error(
       "DELETE USER ERROR:",
-      error.response?.data
+      error.response?.data || error,
     );
 
     throw error;
@@ -173,27 +194,28 @@ export type AsignarCodigoEspecialPayload = {
 
 export async function asignarCodigoEspecial(
   userId: number,
-  data: AsignarCodigoEspecialPayload
+  data: AsignarCodigoEspecialPayload,
 ) {
   try {
     const payload: AsignarCodigoEspecialPayload = {
       codigo_ref: data.codigo_ref
         .trim()
         .toUpperCase(),
-      aplica_comision:
+      aplica_comision: Boolean(
         data.aplica_comision,
+      ),
     };
 
     const res = await axiosClient.post(
       `/superadmin/users/${userId}/codigo-ref-especial`,
-      payload
+      payload,
     );
 
     return res.data;
   } catch (error: any) {
-    console.log(
+    console.error(
       "ASIGNAR CODIGO ESPECIAL ERROR:",
-      error.response?.data
+      error.response?.data || error,
     );
 
     throw error;
@@ -201,7 +223,7 @@ export async function asignarCodigoEspecial(
 }
 
 // =========================
-// ADMINISTRATORS
+// ADMINISTRATORS - LEGACY
 // =========================
 
 export async function getSuperAdminAdministrators() {
@@ -209,7 +231,7 @@ export async function getSuperAdminAdministrators() {
     `${API_URL}/superadmin/administrators`,
     {
       headers: headers(),
-    }
+    },
   );
 
   return res.data;
@@ -219,34 +241,88 @@ export async function getSuperAdminAdministrators() {
 // SERVICES
 // =========================
 
-export async function getsuperadminService(
-  page = 1
+export type SuperAdminService = {
+  id: number;
+  name: string;
+  descripcion: string | null;
+  tipo_product: string;
+  precio: number | string;
+  url_imagen: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type SuperAdminServicePayload = {
+  name: string;
+  descripcion: string | null;
+  tipo_product: string;
+  precio: number;
+  url_imagen: string | null;
+};
+
+export type GetSuperAdminServicesParams = {
+  page?: number;
+  perPage?: number;
+  search?: string;
+  tipoProduct?: string;
+};
+
+export async function getSuperAdminServices(
+  params: GetSuperAdminServicesParams = {},
 ) {
-  const res = await axios.get(
-    `${API_URL}/services/superadminService?page=${page}`,
+  const {
+    page = 1,
+    perPage = 100,
+    search,
+    tipoProduct,
+  } = params;
+
+  const res = await axiosClient.get(
+    "/superadmin/services",
     {
-      headers: headers(),
-    }
+      params: {
+        page,
+        per_page: perPage,
+        search: search?.trim() || undefined,
+        tipo_product:
+          tipoProduct && tipoProduct !== "todos"
+            ? tipoProduct
+            : undefined,
+      },
+    },
   );
 
   return res.data;
 }
 
-// =========================
-// TAECONTA EMPRESAS
-// =========================
-
-export async function fetchTaecontaEmpresas(
-  page = 1
+export async function createSuperAdminService(
+  data: SuperAdminServicePayload,
 ) {
-  const res = await axios.get(
-    `${API_URL}/taeconta/empresas`,
-    {
-      headers: headers(),
-      params: {
-        page,
-      },
-    }
+  const res = await axiosClient.post(
+    "/superadmin/services",
+    data,
+  );
+
+  return res.data;
+}
+
+export async function updateSuperAdminService(
+  id: number,
+  data: SuperAdminServicePayload,
+) {
+  const res = await axiosClient.put(
+    `/superadmin/services/${id}`,
+    data,
+  );
+
+  return res.data;
+}
+
+export async function deleteSuperAdminService(
+  id: number,
+) {
+  const res = await axiosClient.delete(
+    `/superadmin/services/${id}`,
   );
 
   return res.data;

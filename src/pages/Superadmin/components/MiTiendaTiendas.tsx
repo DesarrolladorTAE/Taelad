@@ -138,6 +138,8 @@ type Tienda = {
   fecha_creacion?: string | null;
   fecha?: string | null;
   plan?: {
+    id?: number | string | null;
+    plan_id?: number | string | null;
     estado?: string | null;
     nombre_plan?: string | null;
     nombre?: string | null;
@@ -184,6 +186,11 @@ type DatosFiscalesForm = {
   regimen_fiscal: string;
 };
 
+type PlanForm = {
+  plan_id: string;
+  fecha_vencimiento: string;
+};
+
 const ITEMS_PER_PAGE = 16;
 
 const SUPERADMIN_TIENDAS_ENDPOINT = "/superadmin/mitienda/tiendas";
@@ -202,6 +209,11 @@ const EMPTY_DATOS_FISCALES: DatosFiscalesForm = {
   razon_social: "",
   codigo_postal_fiscal: "",
   regimen_fiscal: "",
+};
+
+const EMPTY_PLAN_FORM: PlanForm = {
+  plan_id: "",
+  fecha_vencimiento: "",
 };
 
 const REGIMENES_FISCALES = [
@@ -279,15 +291,19 @@ function getPlanTienda(tienda: Tienda) {
   );
 }
 
+function getPlanIdTienda(tienda: Tienda | null | undefined) {
+  return tienda?.plan_id ?? tienda?.plan?.plan_id ?? tienda?.plan?.id ?? null;
+}
+
 function getFechaVencimientoTienda(tienda: Tienda | null | undefined) {
   if (!tienda) return null;
 
-  const planId = Number(tienda.plan_id ?? 0);
+  const planId = Number(getPlanIdTienda(tienda) ?? 0);
   const isDemo =
     planId === PLAN_DEMO_ID ||
     normalizeText(getPlanTienda(tienda)).includes("demo");
 
-  return (
+  const fechaSuscripcion =
     tienda.current_subscription?.ends_at ??
     tienda.current_subscription?.expires_at ??
     tienda.latest_subscription?.ends_at ??
@@ -297,11 +313,24 @@ function getFechaVencimientoTienda(tienda: Tienda | null | undefined) {
     tienda.ends_at ??
     tienda.expires_at ??
     tienda.fecha_vencimiento_plan ??
-    (isDemo ? tienda.trial_ends_at : tienda.plan_expiration) ??
+    null;
+
+  if (isDemo) {
+    return (
+      tienda.trial_ends_at ??
+      tienda.plan?.vence ??
+      tienda.plan?.fecha_vencimiento ??
+      tienda.plan?.expires_at ??
+      fechaSuscripcion
+    );
+  }
+
+  return (
+    tienda.plan_expiration ??
     tienda.plan?.vence ??
     tienda.plan?.fecha_vencimiento ??
     tienda.plan?.expires_at ??
-    null
+    fechaSuscripcion
   );
 }
 
@@ -447,6 +476,31 @@ function formatFecha(value?: string | null) {
   }).format(date);
 }
 
+function toDateInputValue(value?: string | null) {
+  if (!value) return "";
+
+  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getPlanFormFromTienda(tienda: Tienda | null | undefined): PlanForm {
+  return {
+    plan_id: String(getPlanIdTienda(tienda) ?? ""),
+    fecha_vencimiento: toDateInputValue(
+      getFechaVencimientoTienda(tienda)
+    ),
+  };
+}
+
 const noAutocomplete = (name: string) => ({
   autoComplete: "new-password",
   name,
@@ -513,13 +567,16 @@ export default function MiTiendaTiendas({ setView }: Props) {
 
   const [openDatosPersonales, setOpenDatosPersonales] = useState(false);
   const [openDatosFiscales, setOpenDatosFiscales] = useState(false);
-  const [openPlan, setOpenPlan] = useState(false);
+  const [openPlanInfo, setOpenPlanInfo] = useState(false);
+  const [openEditarPlan, setOpenEditarPlan] = useState(false);
 
   const [datosPersonales, setDatosPersonales] =
     useState<DatosPersonalesForm>(EMPTY_DATOS_PERSONALES);
 
   const [datosFiscales, setDatosFiscales] =
     useState<DatosFiscalesForm>(EMPTY_DATOS_FISCALES);
+
+  const [planForm, setPlanForm] = useState<PlanForm>(EMPTY_PLAN_FORM);
 
   const [openTaeconta, setOpenTaeconta] = useState(false);
   const [tiendaTaeconta, setTiendaTaeconta] = useState<Tienda | null>(null);
@@ -599,6 +656,29 @@ export default function MiTiendaTiendas({ setView }: Props) {
       .filter((value) => value && value !== "Sin plan");
 
     return Array.from(new Set(planes)).sort((a, b) => a.localeCompare(b));
+  }, [data]);
+
+  const planesCatalogo = useMemo(() => {
+    const planesMap = new Map<string, string>();
+
+    data.forEach((tienda) => {
+      const planId = getPlanIdTienda(tienda);
+
+      if (planId === null || planId === undefined || String(planId) === "") {
+        return;
+      }
+
+      const nombre = getPlanTienda(tienda);
+
+      planesMap.set(
+        String(planId),
+        nombre && nombre !== "Sin plan" ? nombre : `Plan ${planId}`
+      );
+    });
+
+    return Array.from(planesMap.entries())
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => Number(a.id) - Number(b.id));
   }, [data]);
 
   const aniosDisponibles = useMemo(() => {
@@ -826,8 +906,8 @@ export default function MiTiendaTiendas({ setView }: Props) {
     }
   };
 
-  const abrirPlan = async (tienda: Tienda) => {
-    setOpenPlan(true);
+  const abrirDetallePlan = async (tienda: Tienda) => {
+    setOpenPlanInfo(true);
     setTiendaSeleccionada(tienda);
     setTiendaDetalle(null);
     setModalError("");
@@ -837,6 +917,32 @@ export default function MiTiendaTiendas({ setView }: Props) {
     try {
       const detalle = await cargarDetalleTienda(tienda.id);
       setTiendaDetalle(detalle);
+    } catch (error) {
+      console.error("Error cargando plan:", error);
+      setModalError(
+        getRequestErrorMessage(
+          error,
+          "No fue posible cargar la información del plan."
+        )
+      );
+    } finally {
+      setLoadingModal(false);
+    }
+  };
+
+  const abrirEditarPlan = async (tienda: Tienda) => {
+    setOpenEditarPlan(true);
+    setTiendaSeleccionada(tienda);
+    setTiendaDetalle(null);
+    setPlanForm(getPlanFormFromTienda(tienda));
+    setModalError("");
+    setModalSuccess("");
+    setLoadingModal(true);
+
+    try {
+      const detalle = await cargarDetalleTienda(tienda.id);
+      setTiendaDetalle(detalle);
+      setPlanForm(getPlanFormFromTienda(detalle));
     } catch (error) {
       console.error("Error cargando plan:", error);
       setModalError(
@@ -868,10 +974,19 @@ export default function MiTiendaTiendas({ setView }: Props) {
     setModalSuccess("");
   };
 
-  const cerrarPlan = () => {
-    setOpenPlan(false);
+  const cerrarDetallePlan = () => {
+    setOpenPlanInfo(false);
     setTiendaSeleccionada(null);
     setTiendaDetalle(null);
+    setModalError("");
+    setModalSuccess("");
+  };
+
+  const cerrarEditarPlan = () => {
+    setOpenEditarPlan(false);
+    setTiendaSeleccionada(null);
+    setTiendaDetalle(null);
+    setPlanForm(EMPTY_PLAN_FORM);
     setModalError("");
     setModalSuccess("");
   };
@@ -953,6 +1068,58 @@ export default function MiTiendaTiendas({ setView }: Props) {
     }
   };
 
+  const guardarPlan = async () => {
+    const tiendaId = tiendaDetalle?.id ?? tiendaSeleccionada?.id;
+    const planId = Number(planForm.plan_id);
+
+    if (!tiendaId) return;
+
+    if (!Number.isInteger(planId) || planId <= 0) {
+      setModalError("Selecciona un tipo de plan válido.");
+      return;
+    }
+
+    if (!planForm.fecha_vencimiento) {
+      setModalError("Selecciona la fecha de vencimiento.");
+      return;
+    }
+
+    setSaving(true);
+    setModalError("");
+    setModalSuccess("");
+
+    try {
+      const response = await axiosClient.patch(
+        `${EXTERNAL_TIENDAS_ENDPOINT}/${tiendaId}/plan/fecha-vencimiento`,
+        {
+          plan_id: planId,
+          fecha_vencimiento: planForm.fecha_vencimiento,
+        }
+      );
+
+      await cargarTiendas();
+
+      const detalle = await cargarDetalleTienda(tiendaId);
+      setTiendaDetalle(detalle);
+      setPlanForm(getPlanFormFromTienda(detalle));
+
+      setModalSuccess(
+        response.data?.message ??
+          "Plan y fecha de vencimiento actualizados correctamente."
+      );
+    } catch (error) {
+      console.error("Error guardando plan y vencimiento:", error);
+      setModalError(
+        getRequestErrorMessage(
+          error,
+          "No fue posible actualizar el plan y la fecha de vencimiento."
+        )
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const abrirModalTaeconta = (tienda: Tienda) => {
     setTiendaTaeconta(tienda);
     setOpenTaeconta(true);
@@ -969,7 +1136,6 @@ export default function MiTiendaTiendas({ setView }: Props) {
   const planDetalle = tiendaDetalle?.plan ?? {};
   const nombrePlan = tiendaModal ? getPlanTienda(tiendaModal) : "Sin plan";
   const vencimiento = getFechaVencimientoTienda(tiendaModal);
-  const vencimientoLabel = getFechaVencimientoLabel(tiendaModal);
   const estadoPlan = getEstadoPlanTienda(tiendaModal);
 
   const productosRegistrados =
@@ -1024,7 +1190,7 @@ export default function MiTiendaTiendas({ setView }: Props) {
       </Tooltip>
 
       <Tooltip title="Plan y vencimiento">
-        <IconButton size="small" onClick={() => abrirPlan(tienda)}>
+        <IconButton size="small" onClick={() => abrirDetallePlan(tienda)}>
           <InfoIcon sx={{ color: "#9c27b0" }} />
         </IconButton>
       </Tooltip>
@@ -1337,10 +1503,35 @@ const renderRegimenFiscalField = () => {
                       />
                     </Stack>
 
-                    <Typography variant="body2" color="text.secondary">
-                      {getFechaVencimientoLabel(tienda)}: {" "}
-                      {formatFecha(getFechaVencimientoTienda(tienda))}
-                    </Typography>
+                    <Box
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => abrirEditarPlan(tienda)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          abrirEditarPlan(tienda);
+                        }
+                      }}
+                      sx={{
+                        cursor: "pointer",
+                        borderRadius: 2,
+                        px: 1,
+                        py: 0.75,
+                        mx: -1,
+                        "&:hover": {
+                          bgcolor: "action.hover",
+                        },
+                      }}
+                    >
+                      <Typography variant="body2" fontWeight={700}>
+                        {getFechaVencimientoLabel(tienda)}
+                      </Typography>
+
+                      <Typography variant="body2" color="text.secondary">
+                        {formatFecha(getFechaVencimientoTienda(tienda))}
+                      </Typography>
+                    </Box>
 
                     {accionesTienda(tienda)}
                   </Stack>
@@ -1403,7 +1594,23 @@ const renderRegimenFiscalField = () => {
                     />
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => abrirEditarPlan(tienda)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        abrirEditarPlan(tienda);
+                      }
+                    }}
+                    sx={{
+                      cursor: "pointer",
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                      },
+                    }}
+                  >
                     <Typography fontSize={13} fontWeight={700}>
                       {getFechaVencimientoLabel(tienda)}
                     </Typography>
@@ -1733,8 +1940,8 @@ const renderRegimenFiscalField = () => {
       </Dialog>
 
       <Dialog
-        open={openPlan}
-        onClose={cerrarPlan}
+        open={openPlanInfo}
+        onClose={cerrarDetallePlan}
         maxWidth="sm"
         fullWidth
         PaperProps={{
@@ -1758,7 +1965,7 @@ const renderRegimenFiscalField = () => {
               Plan y vencimiento – {tiendaModalNombre}
             </Typography>
 
-            <IconButton size="small" onClick={cerrarPlan}>
+            <IconButton size="small" onClick={cerrarDetallePlan}>
               <CloseIcon />
             </IconButton>
           </Stack>
@@ -1785,7 +1992,7 @@ const renderRegimenFiscalField = () => {
               </Typography>
 
               <Typography fontSize={{ xs: 14, sm: 16 }}>
-                <strong>{vencimientoLabel}:</strong> {formatFecha(vencimiento)}
+                <strong>Plan vence:</strong> {formatFecha(vencimiento)}
               </Typography>
 
               <Stack direction="row" spacing={1} alignItems="center">
@@ -1822,8 +2029,133 @@ const renderRegimenFiscalField = () => {
         </DialogContent>
 
         <DialogActions sx={dialogActionsSx}>
-          <Button onClick={cerrarPlan} sx={actionButtonSx}>
+          <Button onClick={cerrarDetallePlan} sx={actionButtonSx}>
             Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={openEditarPlan}
+        onClose={cerrarEditarPlan}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: dialogPaperSx,
+        }}
+      >
+        <DialogTitle sx={dialogTitleSx}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            spacing={1}
+          >
+            <Typography
+              fontWeight={900}
+              sx={{
+                fontSize: { xs: 14, sm: 18 },
+                lineHeight: 1.2,
+              }}
+            >
+              Editar plan y vencimiento – {tiendaModalNombre}
+            </Typography>
+
+            <IconButton size="small" onClick={cerrarEditarPlan}>
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+
+        <DialogContent dividers sx={dialogContentSx}>
+          {loadingModal ? (
+            <Box
+              sx={{
+                minHeight: 180,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Stack spacing={{ xs: 1.5, sm: 2 }}>
+              {modalError && <Alert severity="error">{modalError}</Alert>}
+              {modalSuccess && (
+                <Alert severity="success">{modalSuccess}</Alert>
+              )}
+
+              <TextField
+                select
+                fullWidth
+                size={inputSize}
+                label="Tipo de plan"
+                value={planForm.plan_id}
+                onChange={(event) =>
+                  setPlanForm((prev) => ({
+                    ...prev,
+                    plan_id: event.target.value,
+                  }))
+                }
+              >
+                <MenuItem value="">Selecciona un plan</MenuItem>
+
+                {planForm.plan_id &&
+                  !planesCatalogo.some(
+                    (item) => item.id === planForm.plan_id
+                  ) && (
+                    <MenuItem value={planForm.plan_id}>
+                      {nombrePlan}
+                    </MenuItem>
+                  )}
+
+                {planesCatalogo.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.nombre}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                fullWidth
+                size={inputSize}
+                type="date"
+                label="Fecha de vencimiento"
+                value={planForm.fecha_vencimiento}
+                onChange={(event) =>
+                  setPlanForm((prev) => ({
+                    ...prev,
+                    fecha_vencimiento: event.target.value,
+                  }))
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Stack>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={dialogActionsSx}>
+          <Button
+            onClick={cerrarEditarPlan}
+            disabled={saving}
+            sx={actionButtonSx}
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={guardarPlan}
+            disabled={
+              saving ||
+              loadingModal ||
+              !planForm.plan_id ||
+              !planForm.fecha_vencimiento
+            }
+            sx={actionButtonSx}
+          >
+            {saving ? "Guardando..." : "Guardar cambios"}
           </Button>
         </DialogActions>
       </Dialog>
