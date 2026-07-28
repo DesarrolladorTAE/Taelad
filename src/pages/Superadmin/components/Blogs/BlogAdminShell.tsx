@@ -890,8 +890,8 @@ export default function BlogAdminShell({
             md={6}
           >
             <NavigationCard
-              title="Historial del cliente"
-              description="Consulta movimientos por mes o año, importes, cantidades, estatus y archivos de factura PDF o XML."
+              title="Historial de ventas"
+              description="Consulta ventas por mes o año, clientes, productos, importes, métodos de pago y documentos PDF o XML."
               icon={
                 <HistoryRoundedIcon />
               }

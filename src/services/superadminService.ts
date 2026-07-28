@@ -689,6 +689,83 @@ export type ClientHistoryRecordResponse = {
   data: ClientHistoryRecord;
 };
 
+export type ClientHistoryClientSearchItem = {
+  id: number;
+  name: string | null;
+  apellidos: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+export type ClientHistoryProductSearchItem = {
+  id: number;
+  name: string;
+  precio: number | string;
+  descripcion: string | null;
+  categoria_id: number | null;
+  url_imagen: string | null;
+};
+
+export type ClientHistoryClientSearchResponse = {
+  message: string;
+  data: ClientHistoryClientSearchItem[];
+};
+
+export type ClientHistoryProductSearchResponse = {
+  message: string;
+  data: ClientHistoryProductSearchItem[];
+};
+
+export async function searchSuperAdminClientHistoryClients(
+  query: string,
+): Promise<ClientHistoryClientSearchResponse> {
+  const q = query.trim();
+
+  if (q.length < 3) {
+    return {
+      message:
+        "Escribe al menos 3 caracteres.",
+      data: [],
+    };
+  }
+
+  const response = await axiosClient.get(
+    "/superadmin/client-history/search-clients",
+    {
+      params: {
+        q,
+      },
+    },
+  );
+
+  return response.data;
+}
+
+export async function searchSuperAdminClientHistoryProducts(
+  query: string,
+): Promise<ClientHistoryProductSearchResponse> {
+  const q = query.trim();
+
+  if (q.length < 3) {
+    return {
+      message:
+        "Escribe al menos 3 caracteres.",
+      data: [],
+    };
+  }
+
+  const response = await axiosClient.get(
+    "/superadmin/client-history/search-products",
+    {
+      params: {
+        q,
+      },
+    },
+  );
+
+  return response.data;
+}
+
 export async function getSuperAdminClientHistory(
   params: GetClientHistoryParams = {},
 ): Promise<GetClientHistoryResponse> {

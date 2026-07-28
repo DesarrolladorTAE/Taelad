@@ -7,6 +7,7 @@ import {
 
 import {
   Alert,
+  Autocomplete,
   Avatar,
   Box,
   Button,
@@ -30,16 +31,16 @@ import {
   Select,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
+
+import {
+  alpha,
+  useTheme,
+} from "@mui/material/styles";
 
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
@@ -51,6 +52,7 @@ import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ManageAccountsRoundedIcon from "@mui/icons-material/ManageAccountsRounded";
 import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
 import PictureAsPdfRoundedIcon from "@mui/icons-material/PictureAsPdfRounded";
@@ -69,8 +71,9 @@ import {
   downloadSuperAdminClientHistoryXml,
   getSuperAdminClientHistory,
   getSuperAdminPaymentMethods,
-  getSuperAdminServices,
   getSuperAdminUsers,
+  searchSuperAdminClientHistoryClients,
+  searchSuperAdminClientHistoryProducts,
   updateSuperAdminPaymentMethod,
   updateSuperAdminPaymentMethodStatus,
   uploadSuperAdminClientHistoryInvoicePdf,
@@ -78,11 +81,12 @@ import {
   viewSuperAdminClientHistoryInvoicePdf,
   viewSuperAdminClientHistoryPdf,
   viewSuperAdminClientHistoryXml,
+  type ClientHistoryClientSearchItem,
   type ClientHistoryMonthlySummary,
+  type ClientHistoryProductSearchItem,
   type ClientHistoryRecord,
   type ClientHistoryStatus,
   type SuperAdminPaymentMethod,
-  type SuperAdminService,
 } from "../../../../services/superadminService";
 
 type Props = {
@@ -90,13 +94,8 @@ type Props = {
   onBack: () => void;
 };
 
-type UserOption = {
-  id: number;
-  name?: string | null;
-  apellidos?: string | null;
-  email?: string | null;
-  phone?: string | null;
-};
+type UserOption =
+  ClientHistoryClientSearchItem;
 
 type HistoryFormState = {
   clienteId: string;
@@ -105,7 +104,7 @@ type HistoryFormState = {
   concepto: string;
   cantidad: string;
   precioUnitario: string;
-  status: ClientHistoryStatus;
+  status: ClientHistoryStatus | "";
   fechaOperacion: string;
   folio: string;
   uuidFiscal: string;
@@ -130,6 +129,66 @@ type XmlPreviewState = {
   fileName: string;
   content: string;
 };
+
+const desktopActionIconSx =
+  (
+    tone:
+      | "primary"
+      | "error"
+      | "warning"
+      | "success",
+  ) =>
+  (theme: any) => ({
+    width: 34,
+    height: 34,
+    borderRadius: 2.25,
+    border: 0,
+    color: theme.palette[tone].main,
+    backgroundColor: alpha(
+      theme.palette[tone].main,
+      theme.palette.mode === "dark"
+        ? 0.16
+        : 0.09,
+    ),
+    transition: "0.18s ease",
+    "&:hover": {
+      backgroundColor: alpha(
+        theme.palette[tone].main,
+        theme.palette.mode === "dark"
+          ? 0.26
+          : 0.16,
+      ),
+      transform: "translateY(-1px)",
+    },
+  });
+
+function statusDotColor(
+  status: string,
+): "success" | "error" | "warning" | "info" {
+  const normalized =
+    status.toLowerCase().trim();
+
+  if (normalized === "pagado") {
+    return "success";
+  }
+
+  if (
+    normalized === "cancelado" ||
+    normalized === "rechazado" ||
+    normalized === "vencido"
+  ) {
+    return "error";
+  }
+
+  if (
+    normalized === "pendiente" ||
+    normalized === "facturado"
+  ) {
+    return "warning";
+  }
+
+  return "info";
+}
 
 const STATUS_OPTIONS: Array<{
   value: ClientHistoryStatus;
@@ -184,8 +243,6 @@ const dateFormatter =
     day: "2-digit",
     month: "short",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 
 function currentLocalDateTime(): string {
@@ -427,9 +484,9 @@ function emptyHistoryForm(): HistoryFormState {
     productoId: "",
     metodoPagoId: "",
     concepto: "",
-    cantidad: "1",
+    cantidad: "",
     precioUnitario: "",
-    status: "pagado",
+    status: "",
     fechaOperacion:
       currentLocalDateTime(),
     folio: "",
@@ -560,6 +617,13 @@ export default function ClientHistoryPage({
   systemName,
   onBack,
 }: Props) {
+  const theme = useTheme();
+
+  const isMobile =
+    useMediaQuery(
+      theme.breakpoints.down("sm"),
+    );
+
   const now = new Date();
 
   const [periodo, setPeriodo] =
@@ -629,8 +693,20 @@ export default function ClientHistoryPage({
   const [users, setUsers] =
     useState<UserOption[]>([]);
 
-  const [products, setProducts] =
-    useState<SuperAdminService[]>([]);
+  const [productSearchInput, setProductSearchInput] =
+    useState("");
+
+  const [productOptions, setProductOptions] =
+    useState<ClientHistoryProductSearchItem[]>([]);
+
+  const [productSearchLoading, setProductSearchLoading] =
+    useState(false);
+
+  const [productAutocompleteOpen, setProductAutocompleteOpen] =
+    useState(false);
+
+  const [selectedProduct, setSelectedProduct] =
+    useState<ClientHistoryProductSearchItem | null>(null);
 
   const [
     paymentMethods,
@@ -647,6 +723,24 @@ export default function ClientHistoryPage({
 
   const [createError, setCreateError] =
     useState<string | null>(null);
+
+  const [fieldHelpOpen, setFieldHelpOpen] =
+    useState(false);
+
+  const [clientSearchInput, setClientSearchInput] =
+    useState("");
+
+  const [clientOptions, setClientOptions] =
+    useState<UserOption[]>([]);
+
+  const [clientSearchLoading, setClientSearchLoading] =
+    useState(false);
+
+  const [clientAutocompleteOpen, setClientAutocompleteOpen] =
+    useState(false);
+
+  const [selectedClient, setSelectedClient] =
+    useState<UserOption | null>(null);
 
   const [form, setForm] =
     useState<HistoryFormState>(
@@ -711,17 +805,6 @@ export default function ClientHistoryPage({
       [paymentMethods],
     );
 
-  const selectedProduct =
-    useMemo(
-      () =>
-        products.find(
-          (product) =>
-            String(product.id) ===
-            form.productoId,
-        ) ?? null,
-      [form.productoId, products],
-    );
-
   const loadCatalogs =
     useCallback(async () => {
       setCatalogLoading(true);
@@ -729,14 +812,9 @@ export default function ClientHistoryPage({
       try {
         const [
           usersResponse,
-          productsResponse,
           methodsResponse,
         ] = await Promise.all([
           getSuperAdminUsers({
-            page: 1,
-            perPage: 100,
-          }),
-          getSuperAdminServices({
             page: 1,
             perPage: 100,
           }),
@@ -746,12 +824,6 @@ export default function ClientHistoryPage({
         setUsers(
           extractRows<UserOption>(
             usersResponse,
-          ),
-        );
-
-        setProducts(
-          extractRows<SuperAdminService>(
-            productsResponse,
           ),
         );
 
@@ -855,6 +927,148 @@ export default function ClientHistoryPage({
   ]);
 
   useEffect(() => {
+    if (!createOpen) {
+      return;
+    }
+
+    const term =
+      clientSearchInput.trim();
+
+    if (
+      selectedClient &&
+      term === fullName(selectedClient)
+    ) {
+      return;
+    }
+
+    if (term.length < 3) {
+      setClientOptions([]);
+      setClientSearchLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    const timer = window.setTimeout(
+      async () => {
+        try {
+          setClientSearchLoading(true);
+
+          const response =
+            await searchSuperAdminClientHistoryClients(
+              term,
+            );
+
+          if (!active) {
+            return;
+          }
+
+          setClientOptions(
+            response.data ?? [],
+          );
+        } catch (searchError) {
+          if (!active) {
+            return;
+          }
+
+          setClientOptions([]);
+          setCreateError(
+            errorMessage(
+              searchError,
+              "No fue posible buscar clientes.",
+            ),
+          );
+        } finally {
+          if (active) {
+            setClientSearchLoading(false);
+          }
+        }
+      },
+      450,
+    );
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [
+    clientSearchInput,
+    createOpen,
+    selectedClient,
+  ]);
+
+  useEffect(() => {
+    if (!createOpen) {
+      return;
+    }
+
+    const term =
+      productSearchInput.trim();
+
+    if (
+      selectedProduct &&
+      term === selectedProduct.name
+    ) {
+      return;
+    }
+
+    if (term.length < 3) {
+      setProductOptions([]);
+      setProductSearchLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    const timer = window.setTimeout(
+      async () => {
+        try {
+          setProductSearchLoading(true);
+
+          const response =
+            await searchSuperAdminClientHistoryProducts(
+              term,
+            );
+
+          if (!active) {
+            return;
+          }
+
+          setProductOptions(
+            response.data ?? [],
+          );
+        } catch (searchError) {
+          if (!active) {
+            return;
+          }
+
+          setProductOptions([]);
+          setCreateError(
+            errorMessage(
+              searchError,
+              "No fue posible buscar productos.",
+            ),
+          );
+        } finally {
+          if (active) {
+            setProductSearchLoading(false);
+          }
+        }
+      },
+      450,
+    );
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [
+    createOpen,
+    productSearchInput,
+    selectedProduct,
+  ]);
+
+  useEffect(() => {
     return () => {
       if (pdfPreview?.url) {
         window.URL.revokeObjectURL(
@@ -866,34 +1080,41 @@ export default function ClientHistoryPage({
 
   function openCreateDialog() {
     setCreateError(null);
+    setSelectedClient(null);
+    setClientSearchInput("");
+    setClientOptions([]);
+    setClientSearchLoading(false);
+    setClientAutocompleteOpen(false);
+
+    setSelectedProduct(null);
+    setProductSearchInput("");
+    setProductOptions([]);
+    setProductSearchLoading(false);
+    setProductAutocompleteOpen(false);
 
     const next =
       emptyHistoryForm();
-
-    if (
-      activePaymentMethods.length > 0
-    ) {
-      next.metodoPagoId = String(
-        activePaymentMethods[0].id,
-      );
-    }
 
     setForm(next);
     setCreateOpen(true);
   }
 
   function handleProductChange(
-    productId: string,
+    product:
+      | ClientHistoryProductSearchItem
+      | null,
   ) {
-    const product =
-      products.find(
-        (item) =>
-          String(item.id) === productId,
-      ) ?? null;
+    setSelectedProduct(product);
+
+    setProductSearchInput(
+      product?.name ?? "",
+    );
 
     setForm((current) => ({
       ...current,
-      productoId: productId,
+      productoId: product
+        ? String(product.id)
+        : "",
       precioUnitario: product
         ? String(
             asNumber(product.precio),
@@ -908,10 +1129,11 @@ export default function ClientHistoryPage({
     if (
       !form.clienteId ||
       !form.productoId ||
-      !form.metodoPagoId
+      !form.metodoPagoId ||
+      !form.status
     ) {
       setCreateError(
-        "Selecciona cliente, producto y método de pago.",
+        "Selecciona cliente, producto, método de pago y estatus.",
       );
 
       return;
@@ -951,7 +1173,8 @@ export default function ClientHistoryPage({
             : Number(
                 form.precioUnitario,
               ),
-        status: form.status,
+        status:
+          form.status as ClientHistoryStatus,
         fecha_operacion:
           toApiDateTime(
             form.fechaOperacion,
@@ -1312,12 +1535,17 @@ export default function ClientHistoryPage({
               <HistoryRoundedIcon />
             </Avatar>
 
-            <Box>
+            <Box
+              sx={{
+                minWidth: 0,
+                flex: 1,
+              }}
+            >
               <Typography
                 variant="h4"
                 fontWeight={900}
               >
-                Historial del cliente
+                Historial de ventas
               </Typography>
 
               <Typography
@@ -1329,10 +1557,7 @@ export default function ClientHistoryPage({
           </Stack>
 
           <Stack
-            direction={{
-              xs: "column",
-              sm: "row",
-            }}
+            direction="row"
             spacing={1.25}
           >
             <Button
@@ -1803,404 +2028,466 @@ export default function ClientHistoryPage({
           <EmptyState />
         ) : (
           <>
-            <TableContainer
-              component={Paper}
+            <Paper
               variant="outlined"
               sx={{
                 display: {
                   xs: "none",
                   md: "block",
                 },
-                borderRadius: 3,
+                borderRadius: 3.5,
                 overflow: "hidden",
+                bgcolor: "background.paper",
               }}
             >
-              <Table
-                sx={{
-                  tableLayout: "fixed",
-                }}
+              <Box
+                sx={(theme) => ({
+                  display: "grid",
+                  gridTemplateColumns:
+                    "140px minmax(180px, 1.35fr) minmax(145px, 1fr) 54px minmax(150px, .9fr) 180px",
+                  alignItems: "center",
+                  columnGap: 1.5,
+                  px: 2,
+                  py: 1.35,
+                  bgcolor: alpha(
+                    theme.palette.primary.main,
+                    0.045,
+                  ),
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                })}
               >
-                <TableHead>
-                  <TableRow>
-                    <TableCell width="13%">
-                      Fecha
-                    </TableCell>
+                {[
+                  "Fecha",
+                  "Cliente",
+                  "Producto",
+                  "Cant.",
+                  "Importe / pago",
+                  "Acciones",
+                ].map((label) => (
+                  <Typography
+                    key={label}
+                    variant="caption"
+                    fontWeight={900}
+                    color="text.secondary"
+                    sx={{
+                      textTransform: "uppercase",
+                      letterSpacing: 0.4,
+                      textAlign:
+                        label === "Cant." ||
+                        label === "Acciones"
+                          ? "center"
+                          : "left",
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                ))}
+              </Box>
 
-                    <TableCell width="18%">
-                      Cliente
-                    </TableCell>
+              <Stack divider={<Divider flexItem />}>
+                {records.map((record) => (
+                  <Box
+                    key={record.id}
+                    sx={(theme) => ({
+                      display: "grid",
+                      gridTemplateColumns:
+                        "140px minmax(180px, 1.35fr) minmax(145px, 1fr) 54px minmax(150px, .9fr) 180px",
+                      alignItems: "center",
+                      columnGap: 1.5,
+                      px: 2,
+                      py: 1.55,
+                      transition: "0.16s ease",
+                      "&:hover": {
+                        bgcolor: alpha(
+                          theme.palette.primary.main,
+                          0.025,
+                        ),
+                      },
+                    })}
+                  >
+                    <Stack spacing={0.55}>
+                      <Stack
+                        direction="row"
+                        spacing={0.85}
+                        alignItems="center"
+                      >
+                        <Tooltip
+                          title={statusLabel(
+                            record.status,
+                          )}
+                          arrow
+                        >
+                          <Box
+                            component="span"
+                            sx={{
+                              width: 9,
+                              height: 9,
+                              flexShrink: 0,
+                              borderRadius: "50%",
+                              bgcolor: `${statusDotColor(
+                                record.status,
+                              )}.main`,
+                              boxShadow: (theme) =>
+                                `0 0 0 4px ${alpha(
+                                  theme.palette[
+                                    statusDotColor(
+                                      record.status,
+                                    )
+                                  ].main,
+                                  0.12,
+                                )}`,
+                            }}
+                          />
+                        </Tooltip>
 
-                    <TableCell width="18%">
-                      Producto
-                    </TableCell>
-
-                    <TableCell
-                      width="8%"
-                      align="right"
-                    >
-                      Cant.
-                    </TableCell>
-
-                    <TableCell
-                      width="12%"
-                      align="right"
-                    >
-                      Importe
-                    </TableCell>
-
-                    <TableCell width="12%">
-                      Pago
-                    </TableCell>
-
-                    <TableCell width="9%">
-                      Estatus
-                    </TableCell>
-
-                    <TableCell
-                      width="10%"
-                      align="center"
-                    >
-                      Acciones
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {records.map((record) => (
-                    <TableRow
-                      hover
-                      key={record.id}
-                    >
-                      <TableCell>
                         <Typography
                           variant="body2"
-                          fontWeight={700}
+                          fontWeight={900}
+                          sx={{ lineHeight: 1.25 }}
                         >
                           {formatDate(
                             record.fecha_operacion,
                           )}
                         </Typography>
-                      </TableCell>
+                      </Stack>
 
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          fontWeight={800}
-                          noWrap
-                        >
-                          {fullName(
-                            record.cliente,
-                          )}
-                        </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                      >
+                        {record.folio
+                          ? `Folio: ${record.folio}`
+                          : `Movimiento #${record.id}`}
+                      </Typography>
+                    </Stack>
 
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          noWrap
-                        >
-                          {record.cliente
-                            ?.email ??
-                            "Sin correo"}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          fontWeight={800}
-                          noWrap
-                        >
-                          {record.producto_nombre}
-                        </Typography>
-
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          noWrap
-                        >
-                          {record.concepto ??
-                            "Sin concepto"}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="right">
-                        {asNumber(
-                          record.cantidad,
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography
+                        variant="body2"
+                        fontWeight={900}
+                        sx={{
+                          lineHeight: 1.3,
+                          mb: 0.35,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {fullName(
+                          record.cliente,
                         )}
-                      </TableCell>
+                      </Typography>
 
-                      <TableCell align="right">
-                        <Typography
-                          fontWeight={900}
-                        >
-                          {formatCurrency(
-                            record.importe,
-                          )}
-                        </Typography>
-                      </TableCell>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display: "block",
+                          lineHeight: 1.3,
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {record.cliente?.email ??
+                          "Sin correo"}
+                      </Typography>
+                    </Box>
 
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          noWrap
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography
+                        variant="body2"
+                        fontWeight={900}
+                        sx={{ mb: 0.35 }}
+                      >
+                        {record.producto_nombre}
+                      </Typography>
+
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          lineHeight: 1.3,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {record.concepto ??
+                          "Sin concepto"}
+                      </Typography>
+                    </Box>
+
+                    <Box
+                      sx={(theme) => ({
+                        width: 34,
+                        height: 30,
+                        mx: "auto",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 2,
+                        bgcolor: alpha(
+                          theme.palette.primary.main,
+                          0.07,
+                        ),
+                        fontWeight: 900,
+                      })}
+                    >
+                      {asNumber(record.cantidad)}
+                    </Box>
+
+                    <Stack spacing={0.55}>
+                      <Typography
+                        variant="body1"
+                        fontWeight={900}
+                      >
+                        {formatCurrency(
+                          record.importe,
+                        )}
+                      </Typography>
+
+                      <Stack
+                        direction="row"
+                        spacing={0.7}
+                        alignItems="center"
+                      >
+                        <Avatar
+                          sx={{
+                            width: 22,
+                            height: 22,
+                            bgcolor: (theme) =>
+                              alpha(
+                                theme.palette.success.main,
+                                0.11,
+                              ),
+                            color: "success.main",
+                          }}
                         >
-                          {record.metodo_pago
-                            ?.nombre ??
+                          <PaymentsRoundedIcon
+                            sx={{ fontSize: 14 }}
+                          />
+                        </Avatar>
+
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ lineHeight: 1.25 }}
+                        >
+                          {record.metodo_pago?.nombre ??
                             "No especificado"}
                         </Typography>
-                      </TableCell>
+                      </Stack>
+                    </Stack>
 
-                      <TableCell>
-                        <Chip
+                    <Stack
+                      direction="row"
+                      justifyContent="center"
+                      alignItems="center"
+                      spacing={0.45}
+                      sx={{
+                        flexWrap: "nowrap",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <Tooltip title="Ver detalle" arrow>
+                        <IconButton
                           size="small"
-                          label={statusLabel(
-                            record.status,
+                          onClick={() =>
+                            setDetail(record)
+                          }
+                          sx={desktopActionIconSx(
+                            "primary",
                           )}
-                          color={statusColor(
-                            record.status,
-                          )}
-                        />
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Stack
-                          direction="row"
-                          justifyContent="center"
-                          spacing={0.25}
                         >
-                          <Tooltip title="Ver detalle">
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                setDetail(
-                                  record,
-                                )
-                              }
-                            >
-                              <VisibilityRoundedIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          <VisibilityRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
 
-                          <Tooltip title="Ver PDF">
+                      <Tooltip
+                        title="Ver comprobante PDF"
+                        arrow
+                      >
+                        <span>
+                          <IconButton
+                            size="small"
+                            disabled={
+                              activeFileAction ===
+                              `pdf-view-${record.id}`
+                            }
+                            onClick={() =>
+                              void showPdfInModal(
+                                `pdf-view-${record.id}`,
+                                `Comprobante ${
+                                  record.folio ??
+                                  record.id
+                                }`,
+                                buildPdfFileName(
+                                  record,
+                                ),
+                                () =>
+                                  viewSuperAdminClientHistoryPdf(
+                                    record.id,
+                                  ),
+                              )
+                            }
+                            sx={desktopActionIconSx(
+                              "error",
+                            )}
+                          >
+                            {activeFileAction ===
+                            `pdf-view-${record.id}` ? (
+                              <CircularProgress
+                                size={15}
+                                color="inherit"
+                              />
+                            ) : (
+                              <PictureAsPdfRoundedIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+
+                      {record.factura_pdf_disponible ? (
+                        <Tooltip
+                          title="Ver factura PDF"
+                          arrow
+                        >
+                          <span>
                             <IconButton
                               size="small"
                               disabled={
                                 activeFileAction ===
-                                `pdf-view-${record.id}`
+                                `invoice-pdf-view-${record.id}`
                               }
                               onClick={() =>
                                 void showPdfInModal(
-                                  `pdf-view-${record.id}`,
-                                  `Comprobante ${
+                                  `invoice-pdf-view-${record.id}`,
+                                  `Factura ${
                                     record.folio ??
                                     record.id
                                   }`,
-                                  buildPdfFileName(
+                                  buildInvoicePdfFileName(
                                     record,
                                   ),
                                   () =>
-                                    viewSuperAdminClientHistoryPdf(
+                                    viewSuperAdminClientHistoryInvoicePdf(
                                       record.id,
                                     ),
                                 )
                               }
+                              sx={desktopActionIconSx(
+                                "warning",
+                              )}
                             >
-                              <PictureAsPdfRoundedIcon fontSize="small" />
+                              <ReceiptLongRoundedIcon fontSize="small" />
                             </IconButton>
-                          </Tooltip>
+                          </span>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip
+                          title="Subir factura PDF"
+                          arrow
+                        >
+                          <IconButton
+                            component="label"
+                            size="small"
+                            disabled={
+                              activeFileAction ===
+                              `invoice-pdf-upload-${record.id}`
+                            }
+                            sx={desktopActionIconSx(
+                              "warning",
+                            )}
+                          >
+                            <UploadFileRoundedIcon fontSize="small" />
 
-                          <Tooltip title="Descargar PDF">
+                            <input
+                              hidden
+                              type="file"
+                              accept=".pdf,application/pdf"
+                              onChange={(event) => {
+                                const file =
+                                  event.target.files?.[0] ??
+                                  null;
+
+                                void handleInvoicePdfUpload(
+                                  record,
+                                  file,
+                                );
+
+                                event.target.value =
+                                  "";
+                              }}
+                            />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+
+                      {record.xml_disponible ? (
+                        <Tooltip title="Ver XML" arrow>
+                          <span>
                             <IconButton
                               size="small"
                               disabled={
                                 activeFileAction ===
-                                `pdf-download-${record.id}`
+                                `xml-view-${record.id}`
                               }
                               onClick={() =>
-                                void executeFileAction(
-                                  `pdf-download-${record.id}`,
-                                  () =>
-                                    downloadSuperAdminClientHistoryPdf(
-                                      record.id,
-                                      buildPdfFileName(
-                                        record,
-                                      ),
-                                    ),
+                                void showXmlInModal(
+                                  record,
                                 )
                               }
+                              sx={desktopActionIconSx(
+                                "success",
+                              )}
                             >
-                              <DownloadRoundedIcon fontSize="small" />
+                              <DescriptionRoundedIcon fontSize="small" />
                             </IconButton>
-                          </Tooltip>
-
-                          <Tooltip
-                            title={
-                              record.factura_pdf_disponible
-                                ? "Ver factura PDF"
-                                : "Subir factura PDF"
+                          </span>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title="Subir XML" arrow>
+                          <IconButton
+                            component="label"
+                            size="small"
+                            disabled={
+                              activeFileAction ===
+                              `xml-upload-${record.id}`
                             }
-                          >
-                            {record.factura_pdf_disponible ? (
-                              <IconButton
-                                size="small"
-                                disabled={
-                                  activeFileAction ===
-                                  `invoice-pdf-view-${record.id}`
-                                }
-                                onClick={() =>
-                                  void showPdfInModal(
-                                    `invoice-pdf-view-${record.id}`,
-                                    `Factura ${
-                                      record.folio ??
-                                      record.id
-                                    }`,
-                                    buildInvoicePdfFileName(
-                                      record,
-                                    ),
-                                    () =>
-                                      viewSuperAdminClientHistoryInvoicePdf(
-                                        record.id,
-                                      ),
-                                  )
-                                }
-                              >
-                                <ReceiptLongRoundedIcon fontSize="small" />
-                              </IconButton>
-                            ) : (
-                              <IconButton
-                                size="small"
-                                component="label"
-                                disabled={
-                                  activeFileAction ===
-                                  `invoice-pdf-upload-${record.id}`
-                                }
-                              >
-                                <UploadFileRoundedIcon fontSize="small" />
-
-                                <input
-                                  hidden
-                                  type="file"
-                                  accept=".pdf,application/pdf"
-                                  onChange={(
-                                    event,
-                                  ) => {
-                                    const file =
-                                      event.target
-                                        .files?.[0] ??
-                                      null;
-
-                                    void handleInvoicePdfUpload(
-                                      record,
-                                      file,
-                                    );
-
-                                    event.target.value =
-                                      "";
-                                  }}
-                                />
-                              </IconButton>
+                            sx={desktopActionIconSx(
+                              "success",
                             )}
-                          </Tooltip>
-
-                          {record.factura_pdf_disponible ? (
-                            <Tooltip title="Sustituir factura PDF">
-                              <IconButton
-                                size="small"
-                                component="label"
-                                disabled={
-                                  activeFileAction ===
-                                  `invoice-pdf-upload-${record.id}`
-                                }
-                              >
-                                <UploadFileRoundedIcon fontSize="small" />
-
-                                <input
-                                  hidden
-                                  type="file"
-                                  accept=".pdf,application/pdf"
-                                  onChange={(
-                                    event,
-                                  ) => {
-                                    const file =
-                                      event.target
-                                        .files?.[0] ??
-                                      null;
-
-                                    void handleInvoicePdfUpload(
-                                      record,
-                                      file,
-                                    );
-
-                                    event.target.value =
-                                      "";
-                                  }}
-                                />
-                              </IconButton>
-                            </Tooltip>
-                          ) : null}
-
-                          <Tooltip
-                            title={
-                              record.xml_disponible
-                                ? "Ver XML"
-                                : "Cargar XML"
-                            }
                           >
-                            {record.xml_disponible ? (
-                              <IconButton
-                                size="small"
-                                disabled={
-                                  activeFileAction ===
-                                  `xml-view-${record.id}`
-                                }
-                                onClick={() =>
-                                  void showXmlInModal(record)
-                                }
-                              >
-                                <DescriptionRoundedIcon fontSize="small" />
-                              </IconButton>
-                            ) : (
-                              <IconButton
-                                size="small"
-                                component="label"
-                                disabled={
-                                  activeFileAction ===
-                                  `xml-upload-${record.id}`
-                                }
-                              >
-                                <AttachFileRoundedIcon fontSize="small" />
+                            <AttachFileRoundedIcon fontSize="small" />
 
-                                <input
-                                  hidden
-                                  type="file"
-                                  accept=".xml,application/xml,text/xml"
-                                  onChange={(
-                                    event,
-                                  ) => {
-                                    const file =
-                                      event.target
-                                        .files?.[0] ??
-                                      null;
+                            <input
+                              hidden
+                              type="file"
+                              accept=".xml,application/xml,text/xml"
+                              onChange={(event) => {
+                                const file =
+                                  event.target.files?.[0] ??
+                                  null;
 
-                                    void handleXmlUpload(
-                                      record,
-                                      file,
-                                    );
+                                void handleXmlUpload(
+                                  record,
+                                  file,
+                                );
 
-                                    event.target.value =
-                                      "";
-                                  }}
-                                />
-                              </IconButton>
-                            )}
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                                event.target.value =
+                                  "";
+                              }}
+                            />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Stack>
+                  </Box>
+                ))}
+              </Stack>
+            </Paper>
 
             <Stack
               spacing={2}
@@ -2245,15 +2532,35 @@ export default function ClientHistoryPage({
                           </Typography>
                         </Box>
 
-                        <Chip
-                          size="small"
-                          label={statusLabel(
+                        <Tooltip
+                          title={statusLabel(
                             record.status,
                           )}
-                          color={statusColor(
-                            record.status,
-                          )}
-                        />
+                          arrow
+                        >
+                          <Box
+                            component="span"
+                            sx={{
+                              width: 10,
+                              height: 10,
+                              mt: 0.6,
+                              flexShrink: 0,
+                              borderRadius: "50%",
+                              bgcolor: `${statusDotColor(
+                                record.status,
+                              )}.main`,
+                              boxShadow: (theme) =>
+                                `0 0 0 4px ${alpha(
+                                  theme.palette[
+                                    statusDotColor(
+                                      record.status,
+                                    )
+                                  ].main,
+                                  0.12,
+                                )}`,
+                            }}
+                          />
+                        </Tooltip>
                       </Stack>
 
                       <Typography
@@ -2322,79 +2629,59 @@ export default function ClientHistoryPage({
 
                       <Stack
                         direction="row"
-                        spacing={1}
-                        flexWrap="wrap"
+                        spacing={0.75}
                         useFlexGap
+                        flexWrap="nowrap"
+                        justifyContent="flex-end"
                       >
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={
-                            <VisibilityRoundedIcon />
-                          }
-                          onClick={() =>
-                            setDetail(record)
-                          }
-                        >
-                          Detalle
-                        </Button>
+                        <Tooltip title="Ver detalle" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={() =>
+                              setDetail(record)
+                            }
+                            sx={desktopActionIconSx(
+                              "primary",
+                            )}
+                          >
+                            <VisibilityRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
 
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={
-                            <PictureAsPdfRoundedIcon />
-                          }
-                          onClick={() =>
-                            void showPdfInModal(
-                              `pdf-view-${record.id}`,
-                              `Comprobante ${
-                                record.folio ??
-                                record.id
-                              }`,
-                              buildPdfFileName(
-                                record,
-                              ),
-                              () =>
-                                viewSuperAdminClientHistoryPdf(
-                                  record.id,
+                        <Tooltip
+                          title="Ver comprobante PDF"
+                          arrow
+                        >
+                          <IconButton
+                            size="small"
+                            onClick={() =>
+                              void showPdfInModal(
+                                `pdf-view-${record.id}`,
+                                `Comprobante ${
+                                  record.folio ??
+                                  record.id
+                                }`,
+                                buildPdfFileName(
+                                  record,
                                 ),
-                            )
-                          }
-                        >
-                          Ver PDF
-                        </Button>
-
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={
-                            <DownloadRoundedIcon />
-                          }
-                          onClick={() =>
-                            void executeFileAction(
-                              `pdf-download-${record.id}`,
-                              () =>
-                                downloadSuperAdminClientHistoryPdf(
-                                  record.id,
-                                  buildPdfFileName(
-                                    record,
+                                () =>
+                                  viewSuperAdminClientHistoryPdf(
+                                    record.id,
                                   ),
-                                ),
-                            )
-                          }
-                        >
-                          Descargar
-                        </Button>
+                              )
+                            }
+                            sx={desktopActionIconSx(
+                              "error",
+                            )}
+                          >
+                            <PictureAsPdfRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
 
                         {record.factura_pdf_disponible ? (
-                          <>
-                            <Button
+                          <Tooltip title="Ver factura PDF" arrow>
+                            <IconButton
                               size="small"
-                              variant="outlined"
-                              startIcon={
-                                <ReceiptLongRoundedIcon />
-                              }
                               onClick={() =>
                                 void showPdfInModal(
                                   `invoice-pdf-view-${record.id}`,
@@ -2411,170 +2698,87 @@ export default function ClientHistoryPage({
                                     ),
                                 )
                               }
+                              sx={desktopActionIconSx(
+                                "warning",
+                              )}
                             >
-                              Ver factura
-                            </Button>
-
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={
-                                <DownloadRoundedIcon />
-                              }
-                              onClick={() =>
-                                void executeFileAction(
-                                  `invoice-pdf-download-${record.id}`,
-                                  () =>
-                                    downloadSuperAdminClientHistoryInvoicePdf(
-                                      record.id,
-                                      buildInvoicePdfFileName(
-                                        record,
-                                      ),
-                                    ),
-                                )
-                              }
-                            >
-                              Descargar factura
-                            </Button>
-
-                            <Button
+                              <ReceiptLongRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip title="Subir factura PDF" arrow>
+                            <IconButton
                               component="label"
                               size="small"
-                              variant="outlined"
-                              startIcon={
-                                <UploadFileRoundedIcon />
-                              }
+                              sx={desktopActionIconSx(
+                                "warning",
+                              )}
                             >
-                              Sustituir factura
-
+                              <UploadFileRoundedIcon fontSize="small" />
                               <input
                                 hidden
                                 type="file"
                                 accept=".pdf,application/pdf"
-                                onChange={(
-                                  event,
-                                ) => {
+                                onChange={(event) => {
                                   const file =
-                                    event.target
-                                      .files?.[0] ??
+                                    event.target.files?.[0] ??
                                     null;
-
                                   void handleInvoicePdfUpload(
                                     record,
                                     file,
                                   );
-
                                   event.target.value =
                                     "";
                                 }}
                               />
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            component="label"
-                            size="small"
-                            variant="outlined"
-                            startIcon={
-                              <UploadFileRoundedIcon />
-                            }
-                          >
-                            Subir factura PDF
-
-                            <input
-                              hidden
-                              type="file"
-                              accept=".pdf,application/pdf"
-                              onChange={(
-                                event,
-                              ) => {
-                                const file =
-                                  event.target
-                                    .files?.[0] ??
-                                  null;
-
-                                void handleInvoicePdfUpload(
-                                  record,
-                                  file,
-                                );
-
-                                event.target.value =
-                                  "";
-                              }}
-                            />
-                          </Button>
+                            </IconButton>
+                          </Tooltip>
                         )}
 
                         {record.xml_disponible ? (
-                          <>
-                            <Button
+                          <Tooltip title="Ver XML" arrow>
+                            <IconButton
                               size="small"
-                              variant="outlined"
-                              startIcon={
-                                <DescriptionRoundedIcon />
-                              }
                               onClick={() =>
-                                void showXmlInModal(record)
-                              }
-                            >
-                              Ver XML
-                            </Button>
-
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={
-                                <DownloadRoundedIcon />
-                              }
-                              onClick={() =>
-                                void executeFileAction(
-                                  `xml-download-${record.id}`,
-                                  () =>
-                                    downloadSuperAdminClientHistoryXml(
-                                      record.id,
-                                      buildXmlFileName(
-                                        record,
-                                      ),
-                                    ),
+                                void showXmlInModal(
+                                  record,
                                 )
                               }
+                              sx={desktopActionIconSx(
+                                "success",
+                              )}
                             >
-                              Descargar XML
-                            </Button>
-                          </>
+                              <DescriptionRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         ) : (
-                          <Button
-                            component="label"
-                            size="small"
-                            variant="outlined"
-                            startIcon={
-                              <AttachFileRoundedIcon />
-                            }
-                          >
-                            Cargar XML
-
-                            <input
-                              hidden
-                              type="file"
-                              accept=".xml,application/xml,text/xml"
-                              onChange={(
-                                event,
-                              ) => {
-                                const file =
-                                  event.target
-                                    .files?.[0] ??
-                                  null;
-
-                                void handleXmlUpload(
-                                  record,
-                                  file,
-                                );
-
-                                event.target.value =
-                                  "";
-                              }}
-                            />
-                          </Button>
+                          <Tooltip title="Subir XML" arrow>
+                            <IconButton
+                              component="label"
+                              size="small"
+                              sx={desktopActionIconSx(
+                                "success",
+                              )}
+                            >
+                              <AttachFileRoundedIcon fontSize="small" />
+                              <input
+                                hidden
+                                type="file"
+                                accept=".xml,application/xml,text/xml"
+                                onChange={(event) => {
+                                  const file =
+                                    event.target.files?.[0] ??
+                                    null;
+                                  void handleXmlUpload(
+                                    record,
+                                    file,
+                                  );
+                                  event.target.value =
+                                    "";
+                                }}
+                              />
+                            </IconButton>
+                          </Tooltip>
                         )}
                       </Stack>
                     </Stack>
@@ -2625,343 +2829,1001 @@ export default function ClientHistoryPage({
           setCreateOpen(false)
         }
         fullWidth
+        fullScreen={isMobile}
         maxWidth="md"
+        scroll="paper"
+        PaperProps={{
+          sx: (theme) => ({
+            borderRadius: {
+              xs: 0,
+              sm: 4,
+            },
+            width: {
+              xs: "100%",
+              sm: "auto",
+            },
+            height: {
+              xs: "100dvh",
+              sm: "auto",
+            },
+            maxHeight: {
+              xs: "100dvh",
+              sm: "calc(100% - 64px)",
+            },
+            m: {
+              xs: 0,
+              sm: 2,
+            },
+            overflow: "hidden",
+            border: 0,
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#090c11"
+                : theme.palette.background.paper,
+            boxShadow:
+              isMobile
+                ? "none"
+                : theme.palette.mode === "dark"
+                  ? "0 26px 70px rgba(0, 0, 0, 0.48)"
+                  : "0 26px 70px rgba(15, 23, 42, 0.18)",
+          }),
+        }}
       >
-        <DialogTitle>
+        <DialogTitle
+          sx={(theme) => ({
+            px: {
+              xs: 2,
+              sm: 3,
+            },
+            py: {
+              xs: 1.5,
+              sm: 2.25,
+            },
+            borderBottom: {
+              xs: "1px solid",
+              sm: 0,
+            },
+            borderColor:
+              theme.palette.mode === "dark"
+                ? "#202730"
+                : theme.palette.divider,
+            position: {
+              xs: "sticky",
+              sm: "static",
+            },
+            top: 0,
+            zIndex: 5,
+            background:
+              theme.palette.mode === "dark"
+                ? "#090c11"
+              : `linear-gradient(135deg, ${alpha(
+                  theme.palette.primary.main,
+                  0.12,
+                )}, ${alpha(
+                  theme.palette.primary.main,
+                  0.025,
+                )})`,
+          })}
+        >
           <Stack
-            direction="row"
+            direction={{
+              xs: "column",
+              sm: "row",
+            }}
             justifyContent="space-between"
             alignItems="center"
+            spacing={1.5}
           >
             <Box>
               <Typography
                 variant="h6"
                 fontWeight={900}
+                sx={(theme) => ({
+                  color:
+                    theme.palette.mode === "dark"
+                      ? "#f3f6fa"
+                      : theme.palette.text.primary,
+                })}
               >
                 Nuevo movimiento
               </Typography>
 
               <Typography
                 variant="body2"
-                color="text.secondary"
+                color={
+                  createSaving
+                    ? "text.secondary"
+                    : undefined
+                }
+                sx={(theme) => ({
+                  color:
+                    theme.palette.mode === "dark"
+                      ? "#929aa6"
+                      : theme.palette.text.secondary,
+                })}
               >
-                El PDF se generará desde
-                estos datos.
+                Registra la venta y genera su comprobante.
               </Typography>
             </Box>
 
-            <IconButton
-              onClick={() =>
-                setCreateOpen(false)
-              }
-              disabled={createSaving}
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="flex-end"
             >
-              <CloseRoundedIcon />
-            </IconButton>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<InfoOutlinedIcon />}
+                onClick={() =>
+                  setFieldHelpOpen(true)
+                }
+                sx={(theme) => ({
+                  borderRadius: 2.5,
+                  textTransform: "none",
+                  fontWeight: 800,
+                  borderColor:
+                    theme.palette.mode === "dark"
+                      ? "#384351"
+                      : undefined,
+                  color:
+                    theme.palette.mode === "dark"
+                      ? "#b9c1cb"
+                      : undefined,
+                  bgcolor:
+                    theme.palette.mode === "dark"
+                      ? "#10151c"
+                      : undefined,
+                  "&:hover": {
+                    borderColor:
+                      theme.palette.mode === "dark"
+                        ? "#4c5a6b"
+                        : undefined,
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "#141b24"
+                        : undefined,
+                  },
+                })}
+              >
+                Ayuda de campos
+              </Button>
+
+              <IconButton
+                onClick={() =>
+                  setCreateOpen(false)
+                }
+                disabled={createSaving}
+              >
+                <CloseRoundedIcon />
+              </IconButton>
+            </Stack>
           </Stack>
         </DialogTitle>
 
-        <DialogContent dividers>
-          <Stack spacing={2.5}>
+        <DialogContent
+          onScroll={(event) => {
+            if (
+              event.currentTarget ===
+              event.target
+            ) {
+              setClientAutocompleteOpen(
+                false,
+              );
+              setProductAutocompleteOpen(
+                false,
+              );
+            }
+          }}
+          sx={(theme) => ({
+            px: {
+              xs: 1.5,
+              sm: 3,
+            },
+            py: {
+              xs: 1.5,
+              sm: 3,
+            },
+            pb: {
+              xs: 3,
+              sm: 3,
+            },
+            border: 0,
+            overflowY: "auto",
+            WebkitOverflowScrolling:
+              "touch",
+            overscrollBehavior:
+              "contain",
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#090c11"
+                : alpha(
+                    theme.palette.primary.main,
+                    0.018,
+                  ),
+            ...(theme.palette.mode === "dark"
+              ? {
+                  "& .MuiInputLabel-root": {
+                    color: "#aeb6c2",
+                    fontWeight: 600,
+                  },
+                  "& .MuiInputLabel-root.Mui-focused": {
+                    color: "#64a8e8",
+                  },
+                  "& .MuiFormHelperText-root": {
+                    color: "#7f8997",
+                  },
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "#11161d",
+                    borderRadius: 2.25,
+                    transition: "0.16s ease",
+                  },
+                  "& .MuiOutlinedInput-input": {
+                    color: "#eef2f7",
+                  },
+                  "& .MuiSelect-select": {
+                    color: "#eef2f7",
+                  },
+                  "& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#2b3440",
+                  },
+                  "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#46515f",
+                  },
+                  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#4d9ad6",
+                    borderWidth: 1,
+                  },
+                  "& .MuiOutlinedInput-root.Mui-focused": {
+                    bgcolor: "#121922",
+                    boxShadow: `0 0 0 2px ${alpha(
+                      "#4d9ad6",
+                      0.08,
+                    )}`,
+                  },
+                  "& .MuiSvgIcon-root": {
+                    color: "#8c97a5",
+                  },
+                  "& .MuiTypography-body2, & .MuiTypography-caption": {
+                    color: "#8d96a3",
+                  },
+                }
+              : {}),
+          })}
+        >
+          <Stack
+            spacing={{
+              xs: 1.5,
+              sm: 2.5,
+            }}
+          >
             {createError ? (
               <Alert severity="error">
                 {createError}
               </Alert>
             ) : null}
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>
-                    Cliente
-                  </InputLabel>
+            <Paper
+              elevation={0}
+              sx={(theme) => ({
+                p: {
+                  xs: 1.5,
+                  sm: 2.25,
+                },
+                borderRadius: {
+                  xs: 2.25,
+                  sm: 3,
+                },
+                border: 0,
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "#0f141b"
+                    : alpha(
+                        theme.palette.primary.main,
+                        0.025,
+                      ),
+              })}
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                mb={1.75}
+              >
+                <Box
+                  sx={{
+                    width: 3,
+                    height: 22,
+                    borderRadius: 999,
+                    bgcolor: "primary.main",
+                  }}
+                />
 
-                  <Select
-                    value={form.clienteId}
-                    label="Cliente"
-                    onChange={(event) =>
+                <Typography
+                  fontWeight={900}
+                  sx={(theme) => ({
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "#e7ebf0"
+                        : theme.palette.text.primary,
+                  })}
+                >
+                  Cliente y producto
+                </Typography>
+              </Stack>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Autocomplete<UserOption, false, false, false>
+                    disablePortal
+                    openOnFocus={false}
+                    open={
+                      clientAutocompleteOpen &&
+                      clientSearchInput.trim().length >= 3
+                    }
+                    onOpen={() => {
+                      if (
+                        clientSearchInput.trim().length >= 3
+                      ) {
+                        setClientAutocompleteOpen(true);
+                      }
+                    }}
+                    onClose={() =>
+                      setClientAutocompleteOpen(false)
+                    }
+                    value={selectedClient}
+                    options={clientOptions}
+                    loading={clientSearchLoading}
+                    inputValue={clientSearchInput}
+                    filterOptions={(options) =>
+                      options
+                    }
+                    isOptionEqualToValue={(option, value) =>
+                      option.id === value.id
+                    }
+                    getOptionLabel={(option) =>
+                      fullName(option)
+                    }
+                    noOptionsText="Sin coincidencias"
+                    onInputChange={(
+                      _event,
+                      value,
+                      reason,
+                    ) => {
+                      if (
+                        reason === "input" ||
+                        reason === "clear"
+                      ) {
+                        setClientSearchInput(
+                          value,
+                        );
+
+                        setClientAutocompleteOpen(
+                          value.trim().length >= 3,
+                        );
+
+                        if (reason === "clear") {
+                          setSelectedClient(null);
+                          setForm((current) => ({
+                            ...current,
+                            clienteId: "",
+                          }));
+                        }
+                      }
+                    }}
+                    onChange={(_event, value) => {
+                      setClientAutocompleteOpen(false);
+                      setSelectedClient(value);
+                      setClientSearchInput(
+                        value
+                          ? fullName(value)
+                          : "",
+                      );
                       setForm((current) => ({
                         ...current,
-                        clienteId: String(
-                          event.target.value,
-                        ),
-                      }))
-                    }
-                  >
-                    {users.map((user) => (
-                      <MenuItem
-                        value={String(
-                          user.id,
-                        )}
-                        key={user.id}
+                        clienteId: value
+                          ? String(value.id)
+                          : "",
+                      }));
+                    }}
+                    renderOption={(props, option) => (
+                      <Box
+                        component="li"
+                        {...props}
+                        key={option.id}
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start !important",
+                        }}
                       >
-                        {fullName(user)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+                        <Typography
+                          variant="body2"
+                          fontWeight={800}
+                        >
+                          {fullName(option)}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          {option.email ??
+                            "Sin correo"}
+                        </Typography>
+                      </Box>
+                    )}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Cliente"
+                        placeholder="Escribe 3 letras o más"
+                        helperText="La búsqueda inicia a partir de 3 caracteres y espera antes de consultar."
+                        inputProps={{
+                          ...params.inputProps,
+                          autoComplete:
+                            "new-password",
+                        }}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {clientSearchLoading ? (
+                                <CircularProgress
+                                  size={18}
+                                />
+                              ) : null}
+                              {params.InputProps
+                                .endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
 
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>
-                    Producto
-                  </InputLabel>
+                <Grid item xs={12} md={6}>
+                  <Autocomplete<
+                    ClientHistoryProductSearchItem,
+                    false,
+                    false,
+                    false
+                  >
+                    disablePortal
+                    openOnFocus={false}
+                    open={
+                      productAutocompleteOpen &&
+                      productSearchInput.trim().length >= 3
+                    }
+                    onOpen={() => {
+                      if (
+                        productSearchInput.trim().length >= 3
+                      ) {
+                        setProductAutocompleteOpen(true);
+                      }
+                    }}
+                    onClose={() =>
+                      setProductAutocompleteOpen(false)
+                    }
+                    value={selectedProduct}
+                    options={productOptions}
+                    loading={productSearchLoading}
+                    inputValue={productSearchInput}
+                    filterOptions={(options) =>
+                      options
+                    }
+                    isOptionEqualToValue={(
+                      option,
+                      value,
+                    ) =>
+                      option.id === value.id
+                    }
+                    getOptionLabel={(option) =>
+                      option.name
+                    }
+                    noOptionsText="Sin coincidencias"
+                    onInputChange={(
+                      _event,
+                      value,
+                      reason,
+                    ) => {
+                      if (
+                        reason === "input" ||
+                        reason === "clear"
+                      ) {
+                        setProductSearchInput(
+                          value,
+                        );
 
-                  <Select
-                    value={form.productoId}
-                    label="Producto"
-                    onChange={(event) =>
+                        setProductAutocompleteOpen(
+                          value.trim().length >= 3,
+                        );
+
+                        if (
+                          reason === "clear"
+                        ) {
+                          handleProductChange(
+                            null,
+                          );
+                        }
+                      }
+                    }}
+                    onChange={(
+                      _event,
+                      value,
+                    ) => {
+                      setProductAutocompleteOpen(false);
                       handleProductChange(
-                        String(
-                          event.target.value,
-                        ),
-                      )
-                    }
-                  >
-                    {products.map(
-                      (product) => (
-                        <MenuItem
-                          value={String(
-                            product.id,
-                          )}
-                          key={product.id}
+                        value,
+                      );
+                    }}
+                    renderOption={(
+                      props,
+                      option,
+                    ) => (
+                      <Box
+                        component="li"
+                        {...props}
+                        key={option.id}
+                        sx={{
+                          display: "flex",
+                          flexDirection:
+                            "column",
+                          alignItems:
+                            "flex-start !important",
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          fontWeight={800}
                         >
-                          {product.name} —{" "}
+                          {option.name}
+                        </Typography>
+
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
                           {formatCurrency(
-                            product.precio,
+                            option.precio,
                           )}
-                        </MenuItem>
-                      ),
+                        </Typography>
+                      </Box>
                     )}
-                  </Select>
-                </FormControl>
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Producto"
+                        placeholder="Escribe 3 letras o más"
+                        helperText="La búsqueda inicia a partir de 3 caracteres y espera antes de consultar."
+                        inputProps={{
+                          ...params.inputProps,
+                          autoComplete:
+                            "new-password",
+                        }}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {productSearchLoading ? (
+                                <CircularProgress
+                                  size={18}
+                                />
+                              ) : null}
+
+                              {
+                                params
+                                  .InputProps
+                                  .endAdornment
+                              }
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
               </Grid>
+            </Paper>
 
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>
-                    Método de pago
-                  </InputLabel>
+            <Paper
+              elevation={0}
+              sx={(theme) => ({
+                p: {
+                  xs: 1.5,
+                  sm: 2.25,
+                },
+                borderRadius: {
+                  xs: 2.25,
+                  sm: 3,
+                },
+                border: 0,
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "#0f141b"
+                    : alpha(
+                        theme.palette.primary.main,
+                        0.025,
+                      ),
+              })}
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                mb={1.75}
+              >
+                <Box
+                  sx={{
+                    width: 3,
+                    height: 22,
+                    borderRadius: 999,
+                    bgcolor: "primary.main",
+                  }}
+                />
 
-                  <Select
-                    value={
-                      form.metodoPagoId
-                    }
-                    label="Método de pago"
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        metodoPagoId: String(
-                          event.target.value,
+                <Typography
+                  fontWeight={900}
+                  sx={(theme) => ({
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "#e7ebf0"
+                        : theme.palette.text.primary,
+                  })}
+                >
+                  Pago e importe
+                </Typography>
+              </Stack>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>
+                      Método de pago
+                    </InputLabel>
+
+                    <Select
+                      value={form.metodoPagoId}
+                      label="Método de pago"
+                      inputProps={{
+                        autoComplete: "off",
+                        name:
+                          "sale_payment_method_no_autofill",
+                      }}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          metodoPagoId: String(
+                            event.target.value,
+                          ),
+                        }))
+                      }
+                    >
+                      {activePaymentMethods.map(
+                        (method) => (
+                          <MenuItem
+                            value={String(
+                              method.id,
+                            )}
+                            key={method.id}
+                          >
+                            {method.nombre}
+                          </MenuItem>
                         ),
-                      }))
-                    }
-                  >
-                    {activePaymentMethods.map(
-                      (method) => (
-                        <MenuItem
-                          value={String(
-                            method.id,
-                          )}
-                          key={method.id}
-                        >
-                          {method.nombre}
-                        </MenuItem>
-                      ),
-                    )}
-                  </Select>
-                </FormControl>
-              </Grid>
+                      )}
+                    </Select>
+                  </FormControl>
+                </Grid>
 
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>
-                    Estatus
-                  </InputLabel>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>
+                      Estatus
+                    </InputLabel>
 
-                  <Select
-                    value={form.status}
-                    label="Estatus"
+                    <Select
+                      value={form.status}
+                      label="Estatus"
+                      inputProps={{
+                        autoComplete: "off",
+                        name:
+                          "sale_status_no_autofill",
+                      }}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          status:
+                            event.target
+                              .value as ClientHistoryStatus,
+                        }))
+                      }
+                    >
+                      {STATUS_OPTIONS.map(
+                        (option) => (
+                          <MenuItem
+                            value={option.value}
+                            key={option.value}
+                          >
+                            {option.label}
+                          </MenuItem>
+                        ),
+                      )}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Cantidad"
+                    value={form.cantidad}
+                    autoComplete="new-password"
+                    name="sale_quantity_no_autofill"
+                    inputProps={{
+                      min: 0.01,
+                      step: 0.01,
+                      inputMode: "decimal",
+                      autoComplete:
+                        "new-password",
+                    }}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        status:
-                          event.target
-                            .value as ClientHistoryStatus,
+                        cantidad:
+                          event.target.value,
                       }))
                     }
-                  >
-                    {STATUS_OPTIONS.map(
-                      (option) => (
-                        <MenuItem
-                          value={option.value}
-                          key={option.value}
-                        >
-                          {option.label}
-                        </MenuItem>
-                      ),
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Precio unitario"
+                    value={
+                      form.precioUnitario
+                    }
+                    autoComplete="off"
+                    inputProps={{
+                      min: 0,
+                      step: 0.01,
+                      inputMode: "decimal",
+                      autoComplete: "off",
+                    }}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        precioUnitario:
+                          event.target.value,
+                      }))
+                    }
+                    helperText={
+                      selectedProduct
+                        ? `Precio actual: ${formatCurrency(
+                            selectedProduct.precio,
+                          )}`
+                        : "Selecciona un producto."
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Importe"
+                    value={formatCurrency(
+                      estimatedTotal,
                     )}
-                  </Select>
-                </FormControl>
+                    InputProps={{
+                      readOnly: true,
+                    }}
+                  />
+                </Grid>
               </Grid>
+            </Paper>
 
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Cantidad"
-                  value={form.cantidad}
-                  inputProps={{
-                    min: 0.01,
-                    step: 0.01,
-                  }}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      cantidad:
-                        event.target.value,
-                    }))
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Precio unitario"
-                  value={
-                    form.precioUnitario
-                  }
-                  inputProps={{
-                    min: 0,
-                    step: 0.01,
-                  }}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      precioUnitario:
-                        event.target.value,
-                    }))
-                  }
-                  helperText={
-                    selectedProduct
-                      ? `Precio actual: ${formatCurrency(
-                          selectedProduct.precio,
-                        )}`
-                      : "Selecciona un producto."
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Importe"
-                  value={formatCurrency(
-                    estimatedTotal,
-                  )}
-                  InputProps={{
-                    readOnly: true,
+            <Paper
+              elevation={0}
+              sx={(theme) => ({
+                p: {
+                  xs: 1.5,
+                  sm: 2.25,
+                },
+                borderRadius: {
+                  xs: 2.25,
+                  sm: 3,
+                },
+                border: 0,
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "#0f141b"
+                    : alpha(
+                        theme.palette.primary.main,
+                        0.025,
+                      ),
+              })}
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                mb={1.75}
+              >
+                <Box
+                  sx={{
+                    width: 3,
+                    height: 22,
+                    borderRadius: 999,
+                    bgcolor: "primary.main",
                   }}
                 />
-              </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  type="datetime-local"
-                  label="Fecha de operación"
-                  value={
-                    form.fechaOperacion
-                  }
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      fechaOperacion:
-                        event.target.value,
-                    }))
-                  }
-                />
-              </Grid>
+                <Typography
+                  fontWeight={900}
+                  sx={(theme) => ({
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "#e7ebf0"
+                        : theme.palette.text.primary,
+                  })}
+                >
+                  Datos del movimiento
+                </Typography>
+              </Stack>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Folio"
-                  value={form.folio}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      folio:
-                        event.target.value,
-                    }))
-                  }
-                />
-              </Grid>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    type="datetime-local"
+                    label="Fecha de operación"
+                    value={
+                      form.fechaOperacion
+                    }
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        fechaOperacion:
+                          event.target.value,
+                      }))
+                    }
+                  />
+                </Grid>
 
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Concepto"
-                  value={form.concepto}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      concepto:
-                        event.target.value,
-                    }))
-                  }
-                />
-              </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Folio"
+                    value={form.folio}
+                    autoComplete="off"
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        folio:
+                          event.target.value,
+                      }))
+                    }
+                  />
+                </Grid>
 
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="UUID fiscal"
-                  value={form.uuidFiscal}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      uuidFiscal:
-                        event.target.value,
-                    }))
-                  }
-                />
-              </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Concepto (opcional)"
+                    value={form.concepto}
+                    autoComplete="off"
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        concepto:
+                          event.target.value,
+                      }))
+                    }
+                  />
+                </Grid>
 
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={3}
-                  label="Observaciones"
-                  value={
-                    form.observaciones
-                  }
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      observaciones:
-                        event.target.value,
-                    }))
-                  }
-                />
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="UUID fiscal (opcional)"
+                    value={form.uuidFiscal}
+                    autoComplete="off"
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        uuidFiscal:
+                          event.target.value,
+                      }))
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={3}
+                    label="Observaciones (opcional)"
+                    value={
+                      form.observaciones
+                    }
+                    autoComplete="off"
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        observaciones:
+                          event.target.value,
+                      }))
+                    }
+                  />
+                </Grid>
               </Grid>
-            </Grid>
+            </Paper>
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions
+          sx={(theme) => ({
+            px: {
+              xs: 1.5,
+              sm: 3,
+            },
+            pt: {
+              xs: 1.25,
+              sm: 2,
+            },
+            pb: {
+              xs:
+                "calc(12px + env(safe-area-inset-bottom))",
+              sm: 2,
+            },
+            gap: {
+              xs: 1,
+              sm: 0,
+            },
+            borderTop: {
+              xs: "1px solid",
+              sm: 0,
+            },
+            borderColor:
+              theme.palette.mode === "dark"
+                ? "#202730"
+                : theme.palette.divider,
+            position: {
+              xs: "sticky",
+              sm: "static",
+            },
+            bottom: 0,
+            zIndex: 5,
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#090c11"
+                : theme.palette.background.paper,
+          })}
+        >
           <Button
             onClick={() =>
               setCreateOpen(false)
             }
             disabled={createSaving}
+            sx={{
+              flex: {
+                xs: 1,
+                sm: "initial",
+              },
+              minHeight: {
+                xs: 44,
+                sm: "auto",
+              },
+              textTransform: "none",
+              fontWeight: 800,
+            }}
           >
             Cancelar
           </Button>
@@ -2982,8 +3844,346 @@ export default function ClientHistoryPage({
                 <AddRoundedIcon />
               )
             }
+            sx={(theme) => ({
+              borderRadius: 2.5,
+              textTransform: "none",
+              fontWeight: 900,
+              px: 2.2,
+              background:
+                theme.palette.mode === "dark"
+                  ? "#2f80c5"
+                  : undefined,
+              boxShadow:
+                theme.palette.mode === "dark"
+                  ? "0 6px 16px rgba(47, 128, 197, 0.20)"
+                  : undefined,
+              "&:hover": {
+                background:
+                  theme.palette.mode === "dark"
+                    ? "#367fba"
+                    : undefined,
+              },
+            })}
           >
             Guardar movimiento
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={fieldHelpOpen}
+        onClose={() =>
+          setFieldHelpOpen(false)
+        }
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: (theme) => ({
+            borderRadius: 3.5,
+            overflow: "hidden",
+            border: 0,
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#0b0f14"
+                : theme.palette.background.paper,
+            boxShadow:
+              theme.palette.mode === "dark"
+                ? "0 26px 70px rgba(0, 0, 0, 0.5)"
+                : "0 24px 64px rgba(15, 23, 42, 0.16)",
+          }),
+        }}
+      >
+        <DialogTitle
+          sx={(theme) => ({
+            px: 3,
+            py: 2.25,
+            borderBottom: "1px solid",
+            borderColor:
+              theme.palette.mode === "dark"
+                ? "#222a34"
+                : theme.palette.divider,
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#0d1218"
+                : theme.palette.background.paper,
+          })}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={2}
+          >
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1.25}
+            >
+              <Avatar
+                sx={(theme) => ({
+                  width: 34,
+                  height: 34,
+                  bgcolor:
+                    theme.palette.mode === "dark"
+                      ? "#18222d"
+                      : alpha(
+                          theme.palette.primary.main,
+                          0.08,
+                        ),
+                  color:
+                    theme.palette.mode === "dark"
+                      ? "#8aa9c2"
+                      : theme.palette.primary.main,
+                })}
+              >
+                <InfoOutlinedIcon
+                  sx={{ fontSize: 20 }}
+                />
+              </Avatar>
+
+              <Box>
+                <Typography
+                  variant="h6"
+                  fontWeight={900}
+                  sx={(theme) => ({
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "#eef2f6"
+                        : theme.palette.text.primary,
+                  })}
+                >
+                  Ayuda de campos
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={(theme) => ({
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "#8f99a6"
+                        : theme.palette.text.secondary,
+                  })}
+                >
+                  Consulta qué información corresponde a cada campo.
+                </Typography>
+              </Box>
+            </Stack>
+
+            <IconButton
+              onClick={() =>
+                setFieldHelpOpen(false)
+              }
+              sx={(theme) => ({
+                color:
+                  theme.palette.mode === "dark"
+                    ? "#aab2bd"
+                    : theme.palette.text.secondary,
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "#141a21"
+                    : theme.palette.action.hover,
+                "&:hover": {
+                  bgcolor:
+                    theme.palette.mode === "dark"
+                      ? "#1c232c"
+                      : theme.palette.action.selected,
+                },
+              })}
+            >
+              <CloseRoundedIcon />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+
+        <DialogContent
+          sx={(theme) => ({
+            px: 3,
+            py: 1,
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#0b0f14"
+                : theme.palette.background.paper,
+          })}
+        >
+          {[
+            [
+              "Cliente",
+              "Persona a la que se asociará la venta. Escribe al menos 3 letras para buscarla.",
+            ],
+            [
+              "Producto",
+              "Servicio o producto vendido al cliente.",
+            ],
+            [
+              "Método de pago",
+              "Forma utilizada para realizar el pago.",
+            ],
+            [
+              "Estatus",
+              "Situación actual de la venta: pagado, pendiente, cancelado, vencido o reembolsado.",
+            ],
+            [
+              "Cantidad",
+              "Número de unidades o servicios vendidos.",
+            ],
+            [
+              "Precio unitario",
+              "Precio aplicado por cada unidad.",
+            ],
+            [
+              "Importe",
+              "Total calculado automáticamente con cantidad × precio unitario.",
+            ],
+            [
+              "Fecha de operación",
+              "Fecha en la que se realizó o registró la venta.",
+            ],
+            [
+              "Folio",
+              "Referencia interna para identificar el movimiento.",
+            ],
+            [
+              "Concepto (opcional)",
+              "Descripción breve adicional de la venta.",
+            ],
+            [
+              "UUID fiscal (opcional)",
+              "Folio fiscal del CFDI cuando exista una factura fiscal.",
+            ],
+            [
+              "Observaciones (opcional)",
+              "Notas administrativas o información adicional.",
+            ],
+          ].map(
+            (
+              [label, description],
+              index,
+              items,
+            ) => (
+              <Box
+                key={label}
+                sx={(theme) => ({
+                  py: 1.6,
+                  display: "grid",
+                  gridTemplateColumns:
+                    "28px minmax(0, 1fr)",
+                  gap: 1.25,
+                  borderBottom:
+                    index <
+                    items.length - 1
+                      ? "1px solid"
+                      : "none",
+                  borderColor:
+                    theme.palette.mode ===
+                    "dark"
+                      ? "#1d242d"
+                      : theme.palette.divider,
+                })}
+              >
+                <Box
+                  sx={(theme) => ({
+                    width: 24,
+                    height: 24,
+                    mt: 0.15,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.72rem",
+                    fontWeight: 900,
+                    bgcolor:
+                      theme.palette.mode ===
+                      "dark"
+                        ? "#171e26"
+                        : alpha(
+                            theme.palette.primary.main,
+                            0.07,
+                          ),
+                    color:
+                      theme.palette.mode ===
+                      "dark"
+                        ? "#91a5b6"
+                        : theme.palette.primary.main,
+                  })}
+                >
+                  {index + 1}
+                </Box>
+
+                <Box>
+                  <Typography
+                    variant="body2"
+                    fontWeight={850}
+                    sx={(theme) => ({
+                      color:
+                        theme.palette.mode ===
+                        "dark"
+                          ? "#e6ebf0"
+                          : theme.palette.text.primary,
+                    })}
+                  >
+                    {label}
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    mt={0.25}
+                    sx={(theme) => ({
+                      lineHeight: 1.5,
+                      color:
+                        theme.palette.mode ===
+                        "dark"
+                          ? "#8f99a6"
+                          : theme.palette.text.secondary,
+                    })}
+                  >
+                    {description}
+                  </Typography>
+                </Box>
+              </Box>
+            ),
+          )}
+        </DialogContent>
+
+        <DialogActions
+          sx={(theme) => ({
+            px: 3,
+            py: 1.75,
+            borderTop: "1px solid",
+            borderColor:
+              theme.palette.mode === "dark"
+                ? "#222a34"
+                : theme.palette.divider,
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#0d1218"
+                : theme.palette.background.paper,
+          })}
+        >
+          <Button
+            variant="contained"
+            onClick={() =>
+              setFieldHelpOpen(false)
+            }
+            sx={(theme) => ({
+              minWidth: 110,
+              borderRadius: 2.25,
+              textTransform: "none",
+              fontWeight: 800,
+              bgcolor:
+                theme.palette.mode === "dark"
+                  ? "#345f82"
+                  : undefined,
+              boxShadow: "none",
+              "&:hover": {
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "#3b6b91"
+                    : undefined,
+                boxShadow: "none",
+              },
+            })}
+          >
+            Entendido
           </Button>
         </DialogActions>
       </Dialog>
@@ -2993,174 +4193,376 @@ export default function ClientHistoryPage({
         onClose={() => setDetail(null)}
         fullWidth
         maxWidth="sm"
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            overflow: "hidden",
+          },
+        }}
       >
-        <DialogTitle>
-          Detalle del movimiento
+        <DialogTitle
+          sx={(theme) => ({
+            px: 3,
+            py: 2.5,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            background: `linear-gradient(135deg, ${alpha(
+              theme.palette.primary.main,
+              0.1,
+            )}, ${alpha(
+              theme.palette.primary.main,
+              0.025,
+            )})`,
+          })}
+        >
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            spacing={2}
+          >
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1.25}
+            >
+              <Avatar
+                sx={{
+                  bgcolor: "primary.main",
+                  width: 42,
+                  height: 42,
+                }}
+              >
+                <VisibilityRoundedIcon />
+              </Avatar>
+
+              <Box>
+                <Typography
+                  variant="h6"
+                  fontWeight={900}
+                >
+                  Detalle de venta
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  {detail?.folio
+                    ? `Folio ${detail.folio}`
+                    : detail
+                      ? `Movimiento #${detail.id}`
+                      : ""}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <IconButton
+              onClick={() =>
+                setDetail(null)
+              }
+            >
+              <CloseRoundedIcon />
+            </IconButton>
+          </Stack>
         </DialogTitle>
 
-        <DialogContent dividers>
+        <DialogContent
+          sx={{
+            p: 3,
+          }}
+        >
           {detail ? (
-            <Stack spacing={2}>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                spacing={1}
+            <Stack spacing={2.5}>
+              <Paper
+                elevation={0}
+                sx={(theme) => ({
+                  p: 2.25,
+                  borderRadius: 3,
+                  border: 0,
+                  bgcolor: alpha(
+                    theme.palette.primary.main,
+                    theme.palette.mode === "dark"
+                      ? 0.09
+                      : 0.04,
+                  ),
+                })}
               >
-                <Box>
-                  <Typography
-                    variant="h6"
-                    fontWeight={900}
-                  >
-                    {detail.producto_nombre}
-                  </Typography>
+                <Stack
+                  direction={{
+                    xs: "column",
+                    sm: "row",
+                  }}
+                  justifyContent="space-between"
+                  alignItems={{
+                    xs: "flex-start",
+                    sm: "center",
+                  }}
+                  spacing={2}
+                >
+                  <Box>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      mb={0.5}
+                    >
+                      <Typography
+                        variant="h6"
+                        fontWeight={900}
+                      >
+                        {detail.producto_nombre}
+                      </Typography>
 
-                  <Typography
-                    color="text.secondary"
-                  >
-                    {fullName(
-                      detail.cliente,
-                    )}
-                  </Typography>
-                </Box>
+                      <Box
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          bgcolor: `${statusDotColor(
+                            detail.status,
+                          )}.main`,
+                        }}
+                      />
+                    </Stack>
 
-                <Chip
-                  label={statusLabel(
-                    detail.status,
-                  )}
-                  color={statusColor(
-                    detail.status,
-                  )}
-                />
-              </Stack>
+                    <Typography
+                      color="text.secondary"
+                    >
+                      {fullName(
+                        detail.cliente,
+                      )}
+                    </Typography>
+                  </Box>
 
-              <Divider />
-
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Cantidad
-                  </Typography>
-
-                  <Typography
-                    fontWeight={800}
-                  >
-                    {asNumber(
-                      detail.cantidad,
-                    )}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={6}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Precio unitario
-                  </Typography>
-
-                  <Typography
-                    fontWeight={800}
-                  >
-                    {formatCurrency(
-                      detail.precio_unitario,
-                    )}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={6}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Importe
-                  </Typography>
-
-                  <Typography
-                    fontWeight={900}
-                  >
-                    {formatCurrency(
-                      detail.importe,
-                    )}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={6}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Método de pago
-                  </Typography>
-
-                  <Typography
-                    fontWeight={800}
-                  >
-                    {detail.metodo_pago
-                      ?.nombre ??
-                      "No especificado"}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Fecha
-                  </Typography>
-
-                  <Typography
-                    fontWeight={800}
-                  >
-                    {formatDate(
-                      detail.fecha_operacion,
-                    )}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Concepto
-                  </Typography>
-
-                  <Typography>
-                    {detail.concepto ??
-                      "Sin concepto"}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Observaciones
-                  </Typography>
-
-                  <Typography
+                  <Box
                     sx={{
-                      whiteSpace: "pre-wrap",
+                      textAlign: {
+                        xs: "left",
+                        sm: "right",
+                      },
                     }}
                   >
-                    {detail.observaciones ??
-                      "Sin observaciones"}
-                  </Typography>
-                </Grid>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      Importe total
+                    </Typography>
+
+                    <Typography
+                      variant="h5"
+                      fontWeight={900}
+                      color="primary.main"
+                    >
+                      {formatCurrency(
+                        detail.importe,
+                      )}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+
+              <Grid container spacing={1.5}>
+                {[
+                  {
+                    label: "Fecha",
+                    value: formatDate(
+                      detail.fecha_operacion,
+                    ),
+                  },
+                  {
+                    label: "Cantidad",
+                    value: String(
+                      asNumber(
+                        detail.cantidad,
+                      ),
+                    ),
+                  },
+                  {
+                    label:
+                      "Precio unitario",
+                    value: formatCurrency(
+                      detail.precio_unitario,
+                    ),
+                  },
+                  {
+                    label:
+                      "Método de pago",
+                    value:
+                      detail.metodo_pago
+                        ?.nombre ??
+                      "No especificado",
+                  },
+                ].map((item) => (
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}
+                    key={item.label}
+                  >
+                    <Paper
+                      elevation={0}
+                      sx={(theme) => ({
+                        p: 1.75,
+                        height: "100%",
+                        borderRadius: 2.5,
+                        border: 0,
+                        bgcolor: alpha(
+                          theme.palette.primary.main,
+                          theme.palette.mode === "dark"
+                            ? 0.065
+                            : 0.028,
+                        ),
+                      })}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        fontWeight={700}
+                      >
+                        {item.label}
+                      </Typography>
+
+                      <Typography
+                        mt={0.4}
+                        fontWeight={800}
+                      >
+                        {item.value}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                ))}
               </Grid>
+
+              <Paper
+                elevation={0}
+                sx={(theme) => ({
+                  p: 2,
+                  borderRadius: 2.5,
+                  border: 0,
+                  bgcolor: alpha(
+                    theme.palette.primary.main,
+                    theme.palette.mode === "dark"
+                      ? 0.06
+                      : 0.025,
+                  ),
+                })}
+              >
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={700}
+                >
+                  Concepto
+                </Typography>
+
+                <Typography
+                  mt={0.5}
+                >
+                  {detail.concepto ??
+                    "Sin concepto"}
+                </Typography>
+              </Paper>
+
+              <Paper
+                elevation={0}
+                sx={(theme) => ({
+                  p: 2,
+                  borderRadius: 2.5,
+                  border: 0,
+                  bgcolor: alpha(
+                    theme.palette.primary.main,
+                    theme.palette.mode === "dark"
+                      ? 0.06
+                      : 0.025,
+                  ),
+                })}
+              >
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={700}
+                >
+                  Observaciones
+                </Typography>
+
+                <Typography
+                  mt={0.5}
+                  sx={{
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {detail.observaciones ??
+                    "Sin observaciones"}
+                </Typography>
+              </Paper>
             </Stack>
           ) : null}
         </DialogContent>
 
-        <DialogActions>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: "1px solid",
+            borderColor: "divider",
+            justifyContent:
+              "space-between",
+          }}
+        >
+          {detail ? (
+            <Button
+              variant="contained"
+              startIcon={
+                activeFileAction ===
+                `pdf-download-${detail.id}` ? (
+                  <CircularProgress
+                    size={16}
+                    color="inherit"
+                  />
+                ) : (
+                  <DownloadRoundedIcon />
+                )
+              }
+              disabled={
+                activeFileAction ===
+                `pdf-download-${detail.id}`
+              }
+              onClick={() =>
+                void executeFileAction(
+                  `pdf-download-${detail.id}`,
+                  () =>
+                    downloadSuperAdminClientHistoryPdf(
+                      detail.id,
+                      buildPdfFileName(
+                        detail,
+                      ),
+                    ),
+                )
+              }
+              sx={{
+                borderRadius: 2.5,
+                textTransform: "none",
+                fontWeight: 900,
+              }}
+            >
+              Descargar comprobante
+            </Button>
+          ) : (
+            <Box />
+          )}
+
           <Button
-            onClick={() => setDetail(null)}
+            variant="outlined"
+            onClick={() =>
+              setDetail(null)
+            }
+            sx={{
+              borderRadius: 2.5,
+              textTransform: "none",
+              fontWeight: 800,
+            }}
           >
             Cerrar
           </Button>
@@ -3412,77 +4814,259 @@ export default function ClientHistoryPage({
           setPaymentMethodsOpen(false)
         }
         fullWidth
+        fullScreen={isMobile}
         maxWidth="md"
+        scroll="paper"
+        PaperProps={{
+          sx: (theme) => ({
+            borderRadius: {
+              xs: 0,
+              sm: 4,
+            },
+            overflow: "hidden",
+            border: 0,
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#0b0f14"
+                : theme.palette.background.paper,
+            boxShadow:
+              isMobile
+                ? "none"
+                : theme.palette.mode === "dark"
+                  ? "0 26px 70px rgba(0, 0, 0, 0.5)"
+                  : "0 24px 64px rgba(15, 23, 42, 0.16)",
+          }),
+        }}
       >
-        <DialogTitle>
+        <DialogTitle
+          sx={(theme) => ({
+            px: {
+              xs: 2,
+              sm: 3,
+            },
+            py: 2,
+            borderBottom: "1px solid",
+            borderColor:
+              theme.palette.mode === "dark"
+                ? "#202731"
+                : theme.palette.divider,
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#0d1218"
+                : theme.palette.background.paper,
+          })}
+        >
           <Stack
             direction="row"
             justifyContent="space-between"
             alignItems="center"
+            spacing={2}
           >
-            <Box>
-              <Typography
-                variant="h6"
-                fontWeight={900}
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1.25}
+              sx={{ minWidth: 0 }}
+            >
+              <Avatar
+                sx={(theme) => ({
+                  width: 38,
+                  height: 38,
+                  flexShrink: 0,
+                  bgcolor:
+                    theme.palette.mode === "dark"
+                      ? "#17212b"
+                      : alpha(
+                          theme.palette.primary.main,
+                          0.08,
+                        ),
+                  color:
+                    theme.palette.mode === "dark"
+                      ? "#8fb4d1"
+                      : theme.palette.primary.main,
+                })}
               >
-                Métodos de pago
-              </Typography>
+                <PaymentsRoundedIcon
+                  sx={{ fontSize: 21 }}
+                />
+              </Avatar>
 
-              <Typography
-                variant="body2"
-                color="text.secondary"
-              >
-                Crea, edita, activa o
-                desactiva métodos.
-              </Typography>
-            </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="h6"
+                  fontWeight={900}
+                  sx={(theme) => ({
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "#edf1f5"
+                        : theme.palette.text.primary,
+                  })}
+                >
+                  Métodos de pago
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={(theme) => ({
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "#8d97a4"
+                        : theme.palette.text.secondary,
+                  })}
+                >
+                  Administra las formas de pago disponibles para las ventas.
+                </Typography>
+              </Box>
+            </Stack>
 
             <IconButton
               onClick={() =>
-                setPaymentMethodsOpen(
-                  false,
-                )
+                setPaymentMethodsOpen(false)
               }
+              disabled={paymentMethodSaving}
+              sx={(theme) => ({
+                flexShrink: 0,
+                color:
+                  theme.palette.mode === "dark"
+                    ? "#aab3bd"
+                    : theme.palette.text.secondary,
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "#151a21"
+                    : theme.palette.action.hover,
+                "&:hover": {
+                  bgcolor:
+                    theme.palette.mode === "dark"
+                      ? "#1b222b"
+                      : theme.palette.action.selected,
+                },
+              })}
             >
               <CloseRoundedIcon />
             </IconButton>
           </Stack>
         </DialogTitle>
 
-        <DialogContent dividers>
-          <Stack spacing={3}>
+        <DialogContent
+          sx={(theme) => ({
+            p: {
+              xs: 1.5,
+              sm: 3,
+            },
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#0b0f14"
+                : "#f7f9fb",
+          })}
+        >
+          <Stack spacing={2.25}>
             {paymentMethodError ? (
-              <Alert severity="error">
+              <Alert
+                severity="error"
+                onClose={() =>
+                  setPaymentMethodError(null)
+                }
+              >
                 {paymentMethodError}
               </Alert>
             ) : null}
 
             <Paper
-              variant="outlined"
-              sx={{
-                p: 2,
+              elevation={0}
+              sx={(theme) => ({
+                p: {
+                  xs: 1.5,
+                  sm: 2,
+                },
                 borderRadius: 3,
-              }}
+                border: 0,
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "#11161d"
+                    : theme.palette.background.paper,
+              })}
             >
-              <Typography
-                fontWeight={900}
-                mb={2}
+              <Stack
+                direction={{
+                  xs: "column",
+                  sm: "row",
+                }}
+                justifyContent="space-between"
+                alignItems={{
+                  xs: "flex-start",
+                  sm: "center",
+                }}
+                spacing={0.75}
+                mb={1.75}
               >
-                {paymentMethodForm.id ===
-                null
-                  ? "Nuevo método"
-                  : "Editar método"}
-              </Typography>
+                <Box>
+                  <Typography
+                    fontWeight={900}
+                    sx={(theme) => ({
+                      color:
+                        theme.palette.mode === "dark"
+                          ? "#e7ebef"
+                          : theme.palette.text.primary,
+                    })}
+                  >
+                    {paymentMethodForm.id ===
+                    null
+                      ? "Nuevo método"
+                      : "Editar método"}
+                  </Typography>
 
-              <Grid container spacing={2}>
+                  <Typography
+                    variant="caption"
+                    sx={(theme) => ({
+                      color:
+                        theme.palette.mode === "dark"
+                          ? "#7f8995"
+                          : theme.palette.text.secondary,
+                    })}
+                  >
+                    {paymentMethodForm.id ===
+                    null
+                      ? "Agrega una nueva forma de pago."
+                      : "Actualiza la información del método seleccionado."}
+                  </Typography>
+                </Box>
+
+                {paymentMethodForm.id !==
+                null ? (
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={
+                      <RefreshRoundedIcon />
+                    }
+                    onClick={
+                      openNewPaymentMethod
+                    }
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 800,
+                    }}
+                  >
+                    Nuevo
+                  </Button>
+                ) : null}
+              </Stack>
+
+              <Grid
+                container
+                spacing={1.5}
+                alignItems="center"
+              >
                 <Grid
                   item
                   xs={12}
-                  md={4}
+                  sm={5}
                 >
                   <TextField
                     fullWidth
+                    size="small"
                     label="Nombre"
+                    placeholder="Ej. Transferencia"
                     value={
                       paymentMethodForm.nombre
                     }
@@ -3496,17 +5080,28 @@ export default function ClientHistoryPage({
                         }),
                       )
                     }
+                    sx={(theme) => ({
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2.25,
+                        bgcolor:
+                          theme.palette.mode === "dark"
+                            ? "#0d1218"
+                            : theme.palette.background.default,
+                      },
+                    })}
                   />
                 </Grid>
 
                 <Grid
                   item
                   xs={12}
-                  md={6}
+                  sm={5}
                 >
                   <TextField
                     fullWidth
+                    size="small"
                     label="Descripción"
+                    placeholder="Descripción breve"
                     value={
                       paymentMethodForm.descripcion
                     }
@@ -3520,58 +5115,154 @@ export default function ClientHistoryPage({
                         }),
                       )
                     }
+                    sx={(theme) => ({
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2.25,
+                        bgcolor:
+                          theme.palette.mode === "dark"
+                            ? "#0d1218"
+                            : theme.palette.background.default,
+                      },
+                    })}
                   />
                 </Grid>
 
                 <Grid
                   item
                   xs={12}
-                  md={2}
+                  sm={2}
                 >
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    height="100%"
-                    alignItems="center"
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() =>
+                      void savePaymentMethod()
+                    }
+                    disabled={
+                      paymentMethodSaving
+                    }
+                    startIcon={
+                      paymentMethodSaving ? (
+                        <CircularProgress
+                          size={16}
+                          color="inherit"
+                        />
+                      ) : paymentMethodForm.id ===
+                        null ? (
+                        <AddRoundedIcon />
+                      ) : (
+                        <EditRoundedIcon />
+                      )
+                    }
+                    sx={{
+                      minHeight: 40,
+                      borderRadius: 2.25,
+                      textTransform: "none",
+                      fontWeight: 900,
+                      boxShadow: "none",
+                    }}
                   >
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={() =>
-                        void savePaymentMethod()
-                      }
-                      disabled={
-                        paymentMethodSaving
-                      }
-                    >
-                      Guardar
-                    </Button>
-
-                    {paymentMethodForm.id !==
-                    null ? (
-                      <IconButton
-                        onClick={
-                          openNewPaymentMethod
-                        }
-                      >
-                        <RefreshRoundedIcon />
-                      </IconButton>
-                    ) : null}
-                  </Stack>
+                    {paymentMethodForm.id ===
+                    null
+                      ? "Agregar"
+                      : "Guardar"}
+                  </Button>
                 </Grid>
               </Grid>
             </Paper>
 
-            <Stack spacing={1.25}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={2}
+            >
+              <Box>
+                <Typography
+                  fontWeight={900}
+                  sx={(theme) => ({
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "#dfe4e9"
+                        : theme.palette.text.primary,
+                  })}
+                >
+                  Métodos registrados
+                </Typography>
+
+                <Typography
+                  variant="caption"
+                  sx={(theme) => ({
+                    color:
+                      theme.palette.mode === "dark"
+                        ? "#7f8995"
+                        : theme.palette.text.secondary,
+                  })}
+                >
+                  Activa, desactiva o edita cada método.
+                </Typography>
+              </Box>
+
+              <Chip
+                size="small"
+                label={`${paymentMethods.length} ${
+                  paymentMethods.length === 1
+                    ? "método"
+                    : "métodos"
+                }`}
+                sx={(theme) => ({
+                  fontWeight: 800,
+                  bgcolor:
+                    theme.palette.mode === "dark"
+                      ? "#151b23"
+                      : theme.palette.action.hover,
+                  color:
+                    theme.palette.mode === "dark"
+                      ? "#9ca6b2"
+                      : theme.palette.text.secondary,
+                })}
+              />
+            </Stack>
+
+            <Stack spacing={0.85}>
               {paymentMethods.map(
                 (method) => (
                   <Paper
-                    variant="outlined"
+                    elevation={0}
                     key={method.id}
-                    sx={{
-                      p: 1.5,
+                    sx={(theme) => ({
+                      px: {
+                        xs: 1.25,
+                        sm: 1.75,
+                      },
+                      py: 1.35,
                       borderRadius: 2.5,
-                    }}
+                      border: "1px solid",
+                      borderColor:
+                        theme.palette.mode ===
+                        "dark"
+                          ? "#1c242d"
+                          : theme.palette.divider,
+                      bgcolor:
+                        theme.palette.mode ===
+                        "dark"
+                          ? "#10151b"
+                          : theme.palette.background.paper,
+                      transition:
+                        "background-color .15s ease, border-color .15s ease",
+                      "&:hover": {
+                        bgcolor:
+                          theme.palette.mode ===
+                          "dark"
+                            ? "#121820"
+                            : theme.palette.action.hover,
+                        borderColor:
+                          theme.palette.mode ===
+                          "dark"
+                            ? "#2a3541"
+                            : theme.palette.divider,
+                      },
+                    })}
                   >
                     <Stack
                       direction={{
@@ -3583,97 +5274,245 @@ export default function ClientHistoryPage({
                         xs: "stretch",
                         sm: "center",
                       }}
-                      spacing={1.5}
+                      spacing={{
+                        xs: 1.25,
+                        sm: 2,
+                      }}
                     >
-                      <Box>
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={1}
+                      <Stack
+                        direction="row"
+                        spacing={1.25}
+                        alignItems="center"
+                        sx={{
+                          minWidth: 0,
+                          flex: 1,
+                        }}
+                      >
+                        <Avatar
+                          sx={(theme) => ({
+                            width: 36,
+                            height: 36,
+                            flexShrink: 0,
+                            bgcolor:
+                              theme.palette.mode ===
+                              "dark"
+                                ? "#17212a"
+                                : alpha(
+                                    theme.palette.primary.main,
+                                    0.07,
+                                  ),
+                            color:
+                              method.activo
+                                ? theme.palette.primary.main
+                                : theme.palette.text.disabled,
+                          })}
                         >
-                          <Typography
-                            fontWeight={900}
+                          <PaymentsRoundedIcon
+                            sx={{
+                              fontSize: 19,
+                            }}
+                          />
+                        </Avatar>
+
+                        <Box
+                          sx={{
+                            minWidth: 0,
+                            flex: 1,
+                          }}
+                        >
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            alignItems="center"
+                            useFlexGap
+                            flexWrap="wrap"
                           >
-                            {method.nombre}
+                            <Typography
+                              fontWeight={900}
+                              sx={(theme) => ({
+                                color:
+                                  theme.palette.mode ===
+                                  "dark"
+                                    ? "#e6eaee"
+                                    : theme.palette.text.primary,
+                              })}
+                            >
+                              {method.nombre}
+                            </Typography>
+
+                            <Chip
+                              size="small"
+                              label={
+                                method.activo
+                                  ? "Activo"
+                                  : "Inactivo"
+                              }
+                              color={
+                                method.activo
+                                  ? "success"
+                                  : "default"
+                              }
+                              variant="outlined"
+                              sx={{
+                                height: 22,
+                                fontSize: "0.69rem",
+                                fontWeight: 800,
+                              }}
+                            />
+                          </Stack>
+
+                          <Typography
+                            variant="body2"
+                            noWrap
+                            sx={(theme) => ({
+                              mt: 0.2,
+                              color:
+                                theme.palette.mode ===
+                                "dark"
+                                  ? "#8a949f"
+                                  : theme.palette.text.secondary,
+                            })}
+                          >
+                            {method.descripcion ??
+                              "Sin descripción"}
                           </Typography>
 
-                          <Chip
-                            size="small"
-                            label={
-                              method.activo
-                                ? "Activo"
-                                : "Inactivo"
-                            }
-                            color={
-                              method.activo
-                                ? "success"
-                                : "default"
-                            }
-                          />
-                        </Stack>
-
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                        >
-                          {method.descripcion ??
-                            "Sin descripción"}
-                        </Typography>
-
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                        >
-                          {method.historiales_count ??
-                            0}{" "}
-                          movimientos relacionados
-                        </Typography>
-                      </Box>
+                          <Typography
+                            variant="caption"
+                            sx={(theme) => ({
+                              display: "block",
+                              mt: 0.25,
+                              color:
+                                theme.palette.mode ===
+                                "dark"
+                                  ? "#68727d"
+                                  : theme.palette.text.disabled,
+                            })}
+                          >
+                            {method.historiales_count ??
+                              0}{" "}
+                            movimientos relacionados
+                          </Typography>
+                        </Box>
+                      </Stack>
 
                       <Stack
                         direction="row"
                         alignItems="center"
-                        justifyContent="flex-end"
-                        spacing={0.5}
+                        justifyContent={{
+                          xs: "space-between",
+                          sm: "flex-end",
+                        }}
+                        spacing={0.4}
                       >
-                        <Switch
-                          checked={method.activo}
-                          onChange={() =>
-                            void togglePaymentMethod(
-                              method,
-                            )
+                        <Tooltip
+                          title={
+                            method.activo
+                              ? "Desactivar"
+                              : "Activar"
                           }
-                        />
-
-                        <Tooltip title="Editar">
-                          <IconButton
-                            onClick={() =>
-                              openEditPaymentMethod(
+                        >
+                          <Switch
+                            size="small"
+                            checked={method.activo}
+                            onChange={() =>
+                              void togglePaymentMethod(
                                 method,
                               )
                             }
-                          >
-                            <EditRoundedIcon />
-                          </IconButton>
+                          />
                         </Tooltip>
 
-                        <Tooltip title="Eliminar">
-                          <span>
+                        <Stack
+                          direction="row"
+                          spacing={0.35}
+                        >
+                          <Tooltip title="Editar">
                             <IconButton
-                              disabled={
-                                method.historiales_count >
-                                0
-                              }
+                              size="small"
                               onClick={() =>
-                                void removePaymentMethod(
+                                openEditPaymentMethod(
                                   method,
                                 )
                               }
+                              sx={(theme) => ({
+                                color:
+                                  theme.palette.mode ===
+                                  "dark"
+                                    ? "#9ca7b3"
+                                    : theme.palette.text.secondary,
+                                bgcolor:
+                                  theme.palette.mode ===
+                                  "dark"
+                                    ? "#151b22"
+                                    : theme.palette.action.hover,
+                                "&:hover": {
+                                  color:
+                                    theme.palette.primary.main,
+                                  bgcolor:
+                                    theme.palette.mode ===
+                                    "dark"
+                                      ? "#1a222b"
+                                      : theme.palette.action.selected,
+                                },
+                              })}
                             >
-                              <DeleteOutlineRoundedIcon />
+                              <EditRoundedIcon
+                                fontSize="small"
+                              />
                             </IconButton>
-                          </span>
-                        </Tooltip>
+                          </Tooltip>
+
+                          <Tooltip
+                            title={
+                              method.historiales_count >
+                              0
+                                ? "No se puede eliminar porque tiene movimientos relacionados"
+                                : "Eliminar"
+                            }
+                          >
+                            <span>
+                              <IconButton
+                                size="small"
+                                disabled={
+                                  method.historiales_count >
+                                  0
+                                }
+                                onClick={() =>
+                                  void removePaymentMethod(
+                                    method,
+                                  )
+                                }
+                                sx={(theme) => ({
+                                  color:
+                                    theme.palette.mode ===
+                                    "dark"
+                                      ? "#b07d7d"
+                                      : theme.palette.error.main,
+                                  bgcolor:
+                                    theme.palette.mode ===
+                                    "dark"
+                                      ? "#1a1518"
+                                      : alpha(
+                                          theme.palette.error.main,
+                                          0.05,
+                                        ),
+                                  "&:hover": {
+                                    bgcolor:
+                                      alpha(
+                                        theme.palette.error.main,
+                                        0.11,
+                                      ),
+                                  },
+                                })}
+                              >
+                                <DeleteOutlineRoundedIcon
+                                  fontSize="small"
+                                />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Stack>
                       </Stack>
                     </Stack>
                   </Paper>
@@ -3683,11 +5522,37 @@ export default function ClientHistoryPage({
           </Stack>
         </DialogContent>
 
-        <DialogActions>
+        <DialogActions
+          sx={(theme) => ({
+            px: {
+              xs: 1.5,
+              sm: 3,
+            },
+            py: 1.5,
+            borderTop: "1px solid",
+            borderColor:
+              theme.palette.mode === "dark"
+                ? "#202731"
+                : theme.palette.divider,
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "#0d1218"
+                : theme.palette.background.paper,
+          })}
+        >
           <Button
             onClick={() =>
               setPaymentMethodsOpen(false)
             }
+            sx={(theme) => ({
+              borderRadius: 2.25,
+              textTransform: "none",
+              fontWeight: 800,
+              color:
+                theme.palette.mode === "dark"
+                  ? "#9ca6b2"
+                  : theme.palette.text.secondary,
+            })}
           >
             Cerrar
           </Button>
