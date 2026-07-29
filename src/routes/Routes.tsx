@@ -137,6 +137,9 @@ const TaecontaEmpresasPage =
         "../pages/taeconta/TaecontaEmpresasPage"
       )
   );
+const TaecontaTimbradoPage = React.lazy(
+  () => import("../pages/Superadmin/taeconta/TaecontaTimbradoPage")
+);
 
 // =========================
 // TARJETAS
@@ -533,32 +536,22 @@ export default function AllRoutes() {
           ),
         },
 
-        // =========================
-        // TAECONTA
-        // =========================
+// =========================
+// TAECONTA
+// =========================
 
-        {
-          path:
-            "taeconta/empresas",
-          element: (
-            <LoadComponent
-              component={
-                TaecontaEmpresasPage
-              }
-            />
-          ),
-        },
-        {
-          path:
-            "superadmin/taeconta/empresas",
-          element: (
-            <LoadComponent
-              component={
-                TaecontaEmpresasPage
-              }
-            />
-          ),
-        },
+{
+  path: "taeconta/empresas",
+  element: <LoadComponent component={TaecontaEmpresasPage} />,
+},
+{
+  path: "superadmin/taeconta/empresas",
+  element: <LoadComponent component={TaecontaEmpresasPage} />,
+},
+{
+  path: "superadmin/facturacion/timbrado",
+  element: <LoadComponent component={TaecontaTimbradoPage} />,
+},
 
         // =========================
         // AUTH

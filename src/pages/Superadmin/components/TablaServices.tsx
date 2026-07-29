@@ -68,6 +68,8 @@ type ServiceForm = {
   descripcion: string;
   categoria_id: string;
   precio: string;
+  clave_producto: string;
+  clave_unidad: string;
   url_imagen: string;
 };
 
@@ -108,6 +110,8 @@ const FORM_INICIAL: ServiceForm = {
   descripcion: "",
   categoria_id: "",
   precio: "",
+  clave_producto: "",
+  clave_unidad: "",
   url_imagen: "",
 };
 
@@ -467,6 +471,40 @@ function urlImagenValida(
   } catch {
     return false;
   }
+}
+
+function servicioCoincideFiltros(
+  servicio: SuperAdminService,
+  busqueda: string,
+  categoriaFiltro: string,
+): boolean {
+  if (
+    categoriaFiltro !== "todos" &&
+    String(servicio.categoria_id) !== categoriaFiltro
+  ) {
+    return false;
+  }
+
+  const termino = busqueda
+    .trim()
+    .toLocaleLowerCase("es-MX");
+
+  if (!termino) {
+    return true;
+  }
+
+  return [
+    servicio.name,
+    servicio.descripcion,
+    servicio.clave_producto,
+    servicio.clave_unidad,
+    servicio.categoria?.nombre,
+    servicio.categoria?.slug,
+  ].some((valor) =>
+    String(valor ?? "")
+      .toLocaleLowerCase("es-MX")
+      .includes(termino),
+  );
 }
 
 export default function TablaServices({
@@ -872,33 +910,28 @@ export default function TablaServices({
   const abrirEditar = (
     servicio: SuperAdminService,
   ) => {
-    setServicioSeleccionado(
-      servicio,
-    );
+    setServicioSeleccionado(servicio);
 
     setForm({
       name: servicio.name || "",
-      descripcion:
-        servicio.descripcion || "",
+      descripcion: servicio.descripcion || "",
       categoria_id:
         servicio.categoria_id !== null
-          ? String(
-              servicio.categoria_id,
-            )
+          ? String(servicio.categoria_id)
           : "",
-      precio: String(
-        servicio.precio ?? "",
-      ),
+      precio: String(servicio.precio ?? ""),
+      clave_producto:
+        servicio.clave_producto || "",
+      clave_unidad:
+        servicio.clave_unidad || "",
       url_imagen:
         servicio.url_imagen || "",
     });
 
     setArchivoImagen(null);
-
     setVistaPreviaImagen(
       servicio.url_imagen || "",
     );
-
     setErrorVistaPrevia(false);
     setDialogFormulario(true);
   };
@@ -1329,229 +1362,436 @@ export default function TablaServices({
       }
     };
 
-  const guardarServicio =
-    async () => {
-      const nombre =
-        form.name.trim();
+  const guardarServicio = async () => {
+    const nombre = form.name.trim();
+    const descripcion = form.descripcion.trim();
+    const categoriaId = Number(form.categoria_id);
+    const precio = Number(form.precio);
+    const claveProducto = form.clave_producto.trim();
+    const claveUnidad = form.clave_unidad.trim().toUpperCase();
+    const urlImagen = form.url_imagen.trim();
 
-      const descripcion =
-        form.descripcion.trim();
-
-      const categoriaId =
-        Number(form.categoria_id);
-
-      const precio =
-        Number(form.precio);
-
-      const urlImagen =
-        form.url_imagen.trim();
-
-      if (!nombre) {
-        mostrarNotificacion(
-          "El nombre es obligatorio.",
-          "error",
-        );
-        return;
-      }
-
-      if (
-        !Number.isInteger(
-          categoriaId,
-        ) ||
-        categoriaId <= 0
-      ) {
-        mostrarNotificacion(
-          "La categoría es obligatoria.",
-          "error",
-        );
-        return;
-      }
-
-      if (
-        !categoriasOrdenadas.some(
-          (
-            categoria: SuperAdminServiceCategory,
-          ) =>
-            categoria.id ===
-            categoriaId,
-        )
-      ) {
-        mostrarNotificacion(
-          "La categoría seleccionada no es válida.",
-          "error",
-        );
-        return;
-      }
-
-      if (
-        !Number.isFinite(precio) ||
-        precio < 0
-      ) {
-        mostrarNotificacion(
-          "Ingresa un precio válido.",
-          "error",
-        );
-        return;
-      }
-
-      if (
-        !archivoImagen &&
-        urlImagen &&
-        !urlImagenValida(urlImagen)
-      ) {
-        mostrarNotificacion(
-          "Ingresa una URL de imagen válida.",
-          "error",
-        );
-        return;
-      }
-
-      const payload =
-        new FormData();
-
-      payload.append(
-        "name",
-        nombre,
+    if (!nombre) {
+      mostrarNotificacion(
+        "El nombre es obligatorio.",
+        "error",
       );
+      return;
+    }
 
-      payload.append(
-        "descripcion",
-        descripcion,
+    if (
+      !Number.isInteger(categoriaId) ||
+      categoriaId <= 0
+    ) {
+      mostrarNotificacion(
+        "La categoría es obligatoria.",
+        "error",
       );
+      return;
+    }
 
-      payload.append(
-        "categoria_id",
-        String(categoriaId),
+    if (
+      !categoriasOrdenadas.some(
+        (categoria) =>
+          categoria.id === categoriaId,
+      )
+    ) {
+      mostrarNotificacion(
+        "La categoría seleccionada no es válida.",
+        "error",
       );
+      return;
+    }
 
-      payload.append(
-        "precio",
-        String(precio),
+    if (
+      !Number.isFinite(precio) ||
+      precio < 0
+    ) {
+      mostrarNotificacion(
+        "Ingresa un precio válido.",
+        "error",
       );
+      return;
+    }
 
-      if (archivoImagen) {
-        payload.append(
-          "imagen",
-          archivoImagen,
-        );
-      } else {
-        payload.append(
-          "url_imagen",
-          urlImagen,
-        );
-      }
+    if (claveProducto.length > 8) {
+      mostrarNotificacion(
+        "La clave de producto no debe superar los 8 caracteres.",
+        "error",
+      );
+      return;
+    }
 
-      const editando =
-        Boolean(
-          servicioSeleccionado,
-        );
+    if (claveUnidad.length > 3) {
+      mostrarNotificacion(
+        "La clave de unidad no debe superar los 3 caracteres.",
+        "error",
+      );
+      return;
+    }
 
-      setSaving(true);
+    if (
+      !archivoImagen &&
+      urlImagen &&
+      !urlImagenValida(urlImagen)
+    ) {
+      mostrarNotificacion(
+        "Ingresa una URL de imagen válida.",
+        "error",
+      );
+      return;
+    }
 
-      try {
-        if (
-          servicioSeleccionado
-        ) {
+    const payload = new FormData();
+
+    payload.append("name", nombre);
+    payload.append("descripcion", descripcion);
+    payload.append(
+      "categoria_id",
+      String(categoriaId),
+    );
+    payload.append("precio", String(precio));
+    payload.append(
+      "clave_producto",
+      claveProducto,
+    );
+    payload.append(
+      "clave_unidad",
+      claveUnidad,
+    );
+
+    if (archivoImagen) {
+      payload.append("imagen", archivoImagen);
+    } else {
+      payload.append(
+        "url_imagen",
+        urlImagen,
+      );
+    }
+
+    const servicioAnterior =
+      servicioSeleccionado;
+    const editando =
+      Boolean(servicioAnterior);
+
+    setSaving(true);
+
+    try {
+      if (servicioAnterior) {
+        const response =
           await updateSuperAdminService(
-            servicioSeleccionado.id,
+            servicioAnterior.id,
             payload,
           );
-        } else {
+
+        const servicioActualizado =
+          response.data;
+
+        const sigueVisible =
+          servicioCoincideFiltros(
+            servicioActualizado,
+            busquedaAplicada,
+            categoriaFiltro,
+          );
+
+        setServicios((actuales) =>
+          sigueVisible
+            ? actuales.map((servicio) =>
+                servicio.id ===
+                servicioActualizado.id
+                  ? servicioActualizado
+                  : servicio,
+              )
+            : actuales.filter(
+                (servicio) =>
+                  servicio.id !==
+                  servicioActualizado.id,
+              ),
+        );
+
+        if (!sigueVisible) {
+          setPaginacion((actual) => {
+            const total = Math.max(
+              0,
+              actual.total - 1,
+            );
+            const cantidadVisible =
+              Math.max(
+                0,
+                servicios.length - 1,
+              );
+
+            return {
+              ...actual,
+              total,
+              lastPage: Math.max(
+                1,
+                Math.ceil(
+                  total /
+                    PRODUCTOS_POR_PAGINA,
+                ),
+              ),
+              from:
+                cantidadVisible > 0
+                  ? actual.from
+                  : null,
+              to:
+                cantidadVisible > 0
+                  ? (actual.from ?? 1) +
+                    cantidadVisible -
+                    1
+                  : null,
+            };
+          });
+        }
+
+        if (
+          servicioAnterior.categoria_id !==
+          servicioActualizado.categoria_id
+        ) {
+          setCategorias((actuales) =>
+            actuales.map((categoria) => {
+              if (
+                categoria.id ===
+                servicioAnterior.categoria_id
+              ) {
+                return {
+                  ...categoria,
+                  productos_count:
+                    Math.max(
+                      0,
+                      categoria.productos_count -
+                        1,
+                    ),
+                };
+              }
+
+              if (
+                categoria.id ===
+                servicioActualizado.categoria_id
+              ) {
+                return {
+                  ...categoria,
+                  productos_count:
+                    categoria.productos_count +
+                    1,
+                };
+              }
+
+              return categoria;
+            }),
+          );
+        }
+      } else {
+        const response =
           await createSuperAdminService(
             payload,
           );
-        }
 
-        setDialogFormulario(false);
-        setServicioSeleccionado(null);
-        setForm(FORM_INICIAL);
-        limpiarImagenFormulario();
+        const servicioCreado =
+          response.data;
 
-        mostrarNotificacion(
-          editando
-            ? "Producto actualizado correctamente."
-            : "Producto creado correctamente.",
-          "success",
+        setCategorias((actuales) =>
+          actuales.map((categoria) =>
+            categoria.id ===
+            servicioCreado.categoria_id
+              ? {
+                  ...categoria,
+                  productos_count:
+                    categoria.productos_count +
+                    1,
+                }
+              : categoria,
+          ),
         );
 
+        const debeMostrarse =
+          servicioCoincideFiltros(
+            servicioCreado,
+            busquedaAplicada,
+            categoriaFiltro,
+          );
+
         if (
-          !editando &&
+          debeMostrarse &&
+          pagina === 1
+        ) {
+          setServicios((actuales) =>
+            [
+              servicioCreado,
+              ...actuales,
+            ].slice(
+              0,
+              PRODUCTOS_POR_PAGINA,
+            ),
+          );
+
+          setPaginacion((actual) => {
+            const total =
+              actual.total + 1;
+
+            return {
+              ...actual,
+              total,
+              currentPage: 1,
+              lastPage: Math.max(
+                1,
+                Math.ceil(
+                  total /
+                    PRODUCTOS_POR_PAGINA,
+                ),
+              ),
+              from: 1,
+              to: Math.min(
+                PRODUCTOS_POR_PAGINA,
+                total,
+              ),
+            };
+          });
+        } else if (
+          debeMostrarse &&
           pagina !== 1
         ) {
           setPagina(1);
-        } else {
-          await cargarServicios();
         }
+      }
 
-        await cargarCategorias();
-      } catch (error: unknown) {
-        console.error(
-          "Error guardando producto:",
+      setDialogFormulario(false);
+      setServicioSeleccionado(null);
+      setForm(FORM_INICIAL);
+      limpiarImagenFormulario();
+
+      mostrarNotificacion(
+        editando
+          ? "Producto actualizado correctamente."
+          : "Producto creado correctamente.",
+        "success",
+      );
+    } catch (error: unknown) {
+      console.error(
+        "Error guardando producto:",
+        error,
+      );
+
+      mostrarNotificacion(
+        obtenerMensajeError(
           error,
-        );
+          "No fue posible guardar el producto.",
+        ),
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
-        mostrarNotificacion(
-          obtenerMensajeError(
-            error,
-            "No fue posible guardar el producto.",
+  const eliminarServicio = async () => {
+    if (!servicioSeleccionado) {
+      return;
+    }
+
+    const productoEliminado =
+      servicioSeleccionado;
+
+    setDeleting(true);
+
+    try {
+      await deleteSuperAdminService(
+        productoEliminado.id,
+      );
+
+      setCategorias((actuales) =>
+        actuales.map((categoria) =>
+          categoria.id ===
+          productoEliminado.categoria_id
+            ? {
+                ...categoria,
+                productos_count:
+                  Math.max(
+                    0,
+                    categoria.productos_count -
+                      1,
+                  ),
+              }
+            : categoria,
+        ),
+      );
+
+      if (
+        servicios.length === 1 &&
+        pagina > 1
+      ) {
+        setPagina((actual) =>
+          Math.max(1, actual - 1),
+        );
+      } else {
+        setServicios((actuales) =>
+          actuales.filter(
+            (servicio) =>
+              servicio.id !==
+              productoEliminado.id,
           ),
-          "error",
-        );
-      } finally {
-        setSaving(false);
-      }
-    };
-
-  const eliminarServicio =
-    async () => {
-      if (!servicioSeleccionado) {
-        return;
-      }
-
-      setDeleting(true);
-
-      try {
-        await deleteSuperAdminService(
-          servicioSeleccionado.id,
         );
 
-        setDialogEliminar(false);
-        setServicioSeleccionado(null);
-
-        mostrarNotificacion(
-          "Producto eliminado correctamente.",
-          "success",
-        );
-
-        if (
-          servicios.length === 1 &&
-          pagina > 1
-        ) {
-          setPagina((prev) =>
-            Math.max(1, prev - 1),
+        setPaginacion((actual) => {
+          const total = Math.max(
+            0,
+            actual.total - 1,
           );
-        } else {
-          await cargarServicios();
-        }
+          const cantidadVisible =
+            Math.max(
+              0,
+              servicios.length - 1,
+            );
 
-        await cargarCategorias();
-      } catch (error: unknown) {
-        console.error(
-          "Error eliminando producto:",
-          error,
-        );
-
-        mostrarNotificacion(
-          obtenerMensajeError(
-            error,
-            "No fue posible eliminar el producto.",
-          ),
-          "error",
-        );
-      } finally {
-        setDeleting(false);
+          return {
+            ...actual,
+            total,
+            lastPage: Math.max(
+              1,
+              Math.ceil(
+                total /
+                  PRODUCTOS_POR_PAGINA,
+              ),
+            ),
+            from:
+              cantidadVisible > 0
+                ? actual.from
+                : null,
+            to:
+              cantidadVisible > 0
+                ? (actual.from ?? 1) +
+                  cantidadVisible -
+                  1
+                : null,
+          };
+        });
       }
-    };
+
+      setDialogEliminar(false);
+      setServicioSeleccionado(null);
+
+      mostrarNotificacion(
+        "Producto eliminado correctamente.",
+        "success",
+      );
+    } catch (error: unknown) {
+      console.error(
+        "Error eliminando producto:",
+        error,
+      );
+
+      mostrarNotificacion(
+        obtenerMensajeError(
+          error,
+          "No fue posible eliminar el producto.",
+        ),
+        "error",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <Box>
@@ -2227,6 +2467,48 @@ export default function TablaServices({
               fullWidth
             />
 
+            <Stack
+              direction={{
+                xs: "column",
+                sm: "row",
+              }}
+              spacing={2}
+            >
+              <TextField
+                label="Clave de producto o servicio"
+                value={form.clave_producto}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    clave_producto:
+                      event.target.value,
+                  }))
+                }
+                inputProps={{
+                  maxLength: 8,
+                }}
+                helperText="Clave SAT de hasta 8 caracteres."
+                fullWidth
+              />
+
+              <TextField
+                label="Clave de unidad"
+                value={form.clave_unidad}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    clave_unidad:
+                      event.target.value.toUpperCase(),
+                  }))
+                }
+                inputProps={{
+                  maxLength: 3,
+                }}
+                helperText="Ejemplo: E48."
+                fullWidth
+              />
+            </Stack>
+
             <Stack spacing={2}>
               <TextField
                 label="URL de la imagen"
@@ -2447,6 +2729,42 @@ export default function TablaServices({
                     "-"}
                 </Typography>
               </Box>
+
+              <Stack
+                direction={{
+                  xs: "column",
+                  sm: "row",
+                }}
+                spacing={2}
+              >
+                <Box flex={1}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                  >
+                    Clave de producto o servicio
+                  </Typography>
+
+                  <Typography fontWeight={700}>
+                    {servicioSeleccionado.clave_producto ||
+                      "-"}
+                  </Typography>
+                </Box>
+
+                <Box flex={1}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                  >
+                    Clave de unidad
+                  </Typography>
+
+                  <Typography fontWeight={700}>
+                    {servicioSeleccionado.clave_unidad ||
+                      "-"}
+                  </Typography>
+                </Box>
+              </Stack>
 
               <Box>
                 <Typography

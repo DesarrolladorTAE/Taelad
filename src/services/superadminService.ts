@@ -345,7 +345,6 @@ export async function deleteSuperAdminServiceCategory(
 
   return response.data;
 }
-
 // =========================
 // SERVICES
 // =========================
@@ -357,9 +356,24 @@ export type SuperAdminService = {
   categoria_id: number | null;
   categoria: SuperAdminServiceCategory | null;
   precio: number | string;
+  clave_producto: string | null;
+  clave_unidad: string | null;
   url_imagen: string | null;
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type SuperAdminServiceResponse = {
+  message: string;
+  data: SuperAdminService;
+};
+
+export type DeleteSuperAdminServiceResponse = {
+  message: string;
+  data: {
+    id: number;
+    categoria_id: number | null;
+  };
 };
 
 export type GetSuperAdminServicesParams = {
@@ -402,7 +416,7 @@ export async function getSuperAdminServices(
 
 export async function createSuperAdminService(
   data: FormData,
-) {
+): Promise<SuperAdminServiceResponse> {
   const response = await axiosClient.post(
     "/superadmin/services",
     data,
@@ -414,7 +428,7 @@ export async function createSuperAdminService(
 export async function updateSuperAdminService(
   id: number | string,
   data: FormData,
-) {
+): Promise<SuperAdminServiceResponse> {
   data.set("_method", "PUT");
 
   const response = await axiosClient.post(
@@ -427,14 +441,13 @@ export async function updateSuperAdminService(
 
 export async function deleteSuperAdminService(
   id: number | string,
-) {
+): Promise<DeleteSuperAdminServiceResponse> {
   const response = await axiosClient.delete(
     `/superadmin/services/${id}`,
   );
 
   return response.data;
 }
-
 // =========================
 // PAYMENT METHODS
 // =========================

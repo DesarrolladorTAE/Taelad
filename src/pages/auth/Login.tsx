@@ -43,6 +43,7 @@ const brandOrange = "#C77B1C";
 const brandBlack = "#0B0B0B";
 const brandWhite = "#FFFFFF";
 
+
 const theme = createTheme({
   palette: {
     primary: { main: brandBlue },
@@ -83,7 +84,6 @@ export default function Login() {
   });
 
   const [showPassword, setShowPassword] = React.useState(false);
-
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [loading, setLoading] = React.useState(false);
 
@@ -121,42 +121,41 @@ export default function Login() {
   };
 
   React.useEffect(() => {
-    if (!forgotOpen || forgotStep !== 2) return;
-    if (countdown <= 0) return;
+    if (!forgotOpen || forgotStep !== 2 || countdown <= 0) return;
 
-    const t = setTimeout(() => setCountdown((s) => s - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setCountdown((current) => current - 1), 1000);
+    return () => clearTimeout(timer);
   }, [forgotOpen, forgotStep, countdown]);
 
   const onChange =
     (field: keyof typeof values) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setValues((s) => ({ ...s, [field]: e.target.value }));
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setValues((current) => ({ ...current, [field]: event.target.value }));
     };
 
   const validate = () => {
-    const e: Record<string, string> = {};
+    const nextErrors: Record<string, string> = {};
     const raw = values.email_or_phone.trim();
 
     if (!raw) {
-      e.email_or_phone = "Correo o teléfono obligatorio";
+      nextErrors.email_or_phone = "Correo o teléfono obligatorio";
     } else {
       const isEmail = /^\S+@\S+\.\S+$/.test(raw);
       const numericOnly = raw.replace(/\D/g, "");
       const isPhone = /^\d{10}$/.test(numericOnly);
 
       if (!isEmail && !isPhone) {
-        e.email_or_phone =
+        nextErrors.email_or_phone =
           "Ingresa un correo válido o un teléfono de 10 dígitos";
       }
     }
 
     if (!values.password) {
-      e.password = "Contraseña obligatoria";
+      nextErrors.password = "Contraseña obligatoria";
     }
 
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const handleClose = () => {
@@ -164,23 +163,27 @@ export default function Login() {
     setTimeout(() => navigate("/"), 0);
   };
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!validate()) return;
 
     try {
       setLoading(true);
 
-      const identifier = /^\d+$/.test(values.email_or_phone)
-        ? values.email_or_phone.replace(/\D/g, "")
-        : values.email_or_phone;
+      const rawIdentifier = values.email_or_phone.trim();
+      const identifier = /^\d+$/.test(rawIdentifier)
+        ? rawIdentifier.replace(/\D/g, "")
+        : rawIdentifier.toLowerCase();
 
       const { user } = await authSession.login(identifier, values.password);
 
-      setSnack({ open: true, msg: `¡Hola, ${user.name}!`, type: "success" });
+      setSnack({
+        open: true,
+        msg: `¡Hola, ${user.name}!`,
+        type: "success",
+      });
 
-      const role = Number(user.role);
-      redirectByRole(role);
+      redirectByRole(Number(user.role));
     } catch (err: any) {
       const apiMsg =
         err?.response?.data?.message ||
@@ -198,21 +201,26 @@ export default function Login() {
   const openForgot = () => {
     setForgotOpen(true);
     setForgotStep(1);
-    setFp({ phone: "", code: "", new_password: "", confirm_password: "" });
+    setFp({
+      phone: "",
+      code: "",
+      new_password: "",
+      confirm_password: "",
+    });
     setFpErr({});
     setCountdown(60);
   };
 
   const validatePhone = () => {
-    const e: Record<string, string> = {};
+    const nextErrors: Record<string, string> = {};
     const phone = fp.phone.replace(/\D/g, "").slice(0, 10);
 
     if (!/^\d{10}$/.test(phone)) {
-      e.phone = "El teléfono debe tener 10 dígitos";
+      nextErrors.phone = "El teléfono debe tener 10 dígitos";
     }
 
-    setFpErr(e);
-    return Object.keys(e).length === 0;
+    setFpErr(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const requestCode = async () => {
@@ -220,19 +228,26 @@ export default function Login() {
 
     try {
       setSendingCode(true);
-      await requestResetCode(fp.phone.replace(/\D/g, "").slice(0, 10));
+
+      await requestResetCode(
+        fp.phone.replace(/\D/g, "").slice(0, 10)
+      );
+
       setSnack({
         open: true,
-        msg: "Código enviado por WhatsApp",
+        msg: "Código enviado por WhatsApp y correo electrónico.",
         type: "success",
       });
+
       setForgotStep(2);
       setCountdown(60);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
+        err?.response?.data?.errors?.phone?.[0] ||
         err?.message ||
         "No se pudo enviar el código.";
+
       setSnack({ open: true, msg, type: "error" });
     } finally {
       setSendingCode(false);
@@ -245,16 +260,24 @@ export default function Login() {
   };
 
   const validateReset = () => {
-    const e: Record<string, string> = {};
+    const nextErrors: Record<string, string> = {};
 
-    if (!/^\d{6}$/.test(fp.code)) e.code = "Código de 6 dígitos requerido";
-    if (!fp.new_password) e.new_password = "Contraseña obligatoria";
-    else if (fp.new_password.length < 8)
-      e.new_password = "Mínimo 8 caracteres";
-    if (fp.confirm_password !== fp.new_password) e.confirm_password = "No coincide";
+    if (!/^\d{6}$/.test(fp.code)) {
+      nextErrors.code = "Código de 6 dígitos requerido";
+    }
 
-    setFpErr(e);
-    return Object.keys(e).length === 0;
+    if (!fp.new_password) {
+      nextErrors.new_password = "Contraseña obligatoria";
+    } else if (fp.new_password.length < 8) {
+      nextErrors.new_password = "Mínimo 8 caracteres";
+    }
+
+    if (fp.confirm_password !== fp.new_password) {
+      nextErrors.confirm_password = "No coincide";
+    }
+
+    setFpErr(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const handleReset = async () => {
@@ -263,10 +286,8 @@ export default function Login() {
     try {
       setResetting(true);
 
-      const phone = fp.phone.replace(/\D/g, "").slice(0, 10);
-
-      await resetPasswordByCodeAndLogin({
-        phone,
+      const result = await resetPasswordByCodeAndLogin({
+        phone: fp.phone.replace(/\D/g, "").slice(0, 10),
         code: fp.code,
         new_password: fp.new_password,
       });
@@ -276,8 +297,9 @@ export default function Login() {
         msg: "Contraseña actualizada. Sesión iniciada.",
         type: "success",
       });
+
       setForgotOpen(false);
-      navigate("/panel");
+      redirectByRole(Number(result.user.role));
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
@@ -306,16 +328,11 @@ export default function Login() {
     <ThemeProvider theme={theme}>
       <Helmet>
         <html lang="es-MX" />
-
-        <title>
-          Iniciar sesión | Tecnologías Administrativas ELAD
-        </title>
-
+        <title>Iniciar sesión | Tecnologías Administrativas ELAD</title>
         <meta
           name="robots"
           content="noindex, nofollow, noarchive, nosnippet"
         />
-
         <meta
           name="googlebot"
           content="noindex, nofollow, noarchive, nosnippet"
@@ -437,9 +454,7 @@ export default function Login() {
                   error={!!errors.password}
                   helperText={errors.password}
                   autoComplete="new-password"
-                  inputProps={{
-                    autoComplete: "new-password",
-                  }}
+                  inputProps={{ autoComplete: "new-password" }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -449,8 +464,8 @@ export default function Login() {
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
-                          onClick={() => setShowPassword((prev) => !prev)}
-                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => setShowPassword((current) => !current)}
+                          onMouseDown={(event) => event.preventDefault()}
                           edge="end"
                           aria-label={
                             showPassword
@@ -564,18 +579,20 @@ export default function Login() {
           {forgotStep === 1 && (
             <>
               <Typography variant="body2" color="text.secondary" mb={2}>
-                Ingresa tu teléfono de 10 dígitos. Te enviaremos un código por
-                WhatsApp.
+                Ingresa tu teléfono de 10 dígitos. Enviaremos el código por
+                WhatsApp y al correo electrónico registrado en tu cuenta.
               </Typography>
 
               <TextField
                 fullWidth
                 label="Teléfono"
                 value={fp.phone}
-                onChange={(e) =>
-                  setFp((s) => ({
-                    ...s,
-                    phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                onChange={(event) =>
+                  setFp((current) => ({
+                    ...current,
+                    phone: event.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 10),
                   }))
                 }
                 error={!!fpErr.phone}
@@ -597,7 +614,8 @@ export default function Login() {
             <>
               <Typography variant="body2" color="text.secondary" mb={2}>
                 Enviamos un código de 6 dígitos por WhatsApp al{" "}
-                <b>{fp.phone}</b>.
+                <b>{fp.phone}</b> y al correo electrónico registrado en tu
+                cuenta.
               </Typography>
 
               <Grid container spacing={2}>
@@ -606,10 +624,12 @@ export default function Login() {
                     fullWidth
                     label="Código de verificación"
                     value={fp.code}
-                    onChange={(e) =>
-                      setFp((s) => ({
-                        ...s,
-                        code: e.target.value.replace(/\D/g, "").slice(0, 6),
+                    onChange={(event) =>
+                      setFp((current) => ({
+                        ...current,
+                        code: event.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 6),
                       }))
                     }
                     error={!!fpErr.code}
@@ -625,10 +645,10 @@ export default function Login() {
                     type="password"
                     label="Nueva contraseña"
                     value={fp.new_password}
-                    onChange={(e) =>
-                      setFp((s) => ({
-                        ...s,
-                        new_password: e.target.value,
+                    onChange={(event) =>
+                      setFp((current) => ({
+                        ...current,
+                        new_password: event.target.value,
                       }))
                     }
                     error={!!fpErr.new_password}
@@ -643,10 +663,10 @@ export default function Login() {
                     type="password"
                     label="Confirmar contraseña"
                     value={fp.confirm_password}
-                    onChange={(e) =>
-                      setFp((s) => ({
-                        ...s,
-                        confirm_password: e.target.value,
+                    onChange={(event) =>
+                      setFp((current) => ({
+                        ...current,
+                        confirm_password: event.target.value,
                       }))
                     }
                     error={!!fpErr.confirm_password}
@@ -725,11 +745,11 @@ export default function Login() {
       <Snackbar
         open={snack.open}
         autoHideDuration={3200}
-        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        onClose={() => setSnack((current) => ({ ...current, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          onClose={() => setSnack((s) => ({ ...s, open: false }))}
+          onClose={() => setSnack((current) => ({ ...current, open: false }))}
           severity={snack.type}
           sx={{ width: "100%" }}
         >

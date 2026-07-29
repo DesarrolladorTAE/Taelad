@@ -217,11 +217,16 @@ export default function Signin() {
     try {
       setSendingCode(true);
 
-      const { data } = await authApi.requestCode(values.phone);
+      const { data } = await authApi.requestCode(
+        values.phone,
+        values.email.trim().toLowerCase()
+      );
 
       setSnack({
         open: true,
-        msg: data?.message || "Código enviado por WhatsApp.",
+        msg:
+          data?.message ||
+          "Código enviado por WhatsApp y correo electrónico.",
         type: "success",
       });
 
@@ -262,7 +267,7 @@ export default function Signin() {
       const payload = {
         name: values.firstName,
         apellidos: values.lastName,
-        email: values.email,
+        email: values.email.trim().toLowerCase(),
         password: values.password,
         phone: values.phone,
         terminos: values.accept,
@@ -610,7 +615,7 @@ export default function Signin() {
         PaperProps={{ sx: { borderRadius: 2 } }}
       >
         <DialogTitle sx={{ pb: 1 }}>
-          Verifica tu teléfono
+          Verifica tu teléfono y correo
 
           <IconButton
             onClick={() => setOtpOpen(false)}
@@ -624,7 +629,8 @@ export default function Signin() {
         <DialogContent sx={{ pt: 0 }}>
           <Typography variant="body2" color="text.secondary" mb={2}>
             Enviamos un código de 6 dígitos por WhatsApp al{" "}
-            <b>{values.phone}</b>.
+            <b>{values.phone}</b> y al correo electrónico{" "}
+            <b>{values.email.trim().toLowerCase()}</b>.
           </Typography>
 
           <TextField

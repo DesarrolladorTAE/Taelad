@@ -191,6 +191,9 @@ export const API_ROUTES = {
     login: "/auth/login",
     changePassword: "/auth/password/change",
     resetPasswordByCode: "/auth/password/reset",
+    requestPasswordResetCode: "/auth/password/request-code",
+    requestPasswordResetCodeEmail: "/auth/password/request-code-email",
+    resetPasswordByEmailCode: "/auth/password/reset-email",
   },
   users: {
     me: "/user",
@@ -236,8 +239,11 @@ export const API_ROUTES = {
  *  Auth services
  * ======================= */
 export const authApi = {
-  requestCode: (phone: string) =>
-    axiosClient.post(API_ROUTES.auth.requestCode, { phone }),
+  requestCode: (phone: string, email?: string) =>
+    axiosClient.post(API_ROUTES.auth.requestCode, {
+      phone,
+      ...(email ? { email: email.trim().toLowerCase() } : {}),
+    }),
 
   verifyCode: (phone: string, code: string) =>
     axiosClient.post(API_ROUTES.auth.verifyCode, { phone, code }),
@@ -273,6 +279,28 @@ export const authApi = {
     axiosClient.post<ApiResponse<unknown>>(
       API_ROUTES.auth.resetPasswordByCode,
       { phone, code, new_password }
+    ),
+
+  requestPasswordResetCode: (phone: string) =>
+    axiosClient.post<ApiResponse<unknown>>(
+      API_ROUTES.auth.requestPasswordResetCode,
+      { phone }
+    ),
+
+  requestPasswordResetCodeEmail: (email: string) =>
+    axiosClient.post<ApiResponse<unknown>>(
+      API_ROUTES.auth.requestPasswordResetCodeEmail,
+      { email }
+    ),
+
+  resetPasswordByEmailCode: (
+    email: string,
+    code: string,
+    new_password: string
+  ) =>
+    axiosClient.post<ApiResponse<unknown>>(
+      API_ROUTES.auth.resetPasswordByEmailCode,
+      { email, code, new_password }
     ),
 };
 
@@ -557,7 +585,13 @@ export const authSession = {
 export async function requestResetCode(phone: string) {
   const clean = (phone || "").replace(/\D/g, "").slice(0, 10);
   if (!/^\d{10}$/.test(clean)) throw new Error("El teléfono debe tener 10 dígitos");
-  return authApi.requestCode(clean);
+  return authApi.requestPasswordResetCode(clean);
+}
+
+export async function requestResetCodeByEmail(email: string) {
+  const clean = (email || "").trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(clean)) throw new Error("Ingresa un correo electrónico válido");
+  return authApi.requestPasswordResetCodeEmail(clean);
 }
 
 export async function resetPasswordByCodeAndLogin(params: {
@@ -568,6 +602,22 @@ export async function resetPasswordByCodeAndLogin(params: {
   const phone = params.phone.replace(/\D/g, "").slice(0, 10);
   await authApi.resetPasswordByCode(phone, params.code, params.new_password);
   const { user, token } = await authSession.login(phone, params.new_password);
+  return { user, token };
+}
+
+export async function resetPasswordByEmailCodeAndLogin(params: {
+  email: string;
+  code: string;
+  new_password: string;
+}) {
+  const email = (params.email || "").trim().toLowerCase();
+
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    throw new Error("Ingresa un correo electrónico válido");
+  }
+
+  await authApi.resetPasswordByEmailCode(email, params.code, params.new_password);
+  const { user, token } = await authSession.login(email, params.new_password);
   return { user, token };
 }
 

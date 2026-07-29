@@ -19,6 +19,7 @@ import ClicMenuInicio from "./components/ClicMenu/ClicMenuInicio";
 import TeaTeDaMas from "./components/TeaTeDaMas";
 import BlogAdminShell from "./components/Blogs/BlogAdminShell";
 import TablaServices from "./components/TablaServices";
+import TaecontaTimbradoPage from "./taeconta/TaecontaTimbradoPage";
 
 export default function SuperAdminPanel() {
   return (
@@ -42,9 +43,8 @@ export default function SuperAdminPanel() {
           case "tea-te-da-mas":
             return <TeaTeDaMas />;
 
-          case "facturacion":
-            return <Facturacion />;
-
+         case "facturacion":
+  return <TaecontaTimbradoPage />;
           case "usuarios":
   return <Usuarios />;
 
