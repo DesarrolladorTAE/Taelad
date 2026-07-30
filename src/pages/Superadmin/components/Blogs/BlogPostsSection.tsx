@@ -145,7 +145,6 @@ type PostForm = {
 type PostFormErrors = {
   title?: string;
   slug?: string;
-  excerpt?: string;
   canonical_url?: string;
 };
 
@@ -425,11 +424,6 @@ function validateForm(
   ) {
     errors.slug =
       "El slug solo admite letras minúsculas, números y guiones.";
-  }
-
-  if (form.excerpt.length > 1000) {
-    errors.excerpt =
-      "El extracto no puede superar 1000 caracteres.";
   }
 
   if (form.canonical_url.trim()) {
@@ -3839,16 +3833,7 @@ export default function BlogPostsSection({
                             event.target.value,
                         }))
                       }
-                      error={Boolean(
-                        formErrors.excerpt
-                      )}
-                      helperText={
-                        formErrors.excerpt ??
-                        `${form.excerpt.length}/1000 caracteres`
-                      }
-                      inputProps={{
-                        maxLength: 1000,
-                      }}
+                      helperText="Extracto de la publicación sin límite de caracteres."
                       disabled={saving}
                     />
                   </Grid>
