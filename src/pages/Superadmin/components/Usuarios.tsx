@@ -50,6 +50,7 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import VpnKeyOutlinedIcon from "@mui/icons-material/VpnKeyOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 
 import Swal from "sweetalert2";
 
@@ -61,6 +62,8 @@ import {
   deleteUser,
   updateUser,
 } from "../../../services/superadminService";
+
+import DatosFiscalesUsuarioModal from "./DatosFiscalesUsuarioModal";
 
 type Usuario = {
   id: number;
@@ -460,6 +463,12 @@ export default function Usuarios() {
   const [openEdit, setOpenEdit] =
     useState(false);
 
+  const [openFiscal, setOpenFiscal] =
+    useState(false);
+
+  const [fiscalUser, setFiscalUser] =
+    useState<Usuario | null>(null);
+
   const [editingId, setEditingId] =
     useState<number | null>(null);
 
@@ -690,6 +699,17 @@ export default function Usuarios() {
         "error"
       );
     }
+  };
+  const openFiscalModal = (
+    user: Usuario
+  ) => {
+    setFiscalUser(user);
+    setOpenFiscal(true);
+  };
+
+  const closeFiscalModal = () => {
+    setOpenFiscal(false);
+    setFiscalUser(null);
   };
 
   const openEditModal = (
@@ -1577,6 +1597,21 @@ export default function Usuarios() {
                         >
                           <Button
                             fullWidth
+                            variant="outlined"
+                            startIcon={
+                              <DescriptionOutlinedIcon />
+                            }
+                            onClick={() =>
+                              openFiscalModal(
+                                user
+                              )
+                            }
+                          >
+                            Datos fiscales
+                          </Button>
+
+                          <Button
+                            fullWidth
                             variant="contained"
                             startIcon={
                               <VpnKeyOutlinedIcon />
@@ -1633,7 +1668,6 @@ export default function Usuarios() {
               );
             }
           )}
-
           {usuarios.length === 0 && (
             <Paper
               variant="outlined"
@@ -1695,7 +1729,7 @@ export default function Usuarios() {
 
                 <TableCell
                   sx={{
-                    width: "28%",
+                    width: "26%",
                     fontWeight: 900,
                   }}
                 >
@@ -1704,7 +1738,7 @@ export default function Usuarios() {
 
                 <TableCell
                   sx={{
-                    width: "26%",
+                    width: "25%",
                     fontWeight: 900,
                   }}
                 >
@@ -1732,7 +1766,7 @@ export default function Usuarios() {
                 <TableCell
                   align="center"
                   sx={{
-                    width: "9%",
+                    width: "12%",
                     fontWeight: 900,
                   }}
                 >
@@ -1998,7 +2032,24 @@ export default function Usuarios() {
                             gap: 0.05,
                           }}
                         >
-                        <Tooltip title="Asignar código especial">
+                          <Tooltip title="Datos fiscales">
+                            <IconButton
+                              size="small"
+                              color="info"
+                              sx={{ p: 0.4 }}
+                              onClick={() =>
+                                openFiscalModal(
+                                  user
+                                )
+                              }
+                            >
+                              <DescriptionOutlinedIcon
+                                fontSize="small"
+                              />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip title="Asignar código especial">
                           <IconButton
                             size="small"
                             color="secondary"
@@ -2167,6 +2218,11 @@ export default function Usuarios() {
           </Stack>
         </Paper>
       )}
+      <DatosFiscalesUsuarioModal
+        open={openFiscal}
+        usuario={fiscalUser}
+        onClose={closeFiscalModal}
+      />
 
       <Dialog
         open={openCodigoEspecial}

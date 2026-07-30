@@ -3,8 +3,9 @@ import {
   TaecontaTimbradoDetalleResponse,
   TaecontaTimbradosParams,
   TaecontaTimbradosResponse,
-  TimbrarCfdiTaecontaPayload,
+  TimbrarCompraTaecontaPayload,
   TimbrarCfdiTaecontaResponse,
+  TaecontaFacturaPreviewResponse
 } from "../types/taecontaTimbrado";
 
 const BASE_URL = "/superadmin/taeconta";
@@ -40,13 +41,28 @@ export async function obtenerTimbradoTaeconta(
   return response.data;
 }
 
-export async function timbrarCfdiTaeconta(
-  payload: TimbrarCfdiTaecontaPayload
+export async function timbrarCompraTaeconta(
+  payload: TimbrarCompraTaecontaPayload
 ): Promise<TimbrarCfdiTaecontaResponse> {
   const response = await axiosClient.post<TimbrarCfdiTaecontaResponse>(
     `${BASE_URL}/timbrar`,
-    payload
+    {
+      historial_cliente_id: payload.historial_cliente_id,
+      uso_cfdi: payload.uso_cfdi?.trim().toUpperCase() || "G03",
+      metodo_pago: payload.metodo_pago || "PUE",
+      forma_pago: payload.forma_pago?.trim() || undefined,
+    }
   );
+
+  return response.data;
+}
+export async function obtenerPrevisualizacionFacturaTaeconta(
+  historialClienteId: number
+): Promise<TaecontaFacturaPreviewResponse> {
+  const response =
+    await axiosClient.get<TaecontaFacturaPreviewResponse>(
+      `${BASE_URL}/historial-clientes/${historialClienteId}/previsualizacion`
+    );
 
   return response.data;
 }

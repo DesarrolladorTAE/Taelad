@@ -80,6 +80,27 @@ export type UserFiscalData = {
   created_at?: string;
   updated_at?: string;
 };
+export type SuperAdminFiscalUser = {
+  id: number;
+  name: string;
+  apellidos?: string | null;
+  email: string;
+};
+
+export type SuperAdminUserFiscalResponse = {
+  success: boolean;
+  message: string;
+  exists: boolean;
+  user: SuperAdminFiscalUser;
+  data: UserFiscalData | null;
+};
+
+export type SuperAdminUserFiscalPayload = {
+  razon_social: string;
+  rfc: string;
+  regimen_fiscal: string;
+  codigo_postal: string;
+};
 
 export type UserBusiness = {
   id: number;
@@ -222,6 +243,12 @@ export const API_ROUTES = {
     ganancias: "/referidos/ganancias", // <- ya NO la usamos, pero la dejamos
     retiros: "/referidos/retiros",
   },
+  superadmin: {
+  users: {
+    fiscal: (userId: number | string) =>
+      `/superadmin/users/${userId}/fiscal`,
+  },
+},
 
   // Tus rutas reales de ganancias (resource)
   ganancias: {
@@ -308,7 +335,24 @@ export const authApi = {
  *  Users services
  * ======================= */
 export const usersApi = {
-  getMe: () => axiosClient.get<ApiResponse<User>>(API_ROUTES.users.me),
+  getMe: () =>
+    axiosClient.get<ApiResponse<User>>(
+      API_ROUTES.users.me
+    ),
+
+  getFiscal: (userId: number | string) =>
+    axiosClient.get<SuperAdminUserFiscalResponse>(
+      API_ROUTES.superadmin.users.fiscal(userId)
+    ),
+
+  updateFiscal: (
+    userId: number | string,
+    payload: SuperAdminUserFiscalPayload
+  ) =>
+    axiosClient.put<SuperAdminUserFiscalResponse>(
+      API_ROUTES.superadmin.users.fiscal(userId),
+      payload
+    ),
 };
 
 /** =======================

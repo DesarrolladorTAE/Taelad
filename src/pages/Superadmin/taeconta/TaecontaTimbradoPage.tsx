@@ -1,6 +1,5 @@
 import {
-  Add as AddIcon,
-  DeleteOutline as DeleteOutlineIcon,
+  ReceiptLong as ReceiptLongIcon,
   Refresh as RefreshIcon,
 } from "@mui/icons-material";
 import {
@@ -11,8 +10,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Divider,
-  IconButton,
   MenuItem,
   Pagination,
   Paper,
@@ -29,57 +26,46 @@ import {
   Typography,
 } from "@mui/material";
 import axios from "axios";
-import { SyntheticEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  SyntheticEvent,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import {
   obtenerTimbradosTaeconta,
-  timbrarCfdiTaeconta,
+  timbrarCompraTaeconta,
 } from "../../../services/taecontaTimbrado.service";
 import {
-  TaecontaProducto,
+  TAE_CONTA_SERIE,
   TaecontaTimbrado,
   TaecontaTimbradoEstatus,
-  TimbrarCfdiTaecontaPayload,
+  TimbrarCompraTaecontaPayload,
 } from "../../../types/taecontaTimbrado";
 
-const PRODUCTO_INICIAL: TaecontaProducto = {
-  descripcion: "",
-  cantidad: 1,
-  claveUnidad: "E48",
-  claveProducto: "",
-  precio: 0,
-  iva: "0xxxx",
-  riva: "0xxxx",
-  risr: "0xxxx",
-  ieps: "0xxxx",
-  ish: "0xxxx",
-  total: 0,
-  descuento: 0,
-  tipoFactor: "Tasa",
+type FormularioTimbrado = {
+  historial_cliente_id: string;
+  uso_cfdi: string;
+  metodo_pago: "PUE" | "PPD";
+  forma_pago: string;
 };
 
-function fechaLocalActual(): string {
-  const fecha = new Date();
-  fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+const FORMULARIO_INICIAL: FormularioTimbrado = {
+  historial_cliente_id: "",
+  uso_cfdi: "G03",
+  metodo_pago: "PUE",
+  forma_pago: "03",
+};
 
-  return fecha.toISOString().slice(0, 19);
-}
-
-function formularioInicial(): TimbrarCfdiTaecontaPayload {
-  return {
-    folio: "",
-    serie: "",
-    fecha: fechaLocalActual(),
-    metodoPago: "PUE",
-    formaPago: "03",
-    usoCfdi: "G03",
-    clienteRFC: "",
-    RegimenFiscalReceptor: "",
-    DomicilioFiscalReceptor: "",
-    clienteCorreo: "",
-    Nombre: "",
-    productos: [{ ...PRODUCTO_INICIAL }],
-  };
-}
+const ETIQUETAS_ESTATUS: Record<TaecontaTimbradoEstatus, string> = {
+  pendiente: "Pendiente",
+  procesando: "Procesando",
+  timbrada: "Timbrada",
+  rechazado: "Rechazado",
+  error: "Error",
+  cancelada: "Cancelada",
+};
 
 function obtenerMensajeError(error: unknown): string {
   if (axios.isAxiosError(error)) {
@@ -91,52 +77,88 @@ function obtenerMensajeError(error: unknown): string {
         }
       | undefined;
 
-    if (data?.message) return data.message;
-    if (data?.error) return data.error;
+    if (data?.errors) {
+      const primerError = Object.values(data.errors).flat()[0];
 
-    const primerError = data?.errors
-      ? Object.values(data.errors).flat()[0]
-      : null;
+      if (primerError) {
+        return primerError;
+      }
+    }
 
-    if (primerError) return primerError;
+    if (data?.message) {
+      return data.message;
+    }
+
+    if (data?.error) {
+      return data.error;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
 
   return "Ocurrió un error al procesar la solicitud.";
 }
 
-function obtenerIva(iva: string): number {
-  const coincidencia = iva.trim().match(/^(\d+(?:\.\d+)?)ti/i);
+function formatoMoneda(valor: number | string | null): string {
+  const numero = Number(valor ?? 0);
 
-  return coincidencia ? Number(coincidencia[1]) : 0;
-}
-
-function formatoMoneda(valor: number | string): string {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
-  }).format(Number(valor || 0));
+  }).format(Number.isFinite(numero) ? numero : 0);
+}
+
+function formatoFecha(fecha: string | null): string {
+  if (!fecha) {
+    return "—";
+  }
+
+  const valor = new Date(fecha);
+
+  if (Number.isNaN(valor.getTime())) {
+    return fecha;
+  }
+
+  return valor.toLocaleString("es-MX");
 }
 
 function colorEstatus(
   estatus: TaecontaTimbradoEstatus
-): "default" | "success" | "error" | "warning" {
+): "default" | "success" | "error" | "warning" | "info" {
   switch (estatus) {
-    case "timbrado":
+    case "timbrada":
       return "success";
+
     case "rechazado":
     case "error":
       return "error";
+
     case "pendiente":
       return "warning";
+
+    case "procesando":
+      return "info";
+
+    case "cancelada":
     default:
       return "default";
   }
 }
 
+function obtenerHistorialClienteId(
+  timbrado: TaecontaTimbrado
+): number | null {
+  return timbrado.compra?.historial_cliente_id ?? null;
+}
+
 export default function TaecontaTimbradoPage() {
   const [tab, setTab] = useState(0);
+
   const [formulario, setFormulario] =
-    useState<TimbrarCfdiTaecontaPayload>(formularioInicial);
+    useState<FormularioTimbrado>(FORMULARIO_INICIAL);
+
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -147,27 +169,8 @@ export default function TaecontaTimbradoPage() {
   const [ultimaPagina, setUltimaPagina] = useState(1);
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [busqueda, setBusqueda] = useState("");
-  const [estatus, setEstatus] = useState<TaecontaTimbradoEstatus | "">("");
-
-  const totales = useMemo(() => {
-    return formulario.productos.reduce(
-      (acumulado, producto) => {
-        acumulado.subtotal +=
-          Number(producto.cantidad || 0) * Number(producto.precio || 0);
-        acumulado.descuento += Number(producto.descuento || 0);
-        acumulado.iva += obtenerIva(producto.iva);
-        acumulado.total += Number(producto.total || 0);
-
-        return acumulado;
-      },
-      {
-        subtotal: 0,
-        descuento: 0,
-        iva: 0,
-        total: 0,
-      }
-    );
-  }, [formulario.productos]);
+  const [estatus, setEstatus] =
+    useState<TaecontaTimbradoEstatus | "">("");
 
   const cargarHistorial = useCallback(async () => {
     setCargandoHistorial(true);
@@ -182,7 +185,7 @@ export default function TaecontaTimbradoPage() {
       });
 
       setTimbrados(response.data);
-      setUltimaPagina(response.last_page);
+      setUltimaPagina(Math.max(response.last_page, 1));
       setTotalRegistros(response.total);
     } catch (requestError) {
       setError(obtenerMensajeError(requestError));
@@ -192,9 +195,17 @@ export default function TaecontaTimbradoPage() {
   }, [pagina, busqueda, estatus]);
 
   useEffect(() => {
-    if (tab === 1) {
-      cargarHistorial();
+    if (tab !== 1) {
+      return;
     }
+
+    const timeout = window.setTimeout(() => {
+      void cargarHistorial();
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
   }, [tab, cargarHistorial]);
 
   const cambiarTab = (_event: SyntheticEvent, nuevoTab: number) => {
@@ -203,9 +214,9 @@ export default function TaecontaTimbradoPage() {
     setError(null);
   };
 
-  const actualizarCampo = <K extends keyof TimbrarCfdiTaecontaPayload>(
+  const actualizarCampo = <K extends keyof FormularioTimbrado>(
     campo: K,
-    valor: TimbrarCfdiTaecontaPayload[K]
+    valor: FormularioTimbrado[K]
   ) => {
     setFormulario((actual) => ({
       ...actual,
@@ -213,64 +224,50 @@ export default function TaecontaTimbradoPage() {
     }));
   };
 
-  const actualizarProducto = (
-    indice: number,
-    cambios: Partial<TaecontaProducto>
-  ) => {
-    setFormulario((actual) => ({
-      ...actual,
-      productos: actual.productos.map((producto, posicion) =>
-        posicion === indice ? { ...producto, ...cambios } : producto
-      ),
-    }));
-  };
-
-  const agregarProducto = () => {
-    setFormulario((actual) => ({
-      ...actual,
-      productos: [...actual.productos, { ...PRODUCTO_INICIAL }],
-    }));
-  };
-
-  const eliminarProducto = (indice: number) => {
-    if (formulario.productos.length === 1) return;
-
-    setFormulario((actual) => ({
-      ...actual,
-      productos: actual.productos.filter(
-        (_producto, posicion) => posicion !== indice
-      ),
-    }));
-  };
-
   const validarFormulario = (): string | null => {
-    if (!formulario.folio.trim()) return "El folio es obligatorio.";
-    if (!formulario.serie.trim()) return "La serie es obligatoria.";
-    if (!formulario.clienteRFC.trim()) return "El RFC del receptor es obligatorio.";
-    if (!formulario.Nombre.trim()) return "El nombre del receptor es obligatorio.";
-    if (!formulario.RegimenFiscalReceptor.trim()) {
-      return "El régimen fiscal del receptor es obligatorio.";
-    }
-    if (!formulario.DomicilioFiscalReceptor.trim()) {
-      return "El código postal fiscal es obligatorio.";
-    }
-
-    const productoInvalido = formulario.productos.find(
-      (producto) =>
-        !producto.descripcion.trim() ||
-        !producto.claveUnidad.trim() ||
-        !producto.claveProducto.trim() ||
-        Number(producto.cantidad) <= 0
+    const historialClienteId = Number(
+      formulario.historial_cliente_id
     );
 
-    if (productoInvalido) {
-      return "Complete correctamente todos los conceptos.";
+    if (
+      !formulario.historial_cliente_id.trim() ||
+      !Number.isInteger(historialClienteId) ||
+      historialClienteId <= 0
+    ) {
+      return "Ingrese un ID de movimiento del historial válido.";
+    }
+
+    if (
+      !/^[A-Z0-9]{3,4}$/.test(
+        formulario.uso_cfdi.trim().toUpperCase()
+      )
+    ) {
+      return "El uso de CFDI no tiene un formato válido.";
+    }
+
+    if (!["PUE", "PPD"].includes(formulario.metodo_pago)) {
+      return "El método de pago debe ser PUE o PPD.";
+    }
+
+    if (!/^[0-9]{2}$/.test(formulario.forma_pago.trim())) {
+      return "La forma de pago debe contener dos dígitos.";
+    }
+
+    if (
+      formulario.metodo_pago === "PPD" &&
+      formulario.forma_pago !== "99"
+    ) {
+      return "Cuando el método de pago es PPD, la forma de pago debe ser 99.";
     }
 
     return null;
   };
 
-  const enviarTimbrado = async () => {
+  const enviarTimbrado = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
     const mensajeValidacion = validarFormulario();
 
     if (mensajeValidacion) {
@@ -283,39 +280,37 @@ export default function TaecontaTimbradoPage() {
     setError(null);
 
     try {
-      const payload: TimbrarCfdiTaecontaPayload = {
-        ...formulario,
-        folio: formulario.folio.trim(),
-        serie: formulario.serie.trim(),
-        clienteRFC: formulario.clienteRFC.trim().toUpperCase(),
-        Nombre: formulario.Nombre.trim().toUpperCase(),
-        RegimenFiscalReceptor:
-          formulario.RegimenFiscalReceptor.trim(),
-        DomicilioFiscalReceptor:
-          formulario.DomicilioFiscalReceptor.trim(),
-        clienteCorreo: formulario.clienteCorreo?.trim() || null,
-        productos: formulario.productos.map((producto) => ({
-          ...producto,
-          descripcion: producto.descripcion.trim(),
-          claveUnidad: producto.claveUnidad.trim().toUpperCase(),
-          claveProducto: producto.claveProducto.trim(),
-          cantidad: Number(producto.cantidad),
-          precio: Number(producto.precio),
-          total: Number(producto.total),
-          descuento: Number(producto.descuento),
-        })),
+      const payload: TimbrarCompraTaecontaPayload = {
+        historial_cliente_id: Number(
+          formulario.historial_cliente_id
+        ),
+        uso_cfdi: formulario.uso_cfdi.trim().toUpperCase(),
+        metodo_pago: formulario.metodo_pago,
+        forma_pago: formulario.forma_pago.trim(),
       };
 
-      const response = await timbrarCfdiTaeconta(payload);
+      const response = await timbrarCompraTaeconta(payload);
+
+      const datosRespuesta = [
+        response.data.serie && response.data.folio
+          ? `${response.data.serie}-${response.data.folio}`
+          : null,
+        response.data.uuid
+          ? `UUID: ${response.data.uuid}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
       setMensaje(
-        response.data.uuid
-          ? `${response.message} UUID: ${response.data.uuid}`
+        datosRespuesta
+          ? `${response.message} ${datosRespuesta}`
           : response.message
       );
 
-      setFormulario(formularioInicial());
+      setFormulario(FORMULARIO_INICIAL);
       setPagina(1);
+      setTab(1);
     } catch (requestError) {
       setError(obtenerMensajeError(requestError));
     } finally {
@@ -327,11 +322,12 @@ export default function TaecontaTimbradoPage() {
     <Box sx={{ width: "100%", p: { xs: 2, md: 3 } }}>
       <Stack spacing={0.5} sx={{ mb: 3 }}>
         <Typography variant="h4" fontWeight={700}>
-          Timbrado CFDI Taeconta
+          Timbrado CFDI TaeConta
         </Typography>
 
         <Typography variant="body2" color="text.secondary">
-          Generación, timbrado y consulta de comprobantes fiscales.
+          Generación y consulta de CFDI vinculados al historial de
+          ventas de los clientes.
         </Typography>
       </Stack>
 
@@ -348,501 +344,291 @@ export default function TaecontaTimbradoPage() {
       </Paper>
 
       {mensaje && (
-        <Alert severity="success" sx={{ mb: 2 }}>
+        <Alert
+          severity="success"
+          onClose={() => setMensaje(null)}
+          sx={{ mb: 2 }}
+        >
           {mensaje}
         </Alert>
       )}
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert
+          severity="error"
+          onClose={() => setError(null)}
+          sx={{ mb: 2 }}
+        >
           {error}
         </Alert>
       )}
 
       {tab === 0 && (
-        <Stack spacing={3}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-                Datos del comprobante
-              </Typography>
+        <Box
+          component="form"
+          onSubmit={enviarTimbrado}
+          noValidate
+        >
+          <Stack spacing={3}>
+            <Alert severity="info">
+              Seleccione el ID del movimiento registrado en el historial
+              de ventas. El receptor, producto, claves SAT, precios,
+              IVA y total se obtienen automáticamente. La serie es fija
+              y el folio se solicita directamente a TaeConta.
+            </Alert>
 
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    sm: "repeat(2, 1fr)",
-                    lg: "repeat(4, 1fr)",
-                  },
-                  gap: 2,
-                }}
-              >
-                <TextField
-                  label="Serie"
-                  value={formulario.serie}
-                  onChange={(event) =>
-                    actualizarCampo("serie", event.target.value)
-                  }
-                  required
-                  fullWidth
-                />
-
-                <TextField
-                  label="Folio"
-                  value={formulario.folio}
-                  onChange={(event) =>
-                    actualizarCampo("folio", event.target.value)
-                  }
-                  required
-                  fullWidth
-                />
-
-               <TextField
-  label="Fecha"
-  type="datetime-local"
-  value={formulario.fecha}
-  onChange={(event) => actualizarCampo("fecha", event.target.value)}
-  InputLabelProps={{ shrink: true }}
-  required
-  fullWidth
-/>
-
-                <TextField
-                  select
-                  label="Método de pago"
-                  value={formulario.metodoPago}
-                  onChange={(event) =>
-                    actualizarCampo(
-                      "metodoPago",
-                      event.target.value as "PUE" | "PPD"
-                    )
-                  }
-                  fullWidth
+            <Card>
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  fontWeight={700}
+                  sx={{ mb: 2 }}
                 >
-                  <MenuItem value="PUE">PUE</MenuItem>
-                  <MenuItem value="PPD">PPD</MenuItem>
-                </TextField>
-
-                <TextField
-                  label="Forma de pago SAT"
-                  value={formulario.formaPago}
-                  onChange={(event) =>
-                    actualizarCampo("formaPago", event.target.value)
-                  }
-                  inputProps={{ maxLength: 2 }}
-                  required
-                  fullWidth
-                />
-
-                <TextField
-                  label="Uso CFDI"
-                  value={formulario.usoCfdi}
-                  onChange={(event) =>
-                    actualizarCampo(
-                      "usoCfdi",
-                      event.target.value.toUpperCase()
-                    )
-                  }
-                  required
-                  fullWidth
-                />
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-                Receptor
-              </Typography>
-
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    sm: "repeat(2, 1fr)",
-                    lg: "repeat(3, 1fr)",
-                  },
-                  gap: 2,
-                }}
-              >
-                <TextField
-                  label="RFC"
-                  value={formulario.clienteRFC}
-                  onChange={(event) =>
-                    actualizarCampo(
-                      "clienteRFC",
-                      event.target.value.toUpperCase()
-                    )
-                  }
-                  inputProps={{ maxLength: 13 }}
-                  required
-                  fullWidth
-                />
-
-                <TextField
-                  label="Razón social"
-                  value={formulario.Nombre}
-                  onChange={(event) =>
-                    actualizarCampo("Nombre", event.target.value)
-                  }
-                  required
-                  fullWidth
-                />
-
-                <TextField
-                  label="Régimen fiscal"
-                  value={formulario.RegimenFiscalReceptor}
-                  onChange={(event) =>
-                    actualizarCampo(
-                      "RegimenFiscalReceptor",
-                      event.target.value
-                    )
-                  }
-                  inputProps={{ maxLength: 3 }}
-                  required
-                  fullWidth
-                />
-
-                <TextField
-                  label="Código postal fiscal"
-                  value={formulario.DomicilioFiscalReceptor}
-                  onChange={(event) =>
-                    actualizarCampo(
-                      "DomicilioFiscalReceptor",
-                      event.target.value
-                    )
-                  }
-                  inputProps={{ maxLength: 5 }}
-                  required
-                  fullWidth
-                />
-
-                <TextField
-                  label="Correo"
-                  type="email"
-                  value={formulario.clienteCorreo ?? ""}
-                  onChange={(event) =>
-                    actualizarCampo("clienteCorreo", event.target.value)
-                  }
-                  fullWidth
-                />
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                justifyContent="space-between"
-                alignItems={{ xs: "stretch", sm: "center" }}
-                spacing={2}
-                sx={{ mb: 2 }}
-              >
-                <Typography variant="h6" fontWeight={700}>
-                  Conceptos
+                  Movimiento a facturar
                 </Typography>
 
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={agregarProducto}
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "repeat(2, 1fr)",
+                      lg: "repeat(4, 1fr)",
+                    },
+                    gap: 2,
+                  }}
                 >
-                  Agregar concepto
-                </Button>
-              </Stack>
+                  <TextField
+                    label="ID del historial de ventas"
+                    type="number"
+                    value={formulario.historial_cliente_id}
+                    onChange={(event) =>
+                      actualizarCampo(
+                        "historial_cliente_id",
+                        event.target.value
+                      )
+                    }
+                    inputProps={{
+                      min: 1,
+                      step: 1,
+                    }}
+                    helperText="ID del movimiento en historial_clientes"
+                    required
+                    fullWidth
+                  />
 
-              <Stack spacing={2}>
-                {formulario.productos.map((producto, indice) => (
-                  <Paper
-                    key={indice}
-                    variant="outlined"
-                    sx={{ p: 2, position: "relative" }}
+                  <TextField
+                    label="Serie"
+                    value={TAE_CONTA_SERIE}
+                    InputProps={{
+                      readOnly: true,
+                    }}
+                    helperText="Serie fija del sistema"
+                    fullWidth
+                  />
+
+                  <TextField
+                    select
+                    label="Método de pago"
+                    value={formulario.metodo_pago}
+                    onChange={(event) => {
+                      const metodoPago = event.target.value as
+                        | "PUE"
+                        | "PPD";
+
+                      setFormulario((actual) => ({
+                        ...actual,
+                        metodo_pago: metodoPago,
+                        forma_pago:
+                          metodoPago === "PPD"
+                            ? "99"
+                            : actual.forma_pago === "99"
+                              ? "03"
+                              : actual.forma_pago,
+                      }));
+                    }}
+                    required
+                    fullWidth
                   >
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      sx={{ mb: 2 }}
-                    >
-                      <Typography fontWeight={700}>
-                        Concepto {indice + 1}
-                      </Typography>
+                    <MenuItem value="PUE">
+                      PUE - Pago en una sola exhibición
+                    </MenuItem>
 
-                      <IconButton
-                        color="error"
-                        disabled={formulario.productos.length === 1}
-                        onClick={() => eliminarProducto(indice)}
-                      >
-                        <DeleteOutlineIcon />
-                      </IconButton>
-                    </Stack>
+                    <MenuItem value="PPD">
+                      PPD - Pago en parcialidades o diferido
+                    </MenuItem>
+                  </TextField>
 
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: {
-                          xs: "1fr",
-                          sm: "repeat(2, 1fr)",
-                          lg: "repeat(4, 1fr)",
-                        },
-                        gap: 2,
-                      }}
-                    >
-                      <TextField
-                        label="Descripción"
-                        value={producto.descripcion}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            descripcion: event.target.value,
-                          })
-                        }
-                        required
-                        fullWidth
-                        sx={{ gridColumn: { lg: "span 2" } }}
-                      />
+                  <TextField
+                    select
+                    label="Forma de pago"
+                    value={formulario.forma_pago}
+                    onChange={(event) =>
+                      actualizarCampo(
+                        "forma_pago",
+                        event.target.value
+                      )
+                    }
+                    disabled={formulario.metodo_pago === "PPD"}
+                    required
+                    fullWidth
+                  >
+                    <MenuItem value="01">01 - Efectivo</MenuItem>
 
-                      <TextField
-                        label="Cantidad"
-                        type="number"
-                        value={producto.cantidad}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            cantidad: Number(event.target.value),
-                          })
-                        }
-                        inputProps={{ min: 0.01, step: 0.01 }}
-                        required
-                        fullWidth
-                      />
+                    <MenuItem value="02">
+                      02 - Cheque nominativo
+                    </MenuItem>
 
-                      <TextField
-                        label="Precio unitario"
-                        type="number"
-                        value={producto.precio}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            precio: Number(event.target.value),
-                          })
-                        }
-                        inputProps={{ min: 0, step: 0.01 }}
-                        required
-                        fullWidth
-                      />
+                    <MenuItem value="03">
+                      03 - Transferencia electrónica
+                    </MenuItem>
 
-                      <TextField
-                        label="Clave de unidad"
-                        value={producto.claveUnidad}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            claveUnidad: event.target.value.toUpperCase(),
-                          })
-                        }
-                        required
-                        fullWidth
-                      />
+                    <MenuItem value="04">
+                      04 - Tarjeta de crédito
+                    </MenuItem>
 
-                      <TextField
-                        label="Clave de producto SAT"
-                        value={producto.claveProducto}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            claveProducto: event.target.value,
-                          })
-                        }
-                        inputProps={{ maxLength: 8 }}
-                        required
-                        fullWidth
-                      />
+                    <MenuItem value="28">
+                      28 - Tarjeta de débito
+                    </MenuItem>
 
-                      <TextField
-                        label="IVA"
-                        value={producto.iva}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            iva: event.target.value,
-                          })
-                        }
-                        helperText="Ejemplo: 160ti16 o 0xxxx"
-                        required
-                        fullWidth
-                      />
+                    <MenuItem value="99">
+                      99 - Por definir
+                    </MenuItem>
+                  </TextField>
 
-                      <TextField
-                        select
-                        label="Tipo de factor"
-                        value={producto.tipoFactor}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            tipoFactor: event.target
-                              .value as TaecontaProducto["tipoFactor"],
-                          })
-                        }
-                        fullWidth
-                      >
-                        <MenuItem value="Tasa">Tasa</MenuItem>
-                        <MenuItem value="Cuota">Cuota</MenuItem>
-                        <MenuItem value="Exento">Exento</MenuItem>
-                      </TextField>
-
-                      <TextField
-                        label="Retención IVA"
-                        value={producto.riva}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            riva: event.target.value,
-                          })
-                        }
-                        required
-                        fullWidth
-                      />
-
-                      <TextField
-                        label="Retención ISR"
-                        value={producto.risr}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            risr: event.target.value,
-                          })
-                        }
-                        required
-                        fullWidth
-                      />
-
-                      <TextField
-                        label="IEPS"
-                        value={producto.ieps}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            ieps: event.target.value,
-                          })
-                        }
-                        required
-                        fullWidth
-                      />
-
-                      <TextField
-                        label="ISH"
-                        value={producto.ish}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            ish: event.target.value,
-                          })
-                        }
-                        required
-                        fullWidth
-                      />
-
-                      <TextField
-                        label="Descuento"
-                        type="number"
-                        value={producto.descuento}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            descuento: Number(event.target.value),
-                          })
-                        }
-                        inputProps={{ min: 0, step: 0.01 }}
-                        required
-                        fullWidth
-                      />
-
-                      <TextField
-                        label="Total con impuestos"
-                        type="number"
-                        value={producto.total}
-                        onChange={(event) =>
-                          actualizarProducto(indice, {
-                            total: Number(event.target.value),
-                          })
-                        }
-                        inputProps={{ min: 0, step: 0.01 }}
-                        required
-                        fullWidth
-                      />
-                    </Box>
-                  </Paper>
-                ))}
-              </Stack>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-                Totales
-              </Typography>
-
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "repeat(2, 1fr)",
-                    md: "repeat(4, 1fr)",
-                  },
-                  gap: 2,
-                }}
-              >
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Subtotal
-                  </Typography>
-                  <Typography fontWeight={700}>
-                    {formatoMoneda(totales.subtotal)}
-                  </Typography>
+                  <TextField
+                    label="Uso de CFDI"
+                    value={formulario.uso_cfdi}
+                    onChange={(event) =>
+                      actualizarCampo(
+                        "uso_cfdi",
+                        event.target.value.toUpperCase()
+                      )
+                    }
+                    inputProps={{
+                      maxLength: 4,
+                    }}
+                    helperText="Ejemplo: G03 o S01"
+                    required
+                    fullWidth
+                  />
                 </Box>
+              </CardContent>
+            </Card>
 
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Descuento
-                  </Typography>
-                  <Typography fontWeight={700}>
-                    {formatoMoneda(totales.descuento)}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    IVA
-                  </Typography>
-                  <Typography fontWeight={700}>
-                    {formatoMoneda(totales.iva)}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Total
-                  </Typography>
-                  <Typography variant="h6" fontWeight={800}>
-                    {formatoMoneda(totales.total)}
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Divider sx={{ my: 3 }} />
-
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  variant="contained"
-                  size="large"
-                  disabled={enviando}
-                  onClick={enviarTimbrado}
-                  startIcon={
-                    enviando ? (
-                      <CircularProgress size={18} color="inherit" />
-                    ) : undefined
-                  }
+            <Card>
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  fontWeight={700}
+                  sx={{ mb: 2 }}
                 >
-                  {enviando ? "Timbrando..." : "Generar y timbrar CFDI"}
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Stack>
+                  Información obtenida automáticamente
+                </Typography>
+
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "repeat(2, 1fr)",
+                      lg: "repeat(4, 1fr)",
+                    },
+                    gap: 2,
+                  }}
+                >
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      Receptor
+                    </Typography>
+
+                    <Typography fontWeight={600}>
+                      Datos fiscales del cliente
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      Concepto
+                    </Typography>
+
+                    <Typography fontWeight={600}>
+                      Movimiento del historial de ventas
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      Importes
+                    </Typography>
+
+                    <Typography fontWeight={600}>
+                      Snapshot fiscal con 6 decimales
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      Folio
+                    </Typography>
+
+                    <Typography fontWeight={600}>
+                      Asignado por TaeConta
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Alert severity="warning" sx={{ mt: 3 }}>
+                  El movimiento debe estar pagado y el producto debe tener
+                  una clave SAT de producto y una clave SAT de unidad
+                  válidas. En caso contrario, el backend impedirá el
+                  timbrado antes de enviar información a TaeConta.
+                </Alert>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    mt: 3,
+                  }}
+                >
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="large"
+                    disabled={enviando}
+                    startIcon={
+                      enviando ? (
+                        <CircularProgress
+                          size={18}
+                          color="inherit"
+                        />
+                      ) : (
+                        <ReceiptLongIcon />
+                      )
+                    }
+                  >
+                    {enviando
+                      ? "Timbrando..."
+                      : "Generar y timbrar CFDI"}
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Stack>
+        </Box>
       )}
 
       {tab === 1 && (
@@ -855,7 +641,7 @@ export default function TaecontaTimbradoPage() {
             >
               <TextField
                 label="Buscar"
-                placeholder="Folio, serie, RFC, nombre o UUID"
+                placeholder="Movimiento, folio, RFC, nombre o UUID"
                 value={busqueda}
                 onChange={(event) => {
                   setBusqueda(event.target.value);
@@ -870,33 +656,52 @@ export default function TaecontaTimbradoPage() {
                 value={estatus}
                 onChange={(event) => {
                   setEstatus(
-                    event.target.value as TaecontaTimbradoEstatus | ""
+                    event.target.value as
+                      | TaecontaTimbradoEstatus
+                      | ""
                   );
                   setPagina(1);
                 }}
-                sx={{ minWidth: 180 }}
+                sx={{
+                  width: {
+                    xs: "100%",
+                    md: 210,
+                  },
+                }}
               >
                 <MenuItem value="">Todos</MenuItem>
                 <MenuItem value="pendiente">Pendiente</MenuItem>
-                <MenuItem value="timbrado">Timbrado</MenuItem>
+                <MenuItem value="procesando">Procesando</MenuItem>
+                <MenuItem value="timbrada">Timbrada</MenuItem>
                 <MenuItem value="rechazado">Rechazado</MenuItem>
                 <MenuItem value="error">Error</MenuItem>
+                <MenuItem value="cancelada">Cancelada</MenuItem>
               </TextField>
 
               <Button
                 variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={cargarHistorial}
+                startIcon={
+                  cargandoHistorial ? (
+                    <CircularProgress size={18} />
+                  ) : (
+                    <RefreshIcon />
+                  )
+                }
+                onClick={() => void cargarHistorial()}
                 disabled={cargandoHistorial}
+                sx={{
+                  whiteSpace: "nowrap",
+                }}
               >
                 Actualizar
               </Button>
             </Stack>
 
             <TableContainer>
-              <Table>
+              <Table sx={{ minWidth: 950 }}>
                 <TableHead>
                   <TableRow>
+                    <TableCell>Movimiento</TableCell>
                     <TableCell>Serie / Folio</TableCell>
                     <TableCell>Receptor</TableCell>
                     <TableCell>UUID</TableCell>
@@ -909,65 +714,102 @@ export default function TaecontaTimbradoPage() {
                 <TableBody>
                   {cargandoHistorial ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">
+                      <TableCell colSpan={7} align="center">
                         <CircularProgress size={28} />
                       </TableCell>
                     </TableRow>
                   ) : timbrados.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">
+                      <TableCell colSpan={7} align="center">
                         No se encontraron registros.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    timbrados.map((timbrado) => (
-                      <TableRow key={timbrado.id} hover>
-                        <TableCell>
-                          <Typography fontWeight={700}>
-                            {timbrado.serie} - {timbrado.folio}
-                          </Typography>
-                        </TableCell>
+                    timbrados.map((timbrado) => {
+                      const historialClienteId =
+                        obtenerHistorialClienteId(timbrado);
 
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={600}>
-                            {timbrado.receptor_nombre}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                          >
-                            {timbrado.receptor_rfc}
-                          </Typography>
-                        </TableCell>
+                      return (
+                        <TableRow key={timbrado.id} hover>
+                          <TableCell>
+                            <Typography fontWeight={700}>
+                              {historialClienteId
+                                ? `#${historialClienteId}`
+                                : "—"}
+                            </Typography>
 
-                        <TableCell>
-                          <Typography
-                            variant="body2"
-                            sx={{ wordBreak: "break-all" }}
-                          >
-                            {timbrado.uuid || "—"}
-                          </Typography>
-                        </TableCell>
+                            {timbrado.historial_compra_id && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Snapshot fiscal #
+                                {timbrado.historial_compra_id}
+                              </Typography>
+                            )}
+                          </TableCell>
 
-                        <TableCell align="right">
-                          {formatoMoneda(timbrado.total)}
-                        </TableCell>
+                          <TableCell>
+                            <Typography fontWeight={700}>
+                              {timbrado.serie}
+                              {timbrado.folio
+                                ? ` - ${timbrado.folio}`
+                                : " - Pendiente"}
+                            </Typography>
+                          </TableCell>
 
-                        <TableCell>
-                          <Chip
-                            label={timbrado.estatus}
-                            color={colorEstatus(timbrado.estatus)}
-                            size="small"
-                          />
-                        </TableCell>
+                          <TableCell>
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                            >
+                              {timbrado.receptor_nombre}
+                            </Typography>
 
-                        <TableCell>
-                          {new Date(timbrado.created_at).toLocaleString(
-                            "es-MX"
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {timbrado.receptor_rfc}
+                            </Typography>
+                          </TableCell>
+
+                          <TableCell>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                maxWidth: 260,
+                                wordBreak: "break-all",
+                              }}
+                            >
+                              {timbrado.uuid || "—"}
+                            </Typography>
+                          </TableCell>
+
+                          <TableCell align="right">
+                            {formatoMoneda(timbrado.total)}
+                          </TableCell>
+
+                          <TableCell>
+                            <Chip
+                              label={
+                                ETIQUETAS_ESTATUS[
+                                  timbrado.estatus
+                                ]
+                              }
+                              color={colorEstatus(
+                                timbrado.estatus
+                              )}
+                              size="small"
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            {formatoFecha(timbrado.created_at)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -980,12 +822,15 @@ export default function TaecontaTimbradoPage() {
               spacing={2}
               sx={{ mt: 3 }}
             >
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                color="text.secondary"
+              >
                 {totalRegistros} registros
               </Typography>
 
               <Pagination
-                count={ultimaPagina}
+                count={Math.max(ultimaPagina, 1)}
                 page={pagina}
                 onChange={(_event, nuevaPagina) =>
                   setPagina(nuevaPagina)

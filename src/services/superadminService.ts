@@ -1054,4 +1054,7 @@ export async function downloadSuperAdminClientHistoryXml(
     fileName ||
       `factura-historial-${id}.xml`,
   );
+
+
+  
 }

@@ -58,6 +58,7 @@ import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
 import PictureAsPdfRoundedIcon from "@mui/icons-material/PictureAsPdfRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
+import RequestQuoteRoundedIcon from "@mui/icons-material/RequestQuoteRounded";
 import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
@@ -88,6 +89,16 @@ import {
   type ClientHistoryStatus,
   type SuperAdminPaymentMethod,
 } from "../../../../services/superadminService";
+
+import {
+  obtenerPrevisualizacionFacturaTaeconta,
+  timbrarCompraTaeconta,
+} from "../../../../services/taecontaTimbrado.service";
+
+import {
+  TaecontaFacturaPreviewResponse,
+  TaecontaMetodoPago,
+} from "../../../../types/taecontaTimbrado";
 
 type Props = {
   systemName: string;
@@ -130,13 +141,26 @@ type XmlPreviewState = {
   content: string;
 };
 
+type InvoiceFormState = {
+  usoCfdi: string;
+  metodoPago: TaecontaMetodoPago;
+  formaPago: string;
+};
+
+const INITIAL_INVOICE_FORM: InvoiceFormState = {
+  usoCfdi: "G03",
+  metodoPago: "PUE",
+  formaPago: "03",
+};
+
 const desktopActionIconSx =
   (
     tone:
       | "primary"
       | "error"
       | "warning"
-      | "success",
+      | "success"
+      | "info",
   ) =>
   (theme: any) => ({
     width: 34,
@@ -283,6 +307,27 @@ function formatCurrency(
   return currencyFormatter.format(
     asNumber(value),
   );
+}
+
+function formatFiscalAmount(
+  value: string | number | null | undefined,
+): string {
+  const amount = Number(value ?? 0);
+
+  return new Intl.NumberFormat("es-MX", {
+    minimumFractionDigits: 6,
+    maximumFractionDigits: 6,
+  }).format(
+    Number.isFinite(amount)
+      ? amount
+      : 0,
+  );
+}
+
+function formatFiscalCurrency(
+  value: string | number | null | undefined,
+): string {
+  return `$${formatFiscalAmount(value)} MXN`;
 }
 
 function formatDate(
@@ -784,6 +829,29 @@ export default function ClientHistoryPage({
 
   const [xmlPreview, setXmlPreview] =
     useState<XmlPreviewState | null>(null);
+
+  const [invoiceRecord, setInvoiceRecord] =
+    useState<ClientHistoryRecord | null>(null);
+
+  const [invoicePreview, setInvoicePreview] =
+    useState<TaecontaFacturaPreviewResponse | null>(null);
+
+  const [invoicePreviewLoading, setInvoicePreviewLoading] =
+    useState(false);
+
+  const [invoiceSubmitting, setInvoiceSubmitting] =
+    useState(false);
+
+  const [invoiceError, setInvoiceError] =
+    useState<string | null>(null);
+
+  const [invoiceSuccess, setInvoiceSuccess] =
+    useState<string | null>(null);
+
+  const [invoiceForm, setInvoiceForm] =
+    useState<InvoiceFormState>(
+      INITIAL_INVOICE_FORM,
+    );
 
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
@@ -1503,6 +1571,144 @@ export default function ClientHistoryPage({
     }
   }
 
+  async function openInvoiceDialog(
+    record: ClientHistoryRecord,
+  ) {
+    setInvoiceRecord(record);
+    setInvoicePreview(null);
+    setInvoiceError(null);
+    setInvoiceSuccess(null);
+    setInvoiceForm(
+      INITIAL_INVOICE_FORM,
+    );
+    setInvoicePreviewLoading(true);
+
+    try {
+      const response =
+        await obtenerPrevisualizacionFacturaTaeconta(
+          record.id,
+        );
+
+      setInvoicePreview(response);
+
+      setInvoiceForm({
+        usoCfdi:
+          response.data
+            .opciones_sugeridas
+            .uso_cfdi || "G03",
+        metodoPago:
+          response.data
+            .opciones_sugeridas
+            .metodo_pago || "PUE",
+        formaPago:
+          response.data
+            .opciones_sugeridas
+            .forma_pago || "03",
+      });
+    } catch (previewError) {
+      setInvoiceError(
+        errorMessage(
+          previewError,
+          "No fue posible validar la información fiscal.",
+        ),
+      );
+    } finally {
+      setInvoicePreviewLoading(false);
+    }
+  }
+
+  function closeInvoiceDialog() {
+    if (invoiceSubmitting) {
+      return;
+    }
+
+    setInvoiceRecord(null);
+    setInvoicePreview(null);
+    setInvoiceError(null);
+    setInvoiceSuccess(null);
+    setInvoiceForm(
+      INITIAL_INVOICE_FORM,
+    );
+  }
+
+  async function handleInvoiceStamp() {
+    if (
+      !invoiceRecord ||
+      !invoicePreview?.can_invoice ||
+      invoicePreview.data.timbrado
+    ) {
+      return;
+    }
+
+    const usoCfdi =
+      invoiceForm.usoCfdi
+        .trim()
+        .toUpperCase();
+
+    if (
+      !/^[A-Z0-9]{3,4}$/.test(
+        usoCfdi,
+      )
+    ) {
+      setInvoiceError(
+        "El uso de CFDI no tiene un formato válido.",
+      );
+
+      return;
+    }
+
+    if (
+      invoiceForm.metodoPago ===
+        "PPD" &&
+      invoiceForm.formaPago !== "99"
+    ) {
+      setInvoiceError(
+        "Cuando el método de pago es PPD, la forma de pago debe ser 99.",
+      );
+
+      return;
+    }
+
+    setInvoiceSubmitting(true);
+    setInvoiceError(null);
+    setInvoiceSuccess(null);
+
+    try {
+      const response =
+        await timbrarCompraTaeconta({
+          historial_cliente_id:
+            invoiceRecord.id,
+          uso_cfdi: usoCfdi,
+          metodo_pago:
+            invoiceForm.metodoPago,
+          forma_pago:
+            invoiceForm.formaPago,
+        });
+
+      setInvoiceSuccess(
+        response.message,
+      );
+
+      const refreshed =
+        await obtenerPrevisualizacionFacturaTaeconta(
+          invoiceRecord.id,
+        );
+
+      setInvoicePreview(refreshed);
+
+      await loadHistory();
+    } catch (stampError) {
+      setInvoiceError(
+        errorMessage(
+          stampError,
+          "No fue posible generar y timbrar el CFDI.",
+        ),
+      );
+    } finally {
+      setInvoiceSubmitting(false);
+    }
+  }
+
   const estimatedTotal =
     asNumber(form.cantidad) *
     asNumber(form.precioUnitario);
@@ -2044,7 +2250,7 @@ export default function ClientHistoryPage({
                 sx={(theme) => ({
                   display: "grid",
                   gridTemplateColumns:
-                    "140px minmax(180px, 1.35fr) minmax(145px, 1fr) 54px minmax(150px, .9fr) 180px",
+                    "140px minmax(180px, 1.35fr) minmax(145px, 1fr) 54px minmax(150px, .9fr) 220px",
                   alignItems: "center",
                   columnGap: 1.5,
                   px: 2,
@@ -2092,7 +2298,7 @@ export default function ClientHistoryPage({
                     sx={(theme) => ({
                       display: "grid",
                       gridTemplateColumns:
-                        "140px minmax(180px, 1.35fr) minmax(145px, 1fr) 54px minmax(150px, .9fr) 180px",
+                        "140px minmax(180px, 1.35fr) minmax(145px, 1fr) 54px minmax(150px, .9fr) 220px",
                       alignItems: "center",
                       columnGap: 1.5,
                       px: 2,
@@ -2345,6 +2551,37 @@ export default function ClientHistoryPage({
                             ) : (
                               <PictureAsPdfRoundedIcon fontSize="small" />
                             )}
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+
+                      <Tooltip
+                        title={
+                          record.uuid_fiscal
+                            ? "Consultar CFDI"
+                            : record.status === "pagado"
+                              ? "Facturar movimiento"
+                              : "Solo pueden facturarse movimientos pagados"
+                        }
+                        arrow
+                      >
+                        <span>
+                          <IconButton
+                            size="small"
+                            disabled={
+                              record.status !== "pagado" &&
+                              !record.uuid_fiscal
+                            }
+                            onClick={() =>
+                              void openInvoiceDialog(
+                                record,
+                              )
+                            }
+                            sx={desktopActionIconSx(
+                              "info",
+                            )}
+                          >
+                            <RequestQuoteRoundedIcon fontSize="small" />
                           </IconButton>
                         </span>
                       </Tooltip>
@@ -2678,7 +2915,38 @@ export default function ClientHistoryPage({
                           </IconButton>
                         </Tooltip>
 
-                        {record.factura_pdf_disponible ? (
+                        <Tooltip
+                        title={
+                          record.uuid_fiscal
+                            ? "Consultar CFDI"
+                            : record.status === "pagado"
+                              ? "Facturar movimiento"
+                              : "Solo pueden facturarse movimientos pagados"
+                        }
+                        arrow
+                      >
+                        <span>
+                          <IconButton
+                            size="small"
+                            disabled={
+                              record.status !== "pagado" &&
+                              !record.uuid_fiscal
+                            }
+                            onClick={() =>
+                              void openInvoiceDialog(
+                                record,
+                              )
+                            }
+                            sx={desktopActionIconSx(
+                              "info",
+                            )}
+                          >
+                            <RequestQuoteRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+
+                      {record.factura_pdf_disponible ? (
                           <Tooltip title="Ver factura PDF" arrow>
                             <IconButton
                               size="small"
@@ -4804,6 +5072,683 @@ export default function ClientHistoryPage({
           >
             Cerrar
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(invoiceRecord)}
+        onClose={closeInvoiceDialog}
+        fullWidth
+        fullScreen={isMobile}
+        maxWidth="md"
+        scroll="paper"
+        PaperProps={{
+          sx: {
+            borderRadius: {
+              xs: 0,
+              sm: 4,
+            },
+            height: {
+              xs: "100dvh",
+              sm: "auto",
+            },
+            maxHeight: {
+              xs: "100dvh",
+              sm: "calc(100% - 64px)",
+            },
+            overflow: "hidden",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            spacing={2}
+          >
+            <Stack
+              direction="row"
+              spacing={1.25}
+              alignItems="center"
+            >
+              <Avatar
+                sx={{
+                  bgcolor: "info.main",
+                }}
+              >
+                <RequestQuoteRoundedIcon />
+              </Avatar>
+
+              <Box>
+                <Typography
+                  variant="h6"
+                  fontWeight={900}
+                >
+                  Facturar movimiento
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  {invoiceRecord
+                    ? `Movimiento #${invoiceRecord.id}`
+                    : ""}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <IconButton
+              onClick={closeInvoiceDialog}
+              disabled={invoiceSubmitting}
+            >
+              <CloseRoundedIcon />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+
+        <DialogContent
+          dividers
+          sx={{
+            p: {
+              xs: 2,
+              sm: 3,
+            },
+          }}
+        >
+          {invoicePreviewLoading ? (
+            <Stack
+              minHeight={320}
+              alignItems="center"
+              justifyContent="center"
+              spacing={1.5}
+            >
+              <CircularProgress />
+
+              <Typography color="text.secondary">
+                Validando información fiscal...
+              </Typography>
+            </Stack>
+          ) : (
+            <Stack spacing={2.5}>
+              {invoiceError ? (
+                <Alert
+                  severity="error"
+                  onClose={() =>
+                    setInvoiceError(null)
+                  }
+                >
+                  {invoiceError}
+                </Alert>
+              ) : null}
+
+              {invoiceSuccess ? (
+                <Alert severity="success">
+                  {invoiceSuccess}
+                </Alert>
+              ) : null}
+
+              {invoicePreview ? (
+                <>
+                  <Alert
+                    severity={
+                      invoicePreview.data.timbrado
+                        ? "success"
+                        : invoicePreview.can_invoice
+                          ? "success"
+                          : "warning"
+                    }
+                  >
+                    {invoicePreview.data.timbrado
+                      ? "El movimiento ya cuenta con un CFDI timbrado."
+                      : invoicePreview.message}
+                  </Alert>
+
+                  {!invoicePreview.data.timbrado &&
+                  invoicePreview.data.faltantes.length >
+                    0 ? (
+                    <Alert severity="error">
+                      <Typography
+                        fontWeight={900}
+                        mb={0.75}
+                      >
+                        Corrige lo siguiente:
+                      </Typography>
+
+                      <Stack
+                        component="ul"
+                        sx={{
+                          m: 0,
+                          pl: 2.5,
+                        }}
+                      >
+                        {invoicePreview.data.faltantes.map(
+                          (item) => (
+                            <Typography
+                              component="li"
+                              variant="body2"
+                              key={item}
+                            >
+                              {item}
+                            </Typography>
+                          ),
+                        )}
+                      </Stack>
+                    </Alert>
+                  ) : null}
+
+                  {invoicePreview.data.advertencias.length >
+                  0 ? (
+                    <Alert severity="warning">
+                      <Stack
+                        component="ul"
+                        sx={{
+                          m: 0,
+                          pl: 2.5,
+                        }}
+                      >
+                        {invoicePreview.data.advertencias.map(
+                          (item) => (
+                            <Typography
+                              component="li"
+                              variant="body2"
+                              key={item}
+                            >
+                              {item}
+                            </Typography>
+                          ),
+                        )}
+                      </Stack>
+                    </Alert>
+                  ) : null}
+
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderRadius: 3,
+                    }}
+                  >
+                    <Typography
+                      fontWeight={900}
+                      mb={1.5}
+                    >
+                      Receptor
+                    </Typography>
+
+                    <Grid container spacing={1.5}>
+                      <Grid item xs={12} sm={6}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          Nombre o razón social
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          {invoicePreview.data.cliente.nombre ||
+                            "—"}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          RFC
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          {invoicePreview.data.cliente.rfc ||
+                            "—"}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          Régimen fiscal
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          {invoicePreview.data.cliente
+                            .regimen_fiscal || "—"}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          Código postal fiscal
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          {invoicePreview.data.cliente
+                            .codigo_postal_fiscal || "—"}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          Correo
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          {invoicePreview.data.cliente.correo ||
+                            "—"}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderRadius: 3,
+                    }}
+                  >
+                    <Typography
+                      fontWeight={900}
+                      mb={1.5}
+                    >
+                      Producto
+                    </Typography>
+
+                    <Grid container spacing={1.5}>
+                      <Grid item xs={12}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          Descripción
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          {invoicePreview.data.producto.nombre ||
+                            "—"}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6} sm={3}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          Cantidad
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          {formatFiscalAmount(
+                            invoicePreview.data.producto
+                              .cantidad,
+                          )}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6} sm={3}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          Clave SAT
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          {invoicePreview.data.producto
+                            .clave_producto || "—"}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6} sm={3}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          Unidad SAT
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          {invoicePreview.data.producto
+                            .clave_unidad || "—"}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6} sm={3}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          IVA
+                        </Typography>
+
+                        <Typography fontWeight={800}>
+                          16.000000 %
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderRadius: 3,
+                    }}
+                  >
+                    <Typography
+                      fontWeight={900}
+                      mb={1.5}
+                    >
+                      Desglose fiscal
+                    </Typography>
+
+                    <Stack spacing={1}>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        spacing={2}
+                      >
+                        <Typography color="text.secondary">
+                          Precio unitario con IVA
+                        </Typography>
+
+                        <Typography fontWeight={900}>
+                          {formatFiscalCurrency(
+                            invoicePreview.data.producto
+                              .precio_unitario_con_iva,
+                          )}
+                        </Typography>
+                      </Stack>
+
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        spacing={2}
+                      >
+                        <Typography color="text.secondary">
+                          Precio unitario sin IVA
+                        </Typography>
+
+                        <Typography fontWeight={900}>
+                          {formatFiscalCurrency(
+                            invoicePreview.data.producto
+                              .precio_unitario_sin_iva,
+                          )}
+                        </Typography>
+                      </Stack>
+
+                      <Divider />
+
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        spacing={2}
+                      >
+                        <Typography>
+                          Subtotal
+                        </Typography>
+
+                        <Typography fontWeight={900}>
+                          {formatFiscalCurrency(
+                            invoicePreview.data.totales
+                              .subtotal,
+                          )}
+                        </Typography>
+                      </Stack>
+
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        spacing={2}
+                      >
+                        <Typography>
+                          IVA 16 %
+                        </Typography>
+
+                        <Typography fontWeight={900}>
+                          {formatFiscalCurrency(
+                            invoicePreview.data.totales.iva,
+                          )}
+                        </Typography>
+                      </Stack>
+
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        spacing={2}
+                      >
+                        <Typography
+                          variant="h6"
+                          fontWeight={900}
+                        >
+                          Total
+                        </Typography>
+
+                        <Typography
+                          variant="h6"
+                          fontWeight={900}
+                          color="primary.main"
+                        >
+                          {formatFiscalCurrency(
+                            invoicePreview.data.totales
+                              .total,
+                          )}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+
+                  {!invoicePreview.data.timbrado ? (
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        borderRadius: 3,
+                      }}
+                    >
+                      <Typography
+                        fontWeight={900}
+                        mb={1.5}
+                      >
+                        Configuración del CFDI
+                      </Typography>
+
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={4}>
+                          <TextField
+                            fullWidth
+                            label="Uso de CFDI"
+                            value={invoiceForm.usoCfdi}
+                            inputProps={{
+                              maxLength: 4,
+                            }}
+                            onChange={(event) =>
+                              setInvoiceForm(
+                                (current) => ({
+                                  ...current,
+                                  usoCfdi:
+                                    event.target.value.toUpperCase(),
+                                }),
+                              )
+                            }
+                          />
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth>
+                            <InputLabel>
+                              Método de pago
+                            </InputLabel>
+
+                            <Select
+                              value={
+                                invoiceForm.metodoPago
+                              }
+                              label="Método de pago"
+                              onChange={(event) => {
+                                const metodoPago =
+                                  event.target
+                                    .value as TaecontaMetodoPago;
+
+                                setInvoiceForm(
+                                  (current) => ({
+                                    ...current,
+                                    metodoPago,
+                                    formaPago:
+                                      metodoPago === "PPD"
+                                        ? "99"
+                                        : current.formaPago ===
+                                            "99"
+                                          ? "03"
+                                          : current.formaPago,
+                                  }),
+                                );
+                              }}
+                            >
+                              <MenuItem value="PUE">
+                                PUE - Pago en una sola exhibición
+                              </MenuItem>
+
+                              <MenuItem value="PPD">
+                                PPD - Pago en parcialidades o diferido
+                              </MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth>
+                            <InputLabel>
+                              Forma de pago
+                            </InputLabel>
+
+                            <Select
+                              value={
+                                invoiceForm.formaPago
+                              }
+                              label="Forma de pago"
+                              disabled={
+                                invoiceForm.metodoPago ===
+                                "PPD"
+                              }
+                              onChange={(event) =>
+                                setInvoiceForm(
+                                  (current) => ({
+                                    ...current,
+                                    formaPago: String(
+                                      event.target.value,
+                                    ),
+                                  }),
+                                )
+                              }
+                            >
+                              <MenuItem value="01">
+                                01 - Efectivo
+                              </MenuItem>
+
+                              <MenuItem value="02">
+                                02 - Cheque
+                              </MenuItem>
+
+                              <MenuItem value="03">
+                                03 - Transferencia
+                              </MenuItem>
+
+                              <MenuItem value="04">
+                                04 - Tarjeta de crédito
+                              </MenuItem>
+
+                              <MenuItem value="28">
+                                28 - Tarjeta de débito
+                              </MenuItem>
+
+                              <MenuItem value="99">
+                                99 - Por definir
+                              </MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  ) : (
+                    <Alert severity="success">
+                      CFDI timbrado:{" "}
+                      {
+                        invoicePreview.data.timbrado
+                          .serie
+                      }
+                      {invoicePreview.data.timbrado
+                        .folio
+                        ? `-${invoicePreview.data.timbrado.folio}`
+                        : ""}
+                      {invoicePreview.data.timbrado.uuid
+                        ? ` · UUID ${invoicePreview.data.timbrado.uuid}`
+                        : ""}
+                    </Alert>
+                  )}
+                </>
+              ) : null}
+            </Stack>
+          )}
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Button
+            onClick={closeInvoiceDialog}
+            disabled={invoiceSubmitting}
+          >
+            Cerrar
+          </Button>
+
+          {invoicePreview &&
+          !invoicePreview.data.timbrado ? (
+            <Button
+              variant="contained"
+              startIcon={
+                invoiceSubmitting ? (
+                  <CircularProgress
+                    size={17}
+                    color="inherit"
+                  />
+                ) : (
+                  <RequestQuoteRoundedIcon />
+                )
+              }
+              disabled={
+                invoiceSubmitting ||
+                !invoicePreview.can_invoice
+              }
+              onClick={() =>
+                void handleInvoiceStamp()
+              }
+            >
+              {invoiceSubmitting
+                ? "Timbrando..."
+                : "Confirmar y timbrar CFDI"}
+            </Button>
+          ) : null}
         </DialogActions>
       </Dialog>
 
