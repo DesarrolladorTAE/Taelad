@@ -310,20 +310,17 @@ function isHttpUrl(
 function toBlogPostAdMediaIds(
   mediaIds: number[]
 ): BlogPostAdMediaIds {
-  if (
-    mediaIds.length !== 3 ||
-    new Set(mediaIds).size !== 3
-  ) {
+  const uniqueMediaIds = Array.from(
+    new Set(mediaIds)
+  );
+
+  if (uniqueMediaIds.length === 0) {
     throw new Error(
-      "Cada anuncio debe contener exactamente tres imágenes diferentes."
+      "Cada anuncio debe contener al menos una imagen."
     );
   }
 
-  return [
-    mediaIds[0],
-    mediaIds[1],
-    mediaIds[2],
-  ];
+  return uniqueMediaIds as BlogPostAdMediaIds;
 }
 
 function slugify(value: string): string {
@@ -497,14 +494,15 @@ function validateAdForm(
       "El orden debe ser un número entero igual o mayor que cero.";
   }
 
-  if (form.media_ids.length !== 3) {
+  if (form.media_ids.length === 0) {
     errors.media_ids =
-      "Selecciona exactamente tres imágenes.";
+      "Selecciona al menos una imagen.";
   } else if (
-    new Set(form.media_ids).size !== 3
+    new Set(form.media_ids).size !==
+    form.media_ids.length
   ) {
     errors.media_ids =
-      "Las tres imágenes deben ser diferentes.";
+      "Las imágenes seleccionadas no deben repetirse.";
   }
 
   return errors;
@@ -1614,7 +1612,7 @@ export default function BlogPostsSection({
             media_ids: [
               ...current.media_ids,
               createdMedia.id,
-            ].slice(0, 3),
+            ],
           };
         });
 
@@ -1909,7 +1907,7 @@ export default function BlogPostsSection({
     if (invalidAd) {
       setFormTab(4);
       setFormError(
-        `Revisa el anuncio “${invalidAd.title}”. Cada anuncio debe tener exactamente tres imágenes.`
+        `Revisa el anuncio “${invalidAd.title}”. Cada anuncio debe tener al menos una imagen.`
       );
       return;
     }
@@ -2163,10 +2161,6 @@ export default function BlogPostsSection({
               (id) => id !== mediaId
             ),
         };
-      }
-
-      if (current.media_ids.length >= 3) {
-        return current;
       }
 
       return {
@@ -4507,7 +4501,7 @@ export default function BlogPostsSection({
                       Los anuncios activos se mostrarán
                       públicamente después del contenido
                       de la publicación. Cada anuncio debe
-                      tener exactamente tres imágenes.
+                      tener al menos una imagen.
                     </Alert>
                   </Grid>
 
@@ -4558,9 +4552,9 @@ export default function BlogPostsSection({
                                 sx={{ mt: 0.5 }}
                               >
                                 Cada publicación puede tener
-                                uno o varios anuncios. Cada
-                                anuncio requiere exactamente
-                                tres imágenes y una URL de destino.
+                                uno o varios anuncios. Cada anuncio
+                                puede contener las imágenes que sean
+                                necesarias y una URL de destino.
                               </Typography>
                             </Box>
 
@@ -4860,7 +4854,7 @@ export default function BlogPostsSection({
             variant="body2"
             color="text.secondary"
           >
-            Sube exactamente tres imágenes. En la vista
+            Selecciona una o varias imágenes. En la vista
             pública se mostrarán como un carrusel automático
             y abrirán la misma URL de destino.
           </Typography>
@@ -5100,7 +5094,7 @@ export default function BlogPostsSection({
                   }
                 >
                   {adFormErrors.media_ids ??
-                    `${adForm.media_ids.length}/3 imágenes seleccionadas`}
+                    `${adForm.media_ids.length} imágenes seleccionadas`}
                 </Typography>
               </Box>
 
@@ -5114,8 +5108,7 @@ export default function BlogPostsSection({
                 }
                 disabled={
                   adSaving ||
-                  uploadingMedia ||
-                  adForm.media_ids.length >= 3
+                  uploadingMedia
                 }
                 sx={{
                   textTransform: "none",
@@ -5193,10 +5186,9 @@ export default function BlogPostsSection({
               severity="info"
               icon={false}
             >
-              Sube las imágenes una por una hasta completar
-              las tres. En público solo se verá una imagen
-              a la vez y cambiará automáticamente cada
-              3 segundos.
+              Sube las imágenes que necesites. En público
+              se verá una imagen a la vez y el carrusel
+              cambiará automáticamente cada 3 segundos.
             </Alert>
           </Stack>
         </DialogContent>

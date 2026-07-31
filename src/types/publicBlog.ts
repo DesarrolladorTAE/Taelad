@@ -1,3 +1,8 @@
+export type BlogPostStatus =
+  | "draft"
+  | "published"
+  | "archived";
+
 export interface PublicBlogSeo {
   title: string | null;
   description: string | null;
@@ -50,6 +55,7 @@ export interface PublicBlogCover {
 }
 
 export interface PublicBlogPost {
+  id?: number;
   title: string;
   slug: string;
   excerpt: string | null;
@@ -58,20 +64,23 @@ export interface PublicBlogPost {
   category: PublicBlogCategory | null;
   tags: PublicBlogTag[];
   author: PublicBlogAuthor | null;
+  status: BlogPostStatus;
   is_featured: boolean;
   published_at: string | null;
+  created_at?: string | null;
   updated_at: string | null;
 }
 
 export interface PublicBlogOpenGraph {
   title: string | null;
   description: string | null;
-  image: string | null;
+  image: string | PublicBlogCover | null;
   url: string | null;
   type: string;
 }
 
-export interface PublicBlogPostDetail extends PublicBlogPost {
+export interface PublicBlogPostDetail
+  extends PublicBlogPost {
   content: string;
   seo: PublicBlogSeo;
   open_graph: PublicBlogOpenGraph;
@@ -116,6 +125,7 @@ export interface PublicBlogPostFilters {
   search?: string;
   category?: string;
   tag?: string;
+  status?: BlogPostStatus | "all";
   featured?: boolean;
   order?: "latest" | "oldest" | "updated";
 }

@@ -31,6 +31,8 @@ import {
   Select,
   Stack,
   Switch,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -67,9 +69,7 @@ import {
   createSuperAdminClientHistory,
   createSuperAdminPaymentMethod,
   deleteSuperAdminPaymentMethod,
-  downloadSuperAdminClientHistoryInvoicePdf,
   downloadSuperAdminClientHistoryPdf,
-  downloadSuperAdminClientHistoryXml,
   getSuperAdminClientHistory,
   getSuperAdminPaymentMethods,
   getSuperAdminUsers,
@@ -91,13 +91,14 @@ import {
 } from "../../../../services/superadminService";
 
 import {
+  obtenerFacturaPdfTaeconta,
+  obtenerFacturaXmlTaeconta,
   obtenerPrevisualizacionFacturaTaeconta,
   timbrarCompraTaeconta,
 } from "../../../../services/taecontaTimbrado.service";
 
 import {
   TaecontaFacturaPreviewResponse,
-  TaecontaMetodoPago,
 } from "../../../../types/taecontaTimbrado";
 
 type Props = {
@@ -141,17 +142,88 @@ type XmlPreviewState = {
   content: string;
 };
 
+type FiscalDocumentTab = "pdf" | "xml";
+
+type FiscalDocumentState = {
+  record: ClientHistoryRecord;
+  tab: FiscalDocumentTab;
+  pdfUrl: string | null;
+  xmlContent: string | null;
+  loadingPdf: boolean;
+  loadingXml: boolean;
+  error: string | null;
+};
+
 type InvoiceFormState = {
   usoCfdi: string;
-  metodoPago: TaecontaMetodoPago;
   formaPago: string;
 };
 
+type UsoCfdiOption = {
+  codigo: string;
+  nombre: string;
+  aplicaFisica: boolean;
+  aplicaMoral: boolean;
+  regimenes?: string[];
+};
+
+const USOS_CFDI_FACTURA_INGRESO: UsoCfdiOption[] = [
+  { codigo: "G01", nombre: "G01 - Adquisición de mercancías", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "G02", nombre: "G02 - Devoluciones, descuentos o bonificaciones", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "G03", nombre: "G03 - Gastos en general", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "I01", nombre: "I01 - Construcciones", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "I02", nombre: "I02 - Mobiliario y equipo de oficina por inversiones", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "I03", nombre: "I03 - Equipo de transporte", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "I04", nombre: "I04 - Equipo de cómputo y accesorios", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "I05", nombre: "I05 - Dados, troqueles, moldes, matrices y herramental", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "I06", nombre: "I06 - Comunicaciones telefónicas", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "I07", nombre: "I07 - Comunicaciones satelitales", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "I08", nombre: "I08 - Otra maquinaria y equipo", aplicaFisica: true, aplicaMoral: true },
+  { codigo: "D01", nombre: "D01 - Honorarios médicos, dentales y hospitalarios", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "D02", nombre: "D02 - Gastos médicos por incapacidad o discapacidad", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "D03", nombre: "D03 - Gastos funerales", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "D04", nombre: "D04 - Donativos", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "D05", nombre: "D05 - Intereses reales por créditos hipotecarios", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "D06", nombre: "D06 - Aportaciones voluntarias al SAR", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "D07", nombre: "D07 - Primas por seguros de gastos médicos", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "D08", nombre: "D08 - Gastos de transportación escolar obligatoria", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "D09", nombre: "D09 - Depósitos para el ahorro, primas, etc.", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "D10", nombre: "D10 - Pagos por servicios educativos (colegiaturas)", aplicaFisica: true, aplicaMoral: false },
+  { codigo: "S01", nombre: "S01 - Sin efectos fiscales", aplicaFisica: true, aplicaMoral: true },
+];
+
+const FORMAS_PAGO_PUE = [
+  { codigo: "01", nombre: "01 - Efectivo" },
+  { codigo: "02", nombre: "02 - Cheque nominativo" },
+  { codigo: "03", nombre: "03 - Transferencia electrónica de fondos" },
+  { codigo: "04", nombre: "04 - Tarjeta de crédito" },
+  { codigo: "28", nombre: "28 - Tarjeta de débito" },
+] as const;
+
 const INITIAL_INVOICE_FORM: InvoiceFormState = {
   usoCfdi: "G03",
-  metodoPago: "PUE",
   formaPago: "03",
 };
+
+function normalizeUsoCfdi(value: string | null | undefined): string {
+  const codigo = String(value ?? "").trim().toUpperCase();
+
+  return USOS_CFDI_FACTURA_INGRESO.some(
+    (uso) => uso.codigo === codigo,
+  )
+    ? codigo
+    : "G03";
+}
+
+function normalizeFormaPagoPue(value: string | null | undefined): string {
+  const codigo = String(value ?? "").trim();
+
+  return FORMAS_PAGO_PUE.some(
+    (forma) => forma.codigo === codigo,
+  )
+    ? codigo
+    : "03";
+}
 
 const desktopActionIconSx =
   (
@@ -189,8 +261,11 @@ const desktopActionIconSx =
 function statusDotColor(
   status: string,
 ): "success" | "error" | "warning" | "info" {
-  const normalized =
-    status.toLowerCase().trim();
+  const normalized = status.toLowerCase().trim();
+
+  if (normalized === "facturado") {
+    return "info";
+  }
 
   if (normalized === "pagado") {
     return "success";
@@ -204,14 +279,85 @@ function statusDotColor(
     return "error";
   }
 
-  if (
-    normalized === "pendiente" ||
-    normalized === "facturado"
-  ) {
+  if (normalized === "pendiente") {
     return "warning";
   }
 
   return "info";
+}
+
+function recordIsFacturado(
+  record: ClientHistoryRecord,
+): boolean {
+  return (
+    record.facturacion_status === "facturado" ||
+    Boolean(record.uuid_fiscal) ||
+    record.factura?.estatus === "timbrada" ||
+    Boolean(record.factura?.uuid)
+  );
+}
+
+function recordHasTaecontaDocuments(
+  record: ClientHistoryRecord,
+): boolean {
+  return Boolean(
+    record.documentos_fiscales_disponibles ||
+      record.factura?.documentos_disponibles ||
+      record.factura?.factura_taeconta_id,
+  );
+}
+
+function recordHasManualDocuments(
+  record: ClientHistoryRecord,
+): boolean {
+  return Boolean(
+    record.factura_pdf_disponible ||
+      record.xml_disponible,
+  );
+}
+
+function recordDisplayStatus(
+  record: ClientHistoryRecord,
+): string {
+  if (recordIsFacturado(record)) {
+    return "facturado";
+  }
+
+  if (record.facturacion_status === "vencido") {
+    return "vencido";
+  }
+
+  return record.status;
+}
+
+function recordStatusLabel(
+  record: ClientHistoryRecord,
+): string {
+  if (recordIsFacturado(record)) {
+    return "Facturado";
+  }
+
+  if (record.facturacion_status === "vencido") {
+    return "Plazo de facturación vencido";
+  }
+
+  return statusLabel(record.status);
+}
+
+function invoiceActionTitle(
+  record: ClientHistoryRecord,
+): string {
+  if (recordIsFacturado(record)) {
+    return recordHasTaecontaDocuments(record) ||
+      recordHasManualDocuments(record)
+      ? "Ver factura"
+      : "La factura está registrada, pero no tiene documentos disponibles";
+  }
+
+  return record.puede_facturar
+    ? "Facturar movimiento"
+    : record.facturacion_mensaje ||
+        "El movimiento no está disponible para facturación";
 }
 
 const STATUS_OPTIONS: Array<{
@@ -315,8 +461,8 @@ function formatFiscalAmount(
   const amount = Number(value ?? 0);
 
   return new Intl.NumberFormat("es-MX", {
-    minimumFractionDigits: 6,
-    maximumFractionDigits: 6,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(
     Number.isFinite(amount)
       ? amount
@@ -511,7 +657,7 @@ function buildInvoicePdfFileName(
   const reference =
     record.folio?.trim() || record.id;
 
-  return `factura-${reference}.pdf`;
+  return `factura-historial-${reference}.pdf`;
 }
 
 function buildXmlFileName(
@@ -520,7 +666,7 @@ function buildXmlFileName(
   const reference =
     record.folio?.trim() || record.id;
 
-  return `factura-${reference}.xml`;
+  return `factura-historial-${reference}.xml`;
 }
 
 function emptyHistoryForm(): HistoryFormState {
@@ -830,6 +976,9 @@ export default function ClientHistoryPage({
   const [xmlPreview, setXmlPreview] =
     useState<XmlPreviewState | null>(null);
 
+  const [fiscalDocument, setFiscalDocument] =
+    useState<FiscalDocumentState | null>(null);
+
   const [invoiceRecord, setInvoiceRecord] =
     useState<ClientHistoryRecord | null>(null);
 
@@ -871,6 +1020,60 @@ export default function ClientHistoryPage({
           (method) => method.activo,
         ),
       [paymentMethods],
+    );
+
+  const invoiceUsoCfdiOptions =
+    USOS_CFDI_FACTURA_INGRESO;
+
+  const invoiceSelectMenuProps =
+    useMemo(
+      () => ({
+        PaperProps: {
+          sx: {
+            mt: 0.5,
+            width: isMobile
+              ? "calc(100vw - 32px)"
+              : 360,
+            maxWidth: isMobile
+              ? "calc(100vw - 32px)"
+              : 360,
+            maxHeight: isMobile
+              ? 240
+              : 280,
+            borderRadius: 2,
+            overflowY: "auto",
+            "& .MuiMenuItem-root": {
+              minHeight: isMobile
+                ? 40
+                : 34,
+              px: 1.5,
+              py: isMobile
+                ? 0.75
+                : 0.5,
+              fontSize: isMobile
+                ? "0.88rem"
+                : "0.82rem",
+              lineHeight: 1.25,
+              whiteSpace: "normal",
+            },
+          },
+        },
+        MenuListProps: {
+          dense: true,
+          sx: {
+            py: 0.5,
+          },
+        },
+        anchorOrigin: {
+          vertical: "bottom" as const,
+          horizontal: "left" as const,
+        },
+        transformOrigin: {
+          vertical: "top" as const,
+          horizontal: "left" as const,
+        },
+      }),
+      [isMobile],
     );
 
   const loadCatalogs =
@@ -1146,6 +1349,16 @@ export default function ClientHistoryPage({
     };
   }, [pdfPreview]);
 
+  useEffect(() => {
+    return () => {
+      if (fiscalDocument?.pdfUrl) {
+        window.URL.revokeObjectURL(
+          fiscalDocument.pdfUrl,
+        );
+      }
+    };
+  }, [fiscalDocument?.pdfUrl]);
+
   function openCreateDialog() {
     setCreateError(null);
     setSelectedClient(null);
@@ -1331,11 +1544,10 @@ export default function ClientHistoryPage({
     }
   }
 
-  async function showXmlInModal(
+  async function showManualXmlInModal(
     record: ClientHistoryRecord,
   ) {
-    const actionKey =
-      `xml-view-${record.id}`;
+    const actionKey = `xml-view-${record.id}`;
 
     setActiveFileAction(actionKey);
     setError(null);
@@ -1348,11 +1560,8 @@ export default function ClientHistoryPage({
 
       setXmlPreview({
         recordId: record.id,
-        title: `XML ${
-          record.folio ?? record.id
-        }`,
-        fileName:
-          buildXmlFileName(record),
+        title: `XML ${record.folio ?? record.id}`,
+        fileName: buildXmlFileName(record),
         content,
       });
     } catch (fileError) {
@@ -1375,24 +1584,12 @@ export default function ClientHistoryPage({
       return;
     }
 
-    if (
-      file.type !== "application/pdf" &&
-      !file.name
-        .toLowerCase()
-        .endsWith(".pdf")
-    ) {
-      setError(
-        "Selecciona un archivo PDF válido.",
-      );
+    const isPdf =
+      file.type === "application/pdf" ||
+      file.name.toLowerCase().endsWith(".pdf");
 
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setError(
-        "La factura PDF no debe superar 10 MB.",
-      );
-
+    if (!isPdf) {
+      setError("Selecciona un archivo PDF válido.");
       return;
     }
 
@@ -1417,6 +1614,17 @@ export default function ClientHistoryPage({
       return;
     }
 
+    const isXml =
+      file.type === "application/xml" ||
+      file.type === "text/xml" ||
+      file.type === "text/plain" ||
+      file.name.toLowerCase().endsWith(".xml");
+
+    if (!isXml) {
+      setError("Selecciona un archivo XML válido.");
+      return;
+    }
+
     await executeFileAction(
       `xml-upload-${record.id}`,
       async () => {
@@ -1428,6 +1636,433 @@ export default function ClientHistoryPage({
         await loadHistory();
       },
     );
+  }
+
+  function openAvailableInvoice(
+    record: ClientHistoryRecord,
+  ) {
+    if (recordHasTaecontaDocuments(record)) {
+      void openFiscalDocumentDialog(record);
+      return;
+    }
+
+    if (record.factura_pdf_disponible) {
+      void showPdfInModal(
+        `invoice-pdf-view-${record.id}`,
+        `Factura ${record.folio ?? record.id}`,
+        buildInvoicePdfFileName(record),
+        () =>
+          viewSuperAdminClientHistoryInvoicePdf(
+            record.id,
+          ),
+      );
+      return;
+    }
+
+    if (record.xml_disponible) {
+      void showManualXmlInModal(record);
+      return;
+    }
+
+    setError(
+      "La factura está registrada, pero no tiene documentos disponibles.",
+    );
+  }
+
+  function renderInvoiceActions(
+    record: ClientHistoryRecord,
+  ) {
+    const facturado = recordIsFacturado(record);
+
+    const tieneDocumentos =
+      recordHasTaecontaDocuments(record) ||
+      recordHasManualDocuments(record);
+
+    const cargaManualPermitida =
+      !facturado &&
+      Boolean(
+        record.carga_manual_permitida ??
+          record.status === "pagado",
+      );
+
+    if (facturado) {
+      return (
+        <Tooltip
+          title={invoiceActionTitle(record)}
+          arrow
+        >
+          <span>
+            <IconButton
+              size="small"
+              disabled={!tieneDocumentos}
+              onClick={() =>
+                openAvailableInvoice(record)
+              }
+              sx={desktopActionIconSx("info")}
+            >
+              <ReceiptLongRoundedIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <>
+        <Tooltip
+          title={invoiceActionTitle(record)}
+          arrow
+        >
+          <span>
+            <IconButton
+              size="small"
+              disabled={!record.puede_facturar}
+              onClick={() =>
+                void openInvoiceDialog(record)
+              }
+              sx={desktopActionIconSx(
+                record.facturacion_vencida
+                  ? "error"
+                  : "info",
+              )}
+            >
+              <RequestQuoteRoundedIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+
+        {record.factura_pdf_disponible ? (
+          <Tooltip title="Ver factura PDF" arrow>
+            <span>
+              <IconButton
+                size="small"
+                disabled={
+                  activeFileAction ===
+                  `invoice-pdf-view-${record.id}`
+                }
+                onClick={() =>
+                  void showPdfInModal(
+                    `invoice-pdf-view-${record.id}`,
+                    `Factura ${record.folio ?? record.id}`,
+                    buildInvoicePdfFileName(record),
+                    () =>
+                      viewSuperAdminClientHistoryInvoicePdf(
+                        record.id,
+                      ),
+                  )
+                }
+                sx={desktopActionIconSx("warning")}
+              >
+                <ReceiptLongRoundedIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        ) : cargaManualPermitida ? (
+          <Tooltip title="Subir factura PDF" arrow>
+            <IconButton
+              component="label"
+              size="small"
+              disabled={
+                activeFileAction ===
+                `invoice-pdf-upload-${record.id}`
+              }
+              sx={desktopActionIconSx("warning")}
+            >
+              <UploadFileRoundedIcon fontSize="small" />
+
+              <input
+                hidden
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={(event) => {
+                  const file =
+                    event.target.files?.[0] ?? null;
+
+                  void handleInvoicePdfUpload(
+                    record,
+                    file,
+                  );
+
+                  event.target.value = "";
+                }}
+              />
+            </IconButton>
+          </Tooltip>
+        ) : null}
+
+        {record.xml_disponible ? (
+          <Tooltip title="Ver XML" arrow>
+            <span>
+              <IconButton
+                size="small"
+                disabled={
+                  activeFileAction ===
+                  `xml-view-${record.id}`
+                }
+                onClick={() =>
+                  void showManualXmlInModal(record)
+                }
+                sx={desktopActionIconSx("success")}
+              >
+                <DescriptionRoundedIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        ) : cargaManualPermitida ? (
+          <Tooltip title="Subir XML" arrow>
+            <IconButton
+              component="label"
+              size="small"
+              disabled={
+                activeFileAction ===
+                `xml-upload-${record.id}`
+              }
+              sx={desktopActionIconSx("success")}
+            >
+              <AttachFileRoundedIcon fontSize="small" />
+
+              <input
+                hidden
+                type="file"
+                accept=".xml,application/xml,text/xml,text/plain"
+                onChange={(event) => {
+                  const file =
+                    event.target.files?.[0] ?? null;
+
+                  void handleXmlUpload(
+                    record,
+                    file,
+                  );
+
+                  event.target.value = "";
+                }}
+              />
+            </IconButton>
+          </Tooltip>
+        ) : null}
+      </>
+    );
+  }
+
+  function closeFiscalDocumentDialog() {
+    setFiscalDocument((current) => {
+      if (current?.pdfUrl) {
+        window.URL.revokeObjectURL(
+          current.pdfUrl,
+        );
+      }
+
+      return null;
+    });
+  }
+
+  async function loadFiscalPdf(
+    record: ClientHistoryRecord,
+  ) {
+    setFiscalDocument((current) =>
+      current
+        ? {
+            ...current,
+            loadingPdf: true,
+            error: null,
+          }
+        : current,
+    );
+
+    try {
+      const blob = await obtenerFacturaPdfTaeconta(
+        record.id,
+      );
+
+      const pdfUrl = window.URL.createObjectURL(
+        blob.type === "application/pdf"
+          ? blob
+          : new Blob([blob], {
+              type: "application/pdf",
+            }),
+      );
+
+      setFiscalDocument((current) => {
+        if (!current || current.record.id !== record.id) {
+          window.URL.revokeObjectURL(pdfUrl);
+          return current;
+        }
+
+        if (current.pdfUrl) {
+          window.URL.revokeObjectURL(
+            current.pdfUrl,
+          );
+        }
+
+        return {
+          ...current,
+          pdfUrl,
+          loadingPdf: false,
+        };
+      });
+    } catch (documentError) {
+      setFiscalDocument((current) =>
+        current && current.record.id === record.id
+          ? {
+              ...current,
+              loadingPdf: false,
+              error: errorMessage(
+                documentError,
+                "No fue posible mostrar el PDF de la factura.",
+              ),
+            }
+          : current,
+      );
+    }
+  }
+
+  async function loadFiscalXml(
+    record: ClientHistoryRecord,
+  ) {
+    setFiscalDocument((current) =>
+      current
+        ? {
+            ...current,
+            loadingXml: true,
+            error: null,
+          }
+        : current,
+    );
+
+    try {
+      const xmlContent =
+        await obtenerFacturaXmlTaeconta(
+          record.id,
+        );
+
+      setFiscalDocument((current) =>
+        current && current.record.id === record.id
+          ? {
+              ...current,
+              xmlContent,
+              loadingXml: false,
+            }
+          : current,
+      );
+    } catch (documentError) {
+      setFiscalDocument((current) =>
+        current && current.record.id === record.id
+          ? {
+              ...current,
+              loadingXml: false,
+              error: errorMessage(
+                documentError,
+                "No fue posible mostrar el XML de la factura.",
+              ),
+            }
+          : current,
+      );
+    }
+  }
+
+  async function openFiscalDocumentDialog(
+    record: ClientHistoryRecord,
+  ) {
+    if (
+      !recordIsFacturado(record) ||
+      !recordHasTaecontaDocuments(record)
+    ) {
+      setError(
+        record.facturacion_mensaje ||
+          "La factura no tiene documentos fiscales disponibles.",
+      );
+      return;
+    }
+
+    setFiscalDocument((current) => {
+      if (current?.pdfUrl) {
+        window.URL.revokeObjectURL(
+          current.pdfUrl,
+        );
+      }
+
+      return {
+        record,
+        tab: "pdf",
+        pdfUrl: null,
+        xmlContent: null,
+        loadingPdf: true,
+        loadingXml: false,
+        error: null,
+      };
+    });
+
+    try {
+      const blob = await obtenerFacturaPdfTaeconta(
+        record.id,
+      );
+
+      const pdfUrl = window.URL.createObjectURL(
+        blob.type === "application/pdf"
+          ? blob
+          : new Blob([blob], {
+              type: "application/pdf",
+            }),
+      );
+
+      setFiscalDocument((current) => {
+        if (!current || current.record.id !== record.id) {
+          window.URL.revokeObjectURL(pdfUrl);
+          return current;
+        }
+
+        return {
+          ...current,
+          pdfUrl,
+          loadingPdf: false,
+        };
+      });
+    } catch (documentError) {
+      setFiscalDocument((current) =>
+        current && current.record.id === record.id
+          ? {
+              ...current,
+              loadingPdf: false,
+              error: errorMessage(
+                documentError,
+                "No fue posible mostrar la factura.",
+              ),
+            }
+          : current,
+      );
+    }
+  }
+
+  async function handleFiscalDocumentTabChange(
+    tab: FiscalDocumentTab,
+  ) {
+    const current = fiscalDocument;
+
+    if (!current) {
+      return;
+    }
+
+    setFiscalDocument({
+      ...current,
+      tab,
+      error: null,
+    });
+
+    if (
+      tab === "pdf" &&
+      !current.pdfUrl &&
+      !current.loadingPdf
+    ) {
+      await loadFiscalPdf(current.record);
+    }
+
+    if (
+      tab === "xml" &&
+      current.xmlContent === null &&
+      !current.loadingXml
+    ) {
+      await loadFiscalXml(current.record);
+    }
   }
 
   function openNewPaymentMethod() {
@@ -1591,19 +2226,80 @@ export default function ClientHistoryPage({
 
       setInvoicePreview(response);
 
+      /*
+       * La previsualización es la fuente autoritativa del estado fiscal.
+       * Si confirma un timbrado, se sincroniza inmediatamente la fila del
+       * historial para ocultar las cargas manuales y mostrar Ver factura.
+       */
+      const timbradoPreview = response.data.timbrado;
+
+      if (
+        timbradoPreview &&
+        (
+          timbradoPreview.estatus === "timbrada" ||
+          Boolean(timbradoPreview.uuid) ||
+          Boolean(timbradoPreview.factura_taeconta_id)
+        )
+      ) {
+        const aplicarTimbrado = (
+          current: ClientHistoryRecord,
+        ): ClientHistoryRecord => ({
+          ...current,
+          facturacion_status: "facturado",
+          facturacion_mensaje:
+            "El movimiento ya cuenta con un CFDI timbrado.",
+          puede_facturar: false,
+          facturacion_vencida: false,
+          facturacion_en_prorroga: false,
+          periodo_facturacion_valido: false,
+          carga_manual_permitida: false,
+          horas_restantes_facturacion: 0,
+          documentos_fiscales_disponibles:
+            timbradoPreview.documentos_disponibles,
+          uuid_fiscal:
+            timbradoPreview.uuid ??
+            current.uuid_fiscal,
+          factura: {
+            registro_id: timbradoPreview.id,
+            factura_taeconta_id:
+              timbradoPreview.factura_taeconta_id,
+            serie: timbradoPreview.serie,
+            folio: timbradoPreview.folio,
+            uuid: timbradoPreview.uuid,
+            estatus: timbradoPreview.estatus,
+            timbrado_at:
+              timbradoPreview.timbrado_at,
+            documentos_disponibles:
+              timbradoPreview.documentos_disponibles,
+          },
+        });
+
+        setInvoiceRecord((current) =>
+          current
+            ? aplicarTimbrado(current)
+            : current,
+        );
+
+        setRecords((current) =>
+          current.map((item) =>
+            item.id === record.id
+              ? aplicarTimbrado(item)
+              : item,
+          ),
+        );
+      }
+
       setInvoiceForm({
-        usoCfdi:
+        usoCfdi: normalizeUsoCfdi(
           response.data
             .opciones_sugeridas
-            .uso_cfdi || "G03",
-        metodoPago:
+            .uso_cfdi,
+        ),
+        formaPago: normalizeFormaPagoPue(
           response.data
             .opciones_sugeridas
-            .metodo_pago || "PUE",
-        formaPago:
-          response.data
-            .opciones_sugeridas
-            .forma_pago || "03",
+            .forma_pago,
+        ),
       });
     } catch (previewError) {
       setInvoiceError(
@@ -1657,18 +2353,6 @@ export default function ClientHistoryPage({
       return;
     }
 
-    if (
-      invoiceForm.metodoPago ===
-        "PPD" &&
-      invoiceForm.formaPago !== "99"
-    ) {
-      setInvoiceError(
-        "Cuando el método de pago es PPD, la forma de pago debe ser 99.",
-      );
-
-      return;
-    }
-
     setInvoiceSubmitting(true);
     setInvoiceError(null);
     setInvoiceSuccess(null);
@@ -1679,8 +2363,7 @@ export default function ClientHistoryPage({
           historial_cliente_id:
             invoiceRecord.id,
           uso_cfdi: usoCfdi,
-          metodo_pago:
-            invoiceForm.metodoPago,
+          metodo_pago: "PUE",
           forma_pago:
             invoiceForm.formaPago,
         });
@@ -1695,6 +2378,40 @@ export default function ClientHistoryPage({
         );
 
       setInvoicePreview(refreshed);
+
+      if (refreshed.data.timbrado) {
+        const timbrado = refreshed.data.timbrado;
+
+        setInvoiceRecord((current) =>
+          current
+            ? {
+                ...current,
+                facturacion_status: "facturado",
+                facturacion_mensaje:
+                  "El movimiento ya cuenta con un CFDI timbrado.",
+                puede_facturar: false,
+                facturacion_vencida: false,
+                horas_restantes_facturacion: 0,
+                documentos_fiscales_disponibles:
+                  timbrado.documentos_disponibles,
+                uuid_fiscal:
+                  timbrado.uuid ?? current.uuid_fiscal,
+                factura: {
+                  registro_id: timbrado.id,
+                  factura_taeconta_id:
+                    timbrado.factura_taeconta_id,
+                  serie: timbrado.serie,
+                  folio: timbrado.folio,
+                  uuid: timbrado.uuid,
+                  estatus: timbrado.estatus,
+                  timbrado_at: timbrado.timbrado_at,
+                  documentos_disponibles:
+                    timbrado.documentos_disponibles,
+                },
+              }
+            : current,
+        );
+      }
 
       await loadHistory();
     } catch (stampError) {
@@ -2319,9 +3036,7 @@ export default function ClientHistoryPage({
                         alignItems="center"
                       >
                         <Tooltip
-                          title={statusLabel(
-                            record.status,
-                          )}
+                          title={recordStatusLabel(record)}
                           arrow
                         >
                           <Box
@@ -2332,13 +3047,13 @@ export default function ClientHistoryPage({
                               flexShrink: 0,
                               borderRadius: "50%",
                               bgcolor: `${statusDotColor(
-                                record.status,
+                                recordDisplayStatus(record),
                               )}.main`,
                               boxShadow: (theme) =>
                                 `0 0 0 4px ${alpha(
                                   theme.palette[
                                     statusDotColor(
-                                      record.status,
+                                      recordDisplayStatus(record),
                                     )
                                   ].main,
                                   0.12,
@@ -2358,14 +3073,32 @@ export default function ClientHistoryPage({
                         </Typography>
                       </Stack>
 
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={0.75}
+                        useFlexGap
+                        flexWrap="wrap"
                       >
-                        {record.folio
-                          ? `Folio: ${record.folio}`
-                          : `Movimiento #${record.id}`}
-                      </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          {record.folio
+                            ? `Folio: ${record.folio}`
+                            : `Movimiento #${record.id}`}
+                        </Typography>
+
+                        <Typography
+                          variant="caption"
+                          fontWeight={900}
+                          color={`${statusDotColor(
+                            recordDisplayStatus(record),
+                          )}.main`}
+                        >
+                          {recordStatusLabel(record)}
+                        </Typography>
+                      </Stack>
                     </Stack>
 
                     <Box sx={{ minWidth: 0 }}>
@@ -2555,171 +3288,7 @@ export default function ClientHistoryPage({
                         </span>
                       </Tooltip>
 
-                      <Tooltip
-                        title={
-                          record.uuid_fiscal
-                            ? "Consultar CFDI"
-                            : record.status === "pagado"
-                              ? "Facturar movimiento"
-                              : "Solo pueden facturarse movimientos pagados"
-                        }
-                        arrow
-                      >
-                        <span>
-                          <IconButton
-                            size="small"
-                            disabled={
-                              record.status !== "pagado" &&
-                              !record.uuid_fiscal
-                            }
-                            onClick={() =>
-                              void openInvoiceDialog(
-                                record,
-                              )
-                            }
-                            sx={desktopActionIconSx(
-                              "info",
-                            )}
-                          >
-                            <RequestQuoteRoundedIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-
-                      {record.factura_pdf_disponible ? (
-                        <Tooltip
-                          title="Ver factura PDF"
-                          arrow
-                        >
-                          <span>
-                            <IconButton
-                              size="small"
-                              disabled={
-                                activeFileAction ===
-                                `invoice-pdf-view-${record.id}`
-                              }
-                              onClick={() =>
-                                void showPdfInModal(
-                                  `invoice-pdf-view-${record.id}`,
-                                  `Factura ${
-                                    record.folio ??
-                                    record.id
-                                  }`,
-                                  buildInvoicePdfFileName(
-                                    record,
-                                  ),
-                                  () =>
-                                    viewSuperAdminClientHistoryInvoicePdf(
-                                      record.id,
-                                    ),
-                                )
-                              }
-                              sx={desktopActionIconSx(
-                                "warning",
-                              )}
-                            >
-                              <ReceiptLongRoundedIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip
-                          title="Subir factura PDF"
-                          arrow
-                        >
-                          <IconButton
-                            component="label"
-                            size="small"
-                            disabled={
-                              activeFileAction ===
-                              `invoice-pdf-upload-${record.id}`
-                            }
-                            sx={desktopActionIconSx(
-                              "warning",
-                            )}
-                          >
-                            <UploadFileRoundedIcon fontSize="small" />
-
-                            <input
-                              hidden
-                              type="file"
-                              accept=".pdf,application/pdf"
-                              onChange={(event) => {
-                                const file =
-                                  event.target.files?.[0] ??
-                                  null;
-
-                                void handleInvoicePdfUpload(
-                                  record,
-                                  file,
-                                );
-
-                                event.target.value =
-                                  "";
-                              }}
-                            />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-
-                      {record.xml_disponible ? (
-                        <Tooltip title="Ver XML" arrow>
-                          <span>
-                            <IconButton
-                              size="small"
-                              disabled={
-                                activeFileAction ===
-                                `xml-view-${record.id}`
-                              }
-                              onClick={() =>
-                                void showXmlInModal(
-                                  record,
-                                )
-                              }
-                              sx={desktopActionIconSx(
-                                "success",
-                              )}
-                            >
-                              <DescriptionRoundedIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip title="Subir XML" arrow>
-                          <IconButton
-                            component="label"
-                            size="small"
-                            disabled={
-                              activeFileAction ===
-                              `xml-upload-${record.id}`
-                            }
-                            sx={desktopActionIconSx(
-                              "success",
-                            )}
-                          >
-                            <AttachFileRoundedIcon fontSize="small" />
-
-                            <input
-                              hidden
-                              type="file"
-                              accept=".xml,application/xml,text/xml"
-                              onChange={(event) => {
-                                const file =
-                                  event.target.files?.[0] ??
-                                  null;
-
-                                void handleXmlUpload(
-                                  record,
-                                  file,
-                                );
-
-                                event.target.value =
-                                  "";
-                              }}
-                            />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                      {renderInvoiceActions(record)}
                     </Stack>
                   </Box>
                 ))}
@@ -2769,35 +3338,50 @@ export default function ClientHistoryPage({
                           </Typography>
                         </Box>
 
-                        <Tooltip
-                          title={statusLabel(
-                            record.status,
-                          )}
-                          arrow
+                        <Stack
+                          alignItems="flex-end"
+                          spacing={0.65}
+                          flexShrink={0}
                         >
-                          <Box
-                            component="span"
-                            sx={{
-                              width: 10,
-                              height: 10,
-                              mt: 0.6,
-                              flexShrink: 0,
-                              borderRadius: "50%",
-                              bgcolor: `${statusDotColor(
-                                record.status,
-                              )}.main`,
-                              boxShadow: (theme) =>
-                                `0 0 0 4px ${alpha(
-                                  theme.palette[
-                                    statusDotColor(
-                                      record.status,
-                                    )
-                                  ].main,
-                                  0.12,
-                                )}`,
-                            }}
-                          />
-                        </Tooltip>
+                          <Tooltip
+                            title={recordStatusLabel(record)}
+                            arrow
+                          >
+                            <Box
+                              component="span"
+                              sx={{
+                                width: 10,
+                                height: 10,
+                                mt: 0.6,
+                                flexShrink: 0,
+                                borderRadius: "50%",
+                                bgcolor: `${statusDotColor(
+                                  recordDisplayStatus(record),
+                                )}.main`,
+                                boxShadow: (theme) =>
+                                  `0 0 0 4px ${alpha(
+                                    theme.palette[
+                                      statusDotColor(
+                                        recordDisplayStatus(record),
+                                      )
+                                    ].main,
+                                    0.12,
+                                  )}`,
+                              }}
+                            />
+                          </Tooltip>
+
+                          <Typography
+                            variant="caption"
+                            fontWeight={900}
+                            color={`${statusDotColor(
+                              recordDisplayStatus(record),
+                            )}.main`}
+                            sx={{ whiteSpace: "nowrap" }}
+                          >
+                            {recordStatusLabel(record)}
+                          </Typography>
+                        </Stack>
                       </Stack>
 
                       <Typography
@@ -2915,139 +3499,7 @@ export default function ClientHistoryPage({
                           </IconButton>
                         </Tooltip>
 
-                        <Tooltip
-                        title={
-                          record.uuid_fiscal
-                            ? "Consultar CFDI"
-                            : record.status === "pagado"
-                              ? "Facturar movimiento"
-                              : "Solo pueden facturarse movimientos pagados"
-                        }
-                        arrow
-                      >
-                        <span>
-                          <IconButton
-                            size="small"
-                            disabled={
-                              record.status !== "pagado" &&
-                              !record.uuid_fiscal
-                            }
-                            onClick={() =>
-                              void openInvoiceDialog(
-                                record,
-                              )
-                            }
-                            sx={desktopActionIconSx(
-                              "info",
-                            )}
-                          >
-                            <RequestQuoteRoundedIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-
-                      {record.factura_pdf_disponible ? (
-                          <Tooltip title="Ver factura PDF" arrow>
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                void showPdfInModal(
-                                  `invoice-pdf-view-${record.id}`,
-                                  `Factura ${
-                                    record.folio ??
-                                    record.id
-                                  }`,
-                                  buildInvoicePdfFileName(
-                                    record,
-                                  ),
-                                  () =>
-                                    viewSuperAdminClientHistoryInvoicePdf(
-                                      record.id,
-                                    ),
-                                )
-                              }
-                              sx={desktopActionIconSx(
-                                "warning",
-                              )}
-                            >
-                              <ReceiptLongRoundedIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        ) : (
-                          <Tooltip title="Subir factura PDF" arrow>
-                            <IconButton
-                              component="label"
-                              size="small"
-                              sx={desktopActionIconSx(
-                                "warning",
-                              )}
-                            >
-                              <UploadFileRoundedIcon fontSize="small" />
-                              <input
-                                hidden
-                                type="file"
-                                accept=".pdf,application/pdf"
-                                onChange={(event) => {
-                                  const file =
-                                    event.target.files?.[0] ??
-                                    null;
-                                  void handleInvoicePdfUpload(
-                                    record,
-                                    file,
-                                  );
-                                  event.target.value =
-                                    "";
-                                }}
-                              />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-
-                        {record.xml_disponible ? (
-                          <Tooltip title="Ver XML" arrow>
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                void showXmlInModal(
-                                  record,
-                                )
-                              }
-                              sx={desktopActionIconSx(
-                                "success",
-                              )}
-                            >
-                              <DescriptionRoundedIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        ) : (
-                          <Tooltip title="Subir XML" arrow>
-                            <IconButton
-                              component="label"
-                              size="small"
-                              sx={desktopActionIconSx(
-                                "success",
-                              )}
-                            >
-                              <AttachFileRoundedIcon fontSize="small" />
-                              <input
-                                hidden
-                                type="file"
-                                accept=".xml,application/xml,text/xml"
-                                onChange={(event) => {
-                                  const file =
-                                    event.target.files?.[0] ??
-                                    null;
-                                  void handleXmlUpload(
-                                    record,
-                                    file,
-                                  );
-                                  event.target.value =
-                                    "";
-                                }}
-                              />
-                            </IconButton>
-                          </Tooltip>
-                        )}
+                        {renderInvoiceActions(record)}
                       </Stack>
                     </Stack>
                   </CardContent>
@@ -4588,7 +5040,7 @@ export default function ClientHistoryPage({
                           height: 10,
                           borderRadius: "50%",
                           bgcolor: `${statusDotColor(
-                            detail.status,
+                            recordDisplayStatus(detail),
                           )}.main`,
                         }}
                       />
@@ -4949,18 +5401,20 @@ export default function ClientHistoryPage({
 
       <Dialog
         open={Boolean(xmlPreview)}
-        onClose={() =>
-          setXmlPreview(null)
-        }
+        onClose={() => setXmlPreview(null)}
         fullWidth
+        fullScreen={isMobile}
         maxWidth="lg"
         PaperProps={{
           sx: {
             height: {
-              xs: "92vh",
-              md: "88vh",
+              xs: "100dvh",
+              sm: "88vh",
             },
-            borderRadius: 3,
+            borderRadius: {
+              xs: 0,
+              sm: 3,
+            },
           },
         }}
       >
@@ -4976,100 +5430,310 @@ export default function ClientHistoryPage({
               alignItems="center"
               spacing={1.25}
             >
-              <DescriptionRoundedIcon
-                color="primary"
-              />
+              <DescriptionRoundedIcon color="success" />
 
               <Typography
                 variant="h6"
                 fontWeight={900}
               >
-                {xmlPreview?.title ??
-                  "Documento XML"}
+                {xmlPreview?.title ?? "Documento XML"}
               </Typography>
             </Stack>
 
             <IconButton
-              onClick={() =>
-                setXmlPreview(null)
-              }
+              onClick={() => setXmlPreview(null)}
             >
               <CloseRoundedIcon />
             </IconButton>
           </Stack>
         </DialogTitle>
 
+        <DialogContent dividers sx={{ p: 0 }}>
+          <Box
+            component="pre"
+            sx={{
+              m: 0,
+              p: 2,
+              minHeight: {
+                xs: "76vh",
+                sm: "68vh",
+              },
+              overflow: "auto",
+              whiteSpace: "pre-wrap",
+              overflowWrap: "anywhere",
+              fontFamily: "monospace",
+              fontSize: 13,
+              bgcolor: "grey.100",
+              color: "text.primary",
+            }}
+          >
+            {xmlPreview?.content ?? ""}
+          </Box>
+        </DialogContent>
+
+        <DialogActions>
+          <Button
+            onClick={() => setXmlPreview(null)}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(fiscalDocument)}
+        onClose={closeFiscalDocumentDialog}
+        fullWidth
+        fullScreen={isMobile}
+        maxWidth="lg"
+        PaperProps={{
+          sx: {
+            height: {
+              xs: "100dvh",
+              sm: "92vh",
+            },
+            borderRadius: {
+              xs: 0,
+              sm: 3,
+            },
+            overflow: "hidden",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            pb: 0,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Stack spacing={1.5}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={2}
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1.25}
+                sx={{ minWidth: 0 }}
+              >
+                <ReceiptLongRoundedIcon color="info" />
+
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight={900}
+                    noWrap
+                  >
+                    Factura {fiscalDocument?.record.factura?.serie ?? "TAE-WEB"}
+                    {fiscalDocument?.record.factura?.folio
+                      ? `-${fiscalDocument.record.factura.folio}`
+                      : ""}
+                  </Typography>
+
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    noWrap
+                  >
+                    {fiscalDocument?.record.factura?.uuid
+                      ? `UUID ${fiscalDocument.record.factura.uuid}`
+                      : `Movimiento #${fiscalDocument?.record.id ?? ""}`}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <IconButton onClick={closeFiscalDocumentDialog}>
+                <CloseRoundedIcon />
+              </IconButton>
+            </Stack>
+
+            <Tabs
+              value={fiscalDocument?.tab ?? "pdf"}
+              onChange={(_event, value) =>
+                void handleFiscalDocumentTabChange(
+                  value as FiscalDocumentTab,
+                )
+              }
+              variant="fullWidth"
+            >
+              <Tab
+                value="pdf"
+                label="Vista PDF"
+                icon={<PictureAsPdfRoundedIcon />}
+                iconPosition="start"
+              />
+
+              <Tab
+                value="xml"
+                label="XML"
+                icon={<DescriptionRoundedIcon />}
+                iconPosition="start"
+              />
+            </Tabs>
+          </Stack>
+        </DialogTitle>
+
         <DialogContent
-          dividers
           sx={{
             p: 0,
             minHeight: 0,
-            bgcolor: "grey.100",
+            display: "flex",
+            flexDirection: "column",
+            bgcolor: "background.default",
           }}
         >
-          {xmlPreview ? (
+          {fiscalDocument?.error ? (
+            <Alert
+              severity="error"
+              onClose={() =>
+                setFiscalDocument((current) =>
+                  current
+                    ? {
+                        ...current,
+                        error: null,
+                      }
+                    : current,
+                )
+              }
+              sx={{ m: 2 }}
+            >
+              {fiscalDocument.error}
+            </Alert>
+          ) : null}
+
+          {fiscalDocument?.tab === "pdf" ? (
+            fiscalDocument.loadingPdf ? (
+              <Stack
+                flex={1}
+                minHeight={420}
+                alignItems="center"
+                justifyContent="center"
+                spacing={1.5}
+              >
+                <CircularProgress />
+                <Typography color="text.secondary">
+                  Consultando PDF en TaeConta...
+                </Typography>
+              </Stack>
+            ) : fiscalDocument.pdfUrl ? (
+              <Box
+                component="iframe"
+                src={fiscalDocument.pdfUrl}
+                title="Factura fiscal PDF"
+                sx={{
+                  width: "100%",
+                  flex: 1,
+                  minHeight: {
+                    xs: "calc(100dvh - 170px)",
+                    sm: "72vh",
+                  },
+                  border: 0,
+                  bgcolor: "background.paper",
+                }}
+              />
+            ) : (
+              <Stack
+                flex={1}
+                minHeight={420}
+                alignItems="center"
+                justifyContent="center"
+                spacing={1.5}
+              >
+                <Typography color="text.secondary">
+                  El PDF no está disponible.
+                </Typography>
+
+                <Button
+                  variant="outlined"
+                  onClick={() =>
+                    fiscalDocument
+                      ? void loadFiscalPdf(
+                          fiscalDocument.record,
+                        )
+                      : undefined
+                  }
+                >
+                  Reintentar
+                </Button>
+              </Stack>
+            )
+          ) : fiscalDocument?.loadingXml ? (
+            <Stack
+              flex={1}
+              minHeight={420}
+              alignItems="center"
+              justifyContent="center"
+              spacing={1.5}
+            >
+              <CircularProgress />
+              <Typography color="text.secondary">
+                Consultando XML en TaeConta...
+              </Typography>
+            </Stack>
+          ) : fiscalDocument?.xmlContent ? (
             <Box
               component="pre"
               sx={{
                 m: 0,
                 p: 2.5,
-                height: "100%",
+                flex: 1,
                 minHeight: {
-                  xs: "70vh",
-                  md: "74vh",
+                  xs: "calc(100dvh - 170px)",
+                  sm: "72vh",
                 },
                 overflow: "auto",
                 bgcolor: "background.paper",
                 color: "text.primary",
-                fontFamily:
-                  "Consolas, Monaco, monospace",
+                fontFamily: "Consolas, Monaco, monospace",
                 fontSize: "0.78rem",
                 lineHeight: 1.55,
                 whiteSpace: "pre-wrap",
                 overflowWrap: "anywhere",
               }}
             >
-              {xmlPreview.content}
+              {fiscalDocument.xmlContent}
             </Box>
-          ) : null}
+          ) : (
+            <Stack
+              flex={1}
+              minHeight={420}
+              alignItems="center"
+              justifyContent="center"
+              spacing={1.5}
+            >
+              <Typography color="text.secondary">
+                El XML no está disponible.
+              </Typography>
+
+              <Button
+                variant="outlined"
+                onClick={() =>
+                  fiscalDocument
+                    ? void loadFiscalXml(
+                        fiscalDocument.record,
+                      )
+                    : undefined
+                }
+              >
+                Reintentar
+              </Button>
+            </Stack>
+          )}
         </DialogContent>
 
         <DialogActions
           sx={{
-            justifyContent: "space-between",
+            px: 2.5,
+            py: 1.5,
+            borderTop: "1px solid",
+            borderColor: "divider",
           }}
         >
-          {xmlPreview ? (
-            <Button
-              startIcon={
-                <DownloadRoundedIcon />
-              }
-              disabled={
-                activeFileAction ===
-                `xml-download-${xmlPreview.recordId}`
-              }
-              onClick={() =>
-                void executeFileAction(
-                  `xml-download-${xmlPreview.recordId}`,
-                  () =>
-                    downloadSuperAdminClientHistoryXml(
-                      xmlPreview.recordId,
-                      xmlPreview.fileName,
-                    ),
-                )
-              }
-            >
-              Descargar XML
-            </Button>
-          ) : (
-            <Box />
-          )}
-
-          <Button
-            onClick={() =>
-              setXmlPreview(null)
-            }
-          >
+          <Button onClick={closeFiscalDocumentDialog}>
             Cerrar
           </Button>
         </DialogActions>
@@ -5130,7 +5794,9 @@ export default function ClientHistoryPage({
                   variant="h6"
                   fontWeight={900}
                 >
-                  Facturar movimiento
+                  {invoicePreview?.data.timbrado
+                    ? "Detalle del CFDI"
+                    : "Facturar movimiento"}
                 </Typography>
 
                 <Typography
@@ -5437,7 +6103,7 @@ export default function ClientHistoryPage({
                         </Typography>
 
                         <Typography fontWeight={800}>
-                          16.000000 %
+                          16.00 %
                         </Typography>
                       </Grid>
                     </Grid>
@@ -5561,91 +6227,170 @@ export default function ClientHistoryPage({
                         borderRadius: 3,
                       }}
                     >
-                      <Typography
-                        fontWeight={900}
+                      <Stack
+                        direction={{
+                          xs: "column",
+                          sm: "row",
+                        }}
+                        justifyContent="space-between"
+                        alignItems={{
+                          xs: "flex-start",
+                          sm: "center",
+                        }}
+                        spacing={1}
                         mb={1.5}
                       >
-                        Configuración del CFDI
-                      </Typography>
+                        <Box>
+                          <Typography
+                            fontWeight={900}
+                          >
+                            Configuración del CFDI
+                          </Typography>
 
-                      <Grid container spacing={2}>
-                        <Grid item xs={12} sm={4}>
-                          <TextField
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            Selecciona el uso del CFDI y la forma de pago.
+                          </Typography>
+                        </Box>
+
+                        <Chip
+                          size="small"
+                          label="Método PUE"
+                          color="info"
+                          variant="outlined"
+                          sx={{
+                            height: 24,
+                            fontWeight: 800,
+                          }}
+                        />
+                      </Stack>
+
+                      <Grid
+                        container
+                        spacing={{ xs: 1.5, sm: 2 }}
+                        alignItems="stretch"
+                      >
+                        <Grid item xs={12} sm={6}>
+                          <FormControl
                             fullWidth
-                            label="Uso de CFDI"
-                            value={invoiceForm.usoCfdi}
-                            inputProps={{
-                              maxLength: 4,
-                            }}
-                            onChange={(event) =>
-                              setInvoiceForm(
-                                (current) => ({
-                                  ...current,
-                                  usoCfdi:
-                                    event.target.value.toUpperCase(),
-                                }),
-                              )
-                            }
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={4}>
-                          <FormControl fullWidth>
+                            size="small"
+                          >
                             <InputLabel>
-                              Método de pago
+                              Uso de CFDI
                             </InputLabel>
 
                             <Select
-                              value={
-                                invoiceForm.metodoPago
+                              value={invoiceForm.usoCfdi}
+                              label="Uso de CFDI"
+                              MenuProps={
+                                invoiceSelectMenuProps
                               }
-                              label="Método de pago"
-                              onChange={(event) => {
-                                const metodoPago =
-                                  event.target
-                                    .value as TaecontaMetodoPago;
+                              renderValue={(value) => {
+                                const selected =
+                                  invoiceUsoCfdiOptions.find(
+                                    (uso) =>
+                                      uso.codigo ===
+                                      String(value),
+                                  );
 
+                                return (
+                                  <Typography
+                                    variant="body2"
+                                    noWrap
+                                    title={
+                                      selected?.nombre ??
+                                      String(value)
+                                    }
+                                    sx={{
+                                      minWidth: 0,
+                                      fontSize: {
+                                        xs: "0.88rem",
+                                        sm: "0.86rem",
+                                      },
+                                    }}
+                                  >
+                                    {selected?.nombre ??
+                                      String(value)}
+                                  </Typography>
+                                );
+                              }}
+                              onChange={(event) =>
                                 setInvoiceForm(
                                   (current) => ({
                                     ...current,
-                                    metodoPago,
-                                    formaPago:
-                                      metodoPago === "PPD"
-                                        ? "99"
-                                        : current.formaPago ===
-                                            "99"
-                                          ? "03"
-                                          : current.formaPago,
+                                    usoCfdi: String(
+                                      event.target.value,
+                                    ),
                                   }),
-                                );
+                                )
+                              }
+                              sx={{
+                                "& .MuiSelect-select": {
+                                  minWidth: 0,
+                                  pr: 4.5,
+                                },
                               }}
                             >
-                              <MenuItem value="PUE">
-                                PUE - Pago en una sola exhibición
-                              </MenuItem>
-
-                              <MenuItem value="PPD">
-                                PPD - Pago en parcialidades o diferido
-                              </MenuItem>
+                              {invoiceUsoCfdiOptions.map(
+                                (uso) => (
+                                  <MenuItem
+                                    key={uso.codigo}
+                                    value={uso.codigo}
+                                  >
+                                    {uso.nombre}
+                                  </MenuItem>
+                                ),
+                              )}
                             </Select>
                           </FormControl>
                         </Grid>
 
-                        <Grid item xs={12} sm={4}>
-                          <FormControl fullWidth>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl
+                            fullWidth
+                            size="small"
+                          >
                             <InputLabel>
                               Forma de pago
                             </InputLabel>
 
                             <Select
-                              value={
-                                invoiceForm.formaPago
-                              }
+                              value={invoiceForm.formaPago}
                               label="Forma de pago"
-                              disabled={
-                                invoiceForm.metodoPago ===
-                                "PPD"
+                              MenuProps={
+                                invoiceSelectMenuProps
                               }
+                              renderValue={(value) => {
+                                const selected =
+                                  FORMAS_PAGO_PUE.find(
+                                    (forma) =>
+                                      forma.codigo ===
+                                      String(value),
+                                  );
+
+                                return (
+                                  <Typography
+                                    variant="body2"
+                                    noWrap
+                                    title={
+                                      selected?.nombre ??
+                                      String(value)
+                                    }
+                                    sx={{
+                                      minWidth: 0,
+                                      fontSize: {
+                                        xs: "0.88rem",
+                                        sm: "0.86rem",
+                                      },
+                                    }}
+                                  >
+                                    {selected?.nombre ??
+                                      String(value)}
+                                  </Typography>
+                                );
+                              }}
                               onChange={(event) =>
                                 setInvoiceForm(
                                   (current) => ({
@@ -5656,30 +6401,23 @@ export default function ClientHistoryPage({
                                   }),
                                 )
                               }
+                              sx={{
+                                "& .MuiSelect-select": {
+                                  minWidth: 0,
+                                  pr: 4.5,
+                                },
+                              }}
                             >
-                              <MenuItem value="01">
-                                01 - Efectivo
-                              </MenuItem>
-
-                              <MenuItem value="02">
-                                02 - Cheque
-                              </MenuItem>
-
-                              <MenuItem value="03">
-                                03 - Transferencia
-                              </MenuItem>
-
-                              <MenuItem value="04">
-                                04 - Tarjeta de crédito
-                              </MenuItem>
-
-                              <MenuItem value="28">
-                                28 - Tarjeta de débito
-                              </MenuItem>
-
-                              <MenuItem value="99">
-                                99 - Por definir
-                              </MenuItem>
+                              {FORMAS_PAGO_PUE.map(
+                                (forma) => (
+                                  <MenuItem
+                                    key={forma.codigo}
+                                    value={forma.codigo}
+                                  >
+                                    {forma.nombre}
+                                  </MenuItem>
+                                ),
+                              )}
                             </Select>
                           </FormControl>
                         </Grid>
@@ -5721,6 +6459,23 @@ export default function ClientHistoryPage({
           >
             Cerrar
           </Button>
+
+          {invoicePreview?.data.timbrado?.documentos_disponibles &&
+          invoiceRecord ? (
+            <Button
+              variant="contained"
+              color="info"
+              startIcon={<ReceiptLongRoundedIcon />}
+              onClick={() => {
+                closeInvoiceDialog();
+                void openFiscalDocumentDialog(
+                  invoiceRecord,
+                );
+              }}
+            >
+              Ver factura
+            </Button>
+          ) : null}
 
           {invoicePreview &&
           !invoicePreview.data.timbrado ? (

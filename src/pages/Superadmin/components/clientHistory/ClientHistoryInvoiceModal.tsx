@@ -28,7 +28,6 @@ import {
 } from "../../../../services/taecontaTimbrado.service";
 import {
   TaecontaFacturaPreviewResponse,
-  TaecontaMetodoPago,
 } from "../../../../types/taecontaTimbrado";
 
 type Props = {
@@ -40,7 +39,7 @@ type Props = {
 
 type FormularioFiscal = {
   uso_cfdi: string;
-  metodo_pago: TaecontaMetodoPago;
+  metodo_pago: "PUE";
   forma_pago: string;
 };
 
@@ -176,8 +175,7 @@ export default function ClientHistoryInvoiceModal({
       setFormulario({
         uso_cfdi:
           response.data.opciones_sugeridas.uso_cfdi || "G03",
-        metodo_pago:
-          response.data.opciones_sugeridas.metodo_pago || "PUE",
+        metodo_pago: "PUE",
         forma_pago:
           response.data.opciones_sugeridas.forma_pago || "03",
       });
@@ -211,19 +209,6 @@ export default function ClientHistoryInvoiceModal({
     !cargando &&
     !timbrando;
 
-  function cambiarMetodoPago(metodoPago: TaecontaMetodoPago) {
-    setFormulario((actual) => ({
-      ...actual,
-      metodo_pago: metodoPago,
-      forma_pago:
-        metodoPago === "PPD"
-          ? "99"
-          : actual.forma_pago === "99"
-            ? "03"
-            : actual.forma_pago,
-    }));
-  }
-
   async function confirmarTimbrado() {
     if (!historialClienteId || !puedeTimbrar) {
       return;
@@ -247,7 +232,7 @@ export default function ClientHistoryInvoiceModal({
       const response = await timbrarCompraTaeconta({
         historial_cliente_id: historialClienteId,
         uso_cfdi: formulario.uso_cfdi.trim().toUpperCase(),
-        metodo_pago: formulario.metodo_pago,
+        metodo_pago: "PUE",
         forma_pago: formulario.forma_pago,
       });
 
@@ -519,24 +504,13 @@ export default function ClientHistoryInvoiceModal({
 
                 <Grid item xs={12} sm={4}>
                   <TextField
-                    select
                     fullWidth
                     label="Método de pago"
-                    value={formulario.metodo_pago}
-                    onChange={(event) =>
-                      cambiarMetodoPago(
-                        event.target.value as TaecontaMetodoPago
-                      )
-                    }
-                  >
-                    <MenuItem value="PUE">
-                      PUE - Pago en una exhibición
-                    </MenuItem>
-
-                    <MenuItem value="PPD">
-                      PPD - Parcialidades o diferido
-                    </MenuItem>
-                  </TextField>
+                    value="PUE - Pago en una exhibición"
+                    InputProps={{
+                      readOnly: true,
+                    }}
+                  />
                 </Grid>
 
                 <Grid item xs={12} sm={4}>
@@ -545,7 +519,6 @@ export default function ClientHistoryInvoiceModal({
                     fullWidth
                     label="Forma de pago"
                     value={formulario.forma_pago}
-                    disabled={formulario.metodo_pago === "PPD"}
                     onChange={(event) =>
                       setFormulario((actual) => ({
                         ...actual,
@@ -558,7 +531,6 @@ export default function ClientHistoryInvoiceModal({
                     <MenuItem value="03">03 - Transferencia electrónica</MenuItem>
                     <MenuItem value="04">04 - Tarjeta de crédito</MenuItem>
                     <MenuItem value="28">28 - Tarjeta de débito</MenuItem>
-                    <MenuItem value="99">99 - Por definir</MenuItem>
                   </TextField>
                 </Grid>
               </Grid>

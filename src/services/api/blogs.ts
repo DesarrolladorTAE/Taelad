@@ -256,14 +256,9 @@ export type BlogPostAdStatus =
   | "inactive";
 
 /*
- * Cada anuncio utiliza exactamente tres imágenes.
- * El backend también debe validar esta regla con size:3.
+ * Cada anuncio puede utilizar una o varias imágenes.
  */
-export type BlogPostAdMediaIds = [
-  number,
-  number,
-  number,
-];
+export type BlogPostAdMediaIds = number[];
 
 export type BlogPostAdImage = {
   id: number;
@@ -319,7 +314,7 @@ export type BlogPostAdPayload = {
   sort_order?: number | null;
 
   /*
-   * Debe contener exactamente tres IDs distintos,
+   * Debe contener al menos un ID válido y sin duplicados,
    * todos pertenecientes al mismo blog.
    */
   media_ids: BlogPostAdMediaIds;
@@ -594,10 +589,10 @@ function assertPostAdPayload(
 
   if (
     !Array.isArray(payload.media_ids) ||
-    payload.media_ids.length !== 3
+    payload.media_ids.length === 0
   ) {
     throw new Error(
-      `${prefix}debe seleccionar exactamente tres imágenes.`
+      `${prefix}debe seleccionar al menos una imagen.`
     );
   }
 
@@ -617,10 +612,11 @@ function assertPostAdPayload(
   }
 
   if (
-    new Set(normalizedIds).size !== 3
+    new Set(normalizedIds).size !==
+    normalizedIds.length
   ) {
     throw new Error(
-      `${prefix}las tres imágenes deben ser diferentes.`
+      `${prefix}las imágenes seleccionadas no deben repetirse.`
     );
   }
 

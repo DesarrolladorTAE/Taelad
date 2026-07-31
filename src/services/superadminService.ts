@@ -573,6 +573,12 @@ export type ClientHistoryStatus =
   | "vencido"
   | "reembolsado";
 
+export type ClientHistoryFacturacionStatus =
+  | "disponible"
+  | "facturado"
+  | "vencido"
+  | "no_disponible";
+
 export type ClientHistoryClient = {
   id: number;
   name: string | null;
@@ -590,6 +596,17 @@ export type ClientHistoryProduct = {
   url_imagen: string | null;
 };
 
+export type ClientHistoryFactura = {
+  registro_id: number;
+  factura_taeconta_id: string | null;
+  serie: string;
+  folio: string | null;
+  uuid: string | null;
+  estatus: string;
+  timbrado_at: string | null;
+  documentos_disponibles: boolean;
+};
+
 export type ClientHistoryRecord = {
   id: number;
   cliente_id: number;
@@ -601,19 +618,48 @@ export type ClientHistoryRecord = {
   cantidad: number | string;
   precio_unitario: number | string;
   importe: number | string;
+
+  /** Estado comercial del movimiento. */
   status: ClientHistoryStatus;
+
   fecha_operacion: string;
   folio: string | null;
   uuid_fiscal: string | null;
-  factura_pdf: string | null;
-  factura_xml: string | null;
   observaciones: string | null;
+
+  /** Comprobante administrativo generado por Laravel. */
   pdf_disponible: boolean;
+
+  /** Documentos fiscales cargados manualmente. */
   factura_pdf_disponible: boolean;
   xml_disponible: boolean;
+  documentos_manuales_disponibles: boolean;
+  carga_manual_permitida: boolean;
+
+  /** Estado fiscal derivado, independiente de status. */
+  facturacion_status: ClientHistoryFacturacionStatus;
+  facturacion_mensaje: string;
+  puede_facturar: boolean;
+  facturacion_vencida: boolean;
+  facturacion_en_prorroga: boolean;
+  periodo_facturacion_valido: boolean;
+
+  /** Fechas calculadas con America/Mexico_City. */
+  fecha_venta_facturacion: string | null;
+  fin_mes_venta: string | null;
+  inicio_prorroga_facturacion: string | null;
+  fecha_limite_facturacion: string | null;
+  fecha_cfdi_sugerida: string | null;
+  horas_restantes_facturacion: number;
+
+  /** CFDI timbrado mediante TaeConta. */
+  documentos_fiscales_disponibles: boolean;
+  factura: ClientHistoryFactura | null;
+
   cliente: ClientHistoryClient;
   producto: ClientHistoryProduct | null;
   metodo_pago: SuperAdminPaymentMethod;
+
   created_at: string | null;
   updated_at: string | null;
   deleted_at: string | null;
@@ -736,13 +782,12 @@ export async function searchSuperAdminClientHistoryClients(
 
   if (q.length < 3) {
     return {
-      message:
-        "Escribe al menos 3 caracteres.",
+      message: "Escribe al menos 3 caracteres.",
       data: [],
     };
   }
 
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<ClientHistoryClientSearchResponse>(
     "/superadmin/client-history/search-clients",
     {
       params: {
@@ -761,13 +806,12 @@ export async function searchSuperAdminClientHistoryProducts(
 
   if (q.length < 3) {
     return {
-      message:
-        "Escribe al menos 3 caracteres.",
+      message: "Escribe al menos 3 caracteres.",
       data: [],
     };
   }
 
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<ClientHistoryProductSearchResponse>(
     "/superadmin/client-history/search-products",
     {
       params: {
@@ -793,7 +837,7 @@ export async function getSuperAdminClientHistory(
     perPage = 16,
   } = params;
 
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<GetClientHistoryResponse>(
     "/superadmin/client-history",
     {
       params: {
@@ -823,19 +867,15 @@ export async function getSuperAdminClientHistory(
 export async function createSuperAdminClientHistory(
   data: CreateClientHistoryPayload,
 ): Promise<ClientHistoryRecordResponse> {
-  const response = await axiosClient.post(
+  const response = await axiosClient.post<ClientHistoryRecordResponse>(
     "/superadmin/client-history",
     {
       ...data,
-      concepto:
-        data.concepto?.trim() || null,
+      concepto: data.concepto?.trim() || null,
       folio: data.folio?.trim() || null,
-      uuid_fiscal:
-        data.uuid_fiscal?.trim() || null,
-      observaciones:
-        data.observaciones?.trim() || null,
-      precio_unitario:
-        data.precio_unitario ?? undefined,
+      uuid_fiscal: data.uuid_fiscal?.trim() || null,
+      observaciones: data.observaciones?.trim() || null,
+      precio_unitario: data.precio_unitario ?? undefined,
     },
   );
 
@@ -845,58 +885,8 @@ export async function createSuperAdminClientHistory(
 export async function getSuperAdminClientHistoryById(
   id: number | string,
 ): Promise<ClientHistoryRecordResponse> {
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<ClientHistoryRecordResponse>(
     `/superadmin/client-history/${id}`,
-  );
-
-  return response.data;
-}
-
-export async function uploadSuperAdminClientHistoryInvoicePdf(
-  id: number | string,
-  file: File,
-): Promise<{
-  message: string;
-  data: {
-    historial_id: number;
-    factura_pdf_disponible: boolean;
-  };
-}> {
-  const formData = new FormData();
-
-  formData.append(
-    "factura_pdf",
-    file,
-  );
-
-  const response = await axiosClient.post(
-    `/superadmin/client-history/${id}/invoice-pdf`,
-    formData,
-  );
-
-  return response.data;
-}
-
-export async function uploadSuperAdminClientHistoryXml(
-  id: number | string,
-  file: File,
-): Promise<{
-  message: string;
-  data: {
-    historial_id: number;
-    xml_disponible: boolean;
-  };
-}> {
-  const formData = new FormData();
-
-  formData.append(
-    "factura_xml",
-    file,
-  );
-
-  const response = await axiosClient.post(
-    `/superadmin/client-history/${id}/xml`,
-    formData,
   );
 
   return response.data;
@@ -923,11 +913,8 @@ function downloadBlob(
 ): void {
   ensureBrowser();
 
-  const url =
-    window.URL.createObjectURL(blob);
-
-  const link =
-    document.createElement("a");
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
 
   link.href = url;
   link.download = fileName;
@@ -939,10 +926,14 @@ function downloadBlob(
   window.URL.revokeObjectURL(url);
 }
 
+/**
+ * Muestra el comprobante administrativo generado por Laravel.
+ * Este documento no es el CFDI de TaeConta.
+ */
 export async function viewSuperAdminClientHistoryPdf(
   id: number | string,
 ): Promise<Blob> {
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<Blob>(
     `/superadmin/client-history/${id}/pdf/view`,
     {
       responseType: "blob",
@@ -955,11 +946,15 @@ export async function viewSuperAdminClientHistoryPdf(
   return response.data;
 }
 
+/**
+ * Descarga el comprobante administrativo generado por Laravel.
+ * El PDF fiscal de TaeConta se consulta desde taecontaTimbrado.service.ts.
+ */
 export async function downloadSuperAdminClientHistoryPdf(
   id: number | string,
   fileName?: string,
 ): Promise<void> {
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<Blob>(
     `/superadmin/client-history/${id}/pdf/download`,
     {
       responseType: "blob",
@@ -971,15 +966,41 @@ export async function downloadSuperAdminClientHistoryPdf(
 
   downloadBlob(
     response.data,
-    fileName ||
-      `comprobante-historial-${id}.pdf`,
+    fileName || `comprobante-historial-${id}.pdf`,
   );
 }
 
+/**
+ * Carga manualmente el PDF fiscal de un movimiento pagado
+ * que todavía no está timbrado mediante TaeConta.
+ */
+export async function uploadSuperAdminClientHistoryInvoicePdf(
+  id: number | string,
+  file: File,
+): Promise<ClientHistoryRecordResponse> {
+  const formData = new FormData();
+
+  formData.append(
+    "factura_pdf",
+    file,
+  );
+
+  const response =
+    await axiosClient.post<ClientHistoryRecordResponse>(
+      `/superadmin/client-history/${id}/invoice-pdf`,
+      formData,
+    );
+
+  return response.data;
+}
+
+/**
+ * Muestra el PDF fiscal cargado manualmente.
+ */
 export async function viewSuperAdminClientHistoryInvoicePdf(
   id: number | string,
 ): Promise<Blob> {
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<Blob>(
     `/superadmin/client-history/${id}/invoice-pdf/view`,
     {
       responseType: "blob",
@@ -992,11 +1013,14 @@ export async function viewSuperAdminClientHistoryInvoicePdf(
   return response.data;
 }
 
+/**
+ * Descarga el PDF fiscal cargado manualmente.
+ */
 export async function downloadSuperAdminClientHistoryInvoicePdf(
   id: number | string,
   fileName?: string,
 ): Promise<void> {
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<Blob>(
     `/superadmin/client-history/${id}/invoice-pdf/download`,
     {
       responseType: "blob",
@@ -1008,15 +1032,41 @@ export async function downloadSuperAdminClientHistoryInvoicePdf(
 
   downloadBlob(
     response.data,
-    fileName ||
-      `factura-historial-${id}.pdf`,
+    fileName || `factura-historial-${id}.pdf`,
   );
 }
 
+/**
+ * Carga manualmente el XML fiscal de un movimiento pagado
+ * que todavía no está timbrado mediante TaeConta.
+ */
+export async function uploadSuperAdminClientHistoryXml(
+  id: number | string,
+  file: File,
+): Promise<ClientHistoryRecordResponse> {
+  const formData = new FormData();
+
+  formData.append(
+    "factura_xml",
+    file,
+  );
+
+  const response =
+    await axiosClient.post<ClientHistoryRecordResponse>(
+      `/superadmin/client-history/${id}/xml`,
+      formData,
+    );
+
+  return response.data;
+}
+
+/**
+ * Muestra el XML fiscal cargado manualmente.
+ */
 export async function viewSuperAdminClientHistoryXml(
   id: number | string,
 ): Promise<string> {
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<string>(
     `/superadmin/client-history/${id}/xml/view`,
     {
       responseType: "text",
@@ -1025,7 +1075,7 @@ export async function viewSuperAdminClientHistoryXml(
       ],
       headers: {
         Accept:
-          "application/xml,text/xml",
+          "application/xml,text/xml,text/plain",
       },
     },
   );
@@ -1035,26 +1085,26 @@ export async function viewSuperAdminClientHistoryXml(
     : String(response.data ?? "");
 }
 
+/**
+ * Descarga el XML fiscal cargado manualmente.
+ */
 export async function downloadSuperAdminClientHistoryXml(
   id: number | string,
   fileName?: string,
 ): Promise<void> {
-  const response = await axiosClient.get(
+  const response = await axiosClient.get<Blob>(
     `/superadmin/client-history/${id}/xml/download`,
     {
       responseType: "blob",
       headers: {
-        Accept: "application/xml",
+        Accept:
+          "application/xml,text/xml",
       },
     },
   );
 
   downloadBlob(
     response.data,
-    fileName ||
-      `factura-historial-${id}.xml`,
+    fileName || `factura-historial-${id}.xml`,
   );
-
-
-  
 }

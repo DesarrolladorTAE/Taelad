@@ -47,7 +47,7 @@ import {
 type FormularioTimbrado = {
   historial_cliente_id: string;
   uso_cfdi: string;
-  metodo_pago: "PUE" | "PPD";
+  metodo_pago: "PUE";
   forma_pago: string;
 };
 
@@ -245,19 +245,8 @@ export default function TaecontaTimbradoPage() {
       return "El uso de CFDI no tiene un formato válido.";
     }
 
-    if (!["PUE", "PPD"].includes(formulario.metodo_pago)) {
-      return "El método de pago debe ser PUE o PPD.";
-    }
-
     if (!/^[0-9]{2}$/.test(formulario.forma_pago.trim())) {
       return "La forma de pago debe contener dos dígitos.";
-    }
-
-    if (
-      formulario.metodo_pago === "PPD" &&
-      formulario.forma_pago !== "99"
-    ) {
-      return "Cuando el método de pago es PPD, la forma de pago debe ser 99.";
     }
 
     return null;
@@ -285,7 +274,7 @@ export default function TaecontaTimbradoPage() {
           formulario.historial_cliente_id
         ),
         uso_cfdi: formulario.uso_cfdi.trim().toUpperCase(),
-        metodo_pago: formulario.metodo_pago,
+        metodo_pago: "PUE",
         forma_pago: formulario.forma_pago.trim(),
       };
 
@@ -428,36 +417,15 @@ export default function TaecontaTimbradoPage() {
                   />
 
                   <TextField
-                    select
                     label="Método de pago"
-                    value={formulario.metodo_pago}
-                    onChange={(event) => {
-                      const metodoPago = event.target.value as
-                        | "PUE"
-                        | "PPD";
-
-                      setFormulario((actual) => ({
-                        ...actual,
-                        metodo_pago: metodoPago,
-                        forma_pago:
-                          metodoPago === "PPD"
-                            ? "99"
-                            : actual.forma_pago === "99"
-                              ? "03"
-                              : actual.forma_pago,
-                      }));
+                    value="PUE - Pago en una sola exhibición"
+                    InputProps={{
+                      readOnly: true,
                     }}
+                    helperText="Método fijo para este flujo"
                     required
                     fullWidth
-                  >
-                    <MenuItem value="PUE">
-                      PUE - Pago en una sola exhibición
-                    </MenuItem>
-
-                    <MenuItem value="PPD">
-                      PPD - Pago en parcialidades o diferido
-                    </MenuItem>
-                  </TextField>
+                  />
 
                   <TextField
                     select
@@ -469,7 +437,6 @@ export default function TaecontaTimbradoPage() {
                         event.target.value
                       )
                     }
-                    disabled={formulario.metodo_pago === "PPD"}
                     required
                     fullWidth
                   >
@@ -491,9 +458,6 @@ export default function TaecontaTimbradoPage() {
                       28 - Tarjeta de débito
                     </MenuItem>
 
-                    <MenuItem value="99">
-                      99 - Por definir
-                    </MenuItem>
                   </TextField>
 
                   <TextField
