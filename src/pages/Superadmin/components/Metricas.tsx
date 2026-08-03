@@ -71,11 +71,50 @@ type Snapshot = {
   charts?: Record<string, any> | any[];
 };
 
+type FilterOption = {
+  value: string | number;
+  label: string;
+  short_label?: string;
+  period_key?: string;
+};
+
+type MetricsFilters = {
+  year: number;
+  month: number | "all";
+  system: string;
+  period_key: string;
+  last_available_month: number;
+  available_years: FilterOption[];
+  available_months: FilterOption[];
+  available_systems?: FilterOption[];
+};
+
+type MetricsPeriod = {
+  mode: "month" | "range";
+  year: number;
+  month: number | null;
+  start_month: number;
+  end_month: number;
+  period_key: string;
+  label: string;
+  short_label: string;
+};
+
 type MetricasResponse = {
   success: boolean;
   message?: string;
+  filters?: MetricsFilters;
+  period?: MetricsPeriod;
   data?: {
     snapshots: Snapshot[];
+    snapshots_by_month?: Array<{
+      year: number;
+      month: number;
+      period_key: string;
+      label: string;
+      short_label: string;
+      snapshots: Snapshot[];
+    }>;
     alerts?: any[];
     sync_logs?: any[];
   };
@@ -91,20 +130,6 @@ type StatCardProps = {
 
 const API_BASE_URL = "https://api.tecnologiasadministrativas.com/api";
 
-const MONTHS = [
-  "Ene",
-  "Feb",
-  "Mar",
-  "Abr",
-  "May",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dic",
-];
 
 const SYSTEM_LABELS: Record<ApiSystemKey, string> = {
   mitienda: "MiTiendaEnLineaMx",
@@ -264,25 +289,18 @@ function getSnapshot(
   snapshots: Snapshot[],
   key: "consolidado" | ApiSystemKey
 ): Snapshot | null {
-  return snapshots.find((item) => item.system_key === key) || null;
-}
-
-function getVisibleMonthCount(
-  selectedYear: number,
-  currentYear: number,
-  currentMonth: number
-) {
-  if (selectedYear < currentYear) return 12;
-  if (selectedYear === currentYear) return currentMonth;
-  return 0;
+  return (
+    snapshots
+      .filter((item) => item.system_key === key)
+      .sort((a, b) => Number(b.month) - Number(a.month))[0] || null
+  );
 }
 
 function getMonthlySeries(
   charts: Record<string, any>,
   systemKey: ApiSystemKey,
   selectedYear: number,
-  currentYear: number,
-  currentMonth: number
+  fallbackMonth: number
 ) {
   const ingresosPorMes = asObject(charts?.ingresos_por_mes);
 
@@ -302,7 +320,7 @@ function getMonthlySeries(
     values[itemMonth - 1] = Number(item?.value || item?.amount || 0);
   });
 
-  if (values.every((value) => value <= 0) && selectedYear === currentYear) {
+  if (values.every((value) => value <= 0)) {
     const ingresosPorSistema = Array.isArray(charts?.ingresos_por_sistema)
       ? charts.ingresos_por_sistema
       : [];
@@ -321,12 +339,91 @@ function getMonthlySeries(
 
     const fallbackValue = Number(match?.value || match?.amount || 0);
 
-    if (fallbackValue > 0) {
-      values[currentMonth - 1] = fallbackValue;
+    if (fallbackValue > 0 && fallbackMonth >= 1 && fallbackMonth <= 12) {
+      values[fallbackMonth - 1] = fallbackValue;
     }
   }
 
   return values;
+}
+
+function getMonthlySeriesFromSnapshots(
+  snapshots: Snapshot[],
+  systemKey: ApiSystemKey,
+  selectedYear: number
+) {
+  const values = Array.from({ length: 12 }, () => 0);
+  const consolidatedSnapshots = snapshots
+    .filter(
+      (snapshot) =>
+        snapshot.system_key === "consolidado" &&
+        Number(snapshot.year) === selectedYear
+    )
+    .sort((a, b) => Number(a.month) - Number(b.month));
+
+  consolidatedSnapshots.forEach((snapshot) => {
+    const snapshotSeries = getMonthlySeries(
+      asObject(snapshot.charts),
+      systemKey,
+      selectedYear,
+      Number(snapshot.month)
+    );
+
+    snapshotSeries.forEach((value, index) => {
+      if (Number(value) > 0) {
+        values[index] = Number(value);
+      }
+    });
+
+    const month = Number(snapshot.month);
+    const systemSnapshot = snapshots.find(
+      (item) =>
+        item.system_key === systemKey &&
+        Number(item.year) === selectedYear &&
+        Number(item.month) === month
+    );
+
+    if (month >= 1 && month <= 12 && values[month - 1] <= 0) {
+      values[month - 1] = firstNumber([
+        {
+          source: asObject(systemSnapshot?.kpis),
+          keys: ["ingresos_periodo_actual", "ingresos_mes", "ventas_mes"],
+        },
+      ]);
+    }
+  });
+
+  return values;
+}
+
+function getSystemPeriodIncome(
+  snapshot: Snapshot | null,
+  series: number[],
+  months: number[]
+) {
+  const chartTotal = sum(
+    months.map((month) => Number(series[month - 1] || 0))
+  );
+
+  if (chartTotal > 0) {
+    return chartTotal;
+  }
+
+  if (months.length === 1) {
+    return firstNumber([
+      {
+        source: asObject(snapshot?.kpis),
+        keys: ["ingresos_periodo_actual", "ingresos_mes", "ventas_mes"],
+      },
+    ]);
+  }
+
+  return firstNumber([
+    {
+      source: asObject(snapshot?.kpis),
+      keys: ["total_ingresos_planes", "total_ingresos", "ingreso_total"],
+    },
+  ]);
 }
 
 function getSystemAccounts(
@@ -391,41 +488,17 @@ function getSystemPlanExpired(snapshot: Snapshot | null) {
 }
 
 function getSystemAnnualIncome(
-  systemKey: ApiSystemKey,
   snapshot: Snapshot | null,
   series: number[]
 ) {
-  const chartTotal = sum(series);
-
-  if (chartTotal > 0) {
-    return chartTotal;
-  }
-
-  return firstNumber([
+  const kpiTotal = firstNumber([
     {
       source: asObject(snapshot?.kpis),
       keys: ["total_ingresos_planes", "total_ingresos", "ingreso_total"],
     },
   ]);
-}
 
-function getSystemCurrentIncome(
-  snapshot: Snapshot | null,
-  series: number[],
-  month: number
-) {
-  const chartValue = Number(series[month - 1] || 0);
-
-  if (chartValue > 0) {
-    return chartValue;
-  }
-
-  return firstNumber([
-    {
-      source: asObject(snapshot?.kpis),
-      keys: ["ingresos_periodo_actual", "ingresos_mes", "ventas_mes"],
-    },
-  ]);
+  return kpiTotal > 0 ? kpiTotal : sum(series);
 }
 
 function StatCard({
@@ -535,6 +608,7 @@ function SystemSummary({
   icon,
   income,
   currentIncome,
+  periodIncomeLabel,
   accounts,
   activePlans,
   expiredPlans,
@@ -548,6 +622,7 @@ function SystemSummary({
   icon: ReactNode;
   income: number;
   currentIncome: number;
+  periodIncomeLabel: string;
   accounts: number;
   activePlans: number;
   expiredPlans: number;
@@ -634,7 +709,7 @@ function SystemSummary({
 
         <Grid item xs={6}>
           <Typography variant="caption" color="text.secondary">
-            Ingreso del mes
+            {periodIncomeLabel}
           </Typography>
           <Typography fontWeight={900}>{formatMoney(currentIncome)}</Typography>
         </Grid>
@@ -837,25 +912,34 @@ export default function Metricas({ darkMode = false, setView }: Props) {
   const isDark = theme.palette.mode === "dark" || darkMode;
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1;
-
-  const [selectedYear, setSelectedYear] = useState(String(currentYear));
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
   const [systemFilter, setSystemFilter] = useState<SystemKey>("todos");
+  const [filters, setFilters] = useState<MetricsFilters | null>(null);
+  const [period, setPeriod] = useState<MetricsPeriod | null>(null);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const year = Number(selectedYear);
-  const queryMonth = year === currentYear ? currentMonth : 12;
-  const visibleMonthCount = getVisibleMonthCount(
-    year,
-    currentYear,
-    currentMonth
-  );
-
-  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
+  const year = Number(selectedYear || filters?.year || period?.year || 0);
+  const monthOptions = filters?.available_months || [];
+  const yearOptions = filters?.available_years || [];
+  const availableMonthNumbers = monthOptions
+    .map((item) => Number(item.value))
+    .filter((value) => Number.isInteger(value) && value >= 1 && value <= 12);
+  const selectedMonthNumber =
+    selectedMonth && selectedMonth !== "all" ? Number(selectedMonth) : null;
+  const periodMonthNumbers = selectedMonthNumber
+    ? [selectedMonthNumber]
+    : availableMonthNumbers;
+  const lastAvailableMonth =
+    filters?.last_available_month ||
+    availableMonthNumbers[availableMonthNumbers.length - 1] ||
+    1;
+  const periodLabel =
+    period?.short_label || period?.label || filters?.period_key || "Cargando";
+  const periodIncomeLabel =
+    period?.mode === "range" ? "Ingreso del periodo" : "Ingreso del mes";
 
   const consolidatedSnapshot = getSnapshot(snapshots, "consolidado");
   const mitiendaSnapshot = getSnapshot(snapshots, "mitienda");
@@ -864,48 +948,42 @@ export default function Metricas({ darkMode = false, setView }: Props) {
   const consolidatedKpis = asObject(consolidatedSnapshot?.kpis);
   const consolidatedData = asObject(consolidatedSnapshot?.consolidated);
   const consolidatedCharts = asObject(consolidatedSnapshot?.charts);
-
-  const mitiendaSpecific = asObject(
-    mitiendaSnapshot?.specific_metrics
-  );
+  const mitiendaSpecific = asObject(mitiendaSnapshot?.specific_metrics);
 
   const visibleSystems: ApiSystemKey[] =
     systemFilter === "todos" ? ["mitienda", "clicmenu"] : [systemFilter];
 
-  const mitiendaSeries = getMonthlySeries(
-    consolidatedCharts,
+  const mitiendaSeries = getMonthlySeriesFromSnapshots(
+    snapshots,
     "mitienda",
-    year,
-    currentYear,
-    currentMonth
+    year
   );
 
-  const clicmenuSeries = getMonthlySeries(
-    consolidatedCharts,
+  const clicmenuSeries = getMonthlySeriesFromSnapshots(
+    snapshots,
     "clicmenu",
-    year,
-    currentYear,
-    currentMonth
+    year
   );
 
-  const relationSeries = MONTHS.slice(0, visibleMonthCount).map(
-    (month, index) => {
-      const mitienda = visibleSystems.includes("mitienda")
-        ? Number(mitiendaSeries[index] || 0)
-        : 0;
+  const relationSeries = periodMonthNumbers.map((monthNumber) => {
+    const monthOption = monthOptions.find(
+      (item) => Number(item.value) === monthNumber
+    );
+    const mitienda = visibleSystems.includes("mitienda")
+      ? Number(mitiendaSeries[monthNumber - 1] || 0)
+      : 0;
+    const clicmenu = visibleSystems.includes("clicmenu")
+      ? Number(clicmenuSeries[monthNumber - 1] || 0)
+      : 0;
 
-      const clicmenu = visibleSystems.includes("clicmenu")
-        ? Number(clicmenuSeries[index] || 0)
-        : 0;
-
-      return {
-        month,
-        mitienda,
-        clicmenu,
-        total: mitienda + clicmenu,
-      };
-    }
-  );
+    return {
+      month: monthOption?.short_label || monthOption?.label || String(monthNumber),
+      monthNumber,
+      mitienda,
+      clicmenu,
+      total: mitienda + clicmenu,
+    };
+  });
 
   const maxBarValue = Math.max(
     ...relationSeries.flatMap((item) => [item.mitienda, item.clicmenu]),
@@ -913,13 +991,11 @@ export default function Metricas({ darkMode = false, setView }: Props) {
   );
 
   const mitiendaIncomeAnnual = getSystemAnnualIncome(
-    "mitienda",
     mitiendaSnapshot,
     mitiendaSeries
   );
 
   const clicmenuIncomeAnnual = getSystemAnnualIncome(
-    "clicmenu",
     clicmenuSnapshot,
     clicmenuSeries
   );
@@ -931,16 +1007,16 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     );
   }, 0);
 
-  const mitiendaCurrentIncome = getSystemCurrentIncome(
+  const mitiendaCurrentIncome = getSystemPeriodIncome(
     mitiendaSnapshot,
     mitiendaSeries,
-    queryMonth
+    periodMonthNumbers
   );
 
-  const clicmenuCurrentIncome = getSystemCurrentIncome(
+  const clicmenuCurrentIncome = getSystemPeriodIncome(
     clicmenuSnapshot,
     clicmenuSeries,
-    queryMonth
+    periodMonthNumbers
   );
 
   const ingresosMes = visibleSystems.reduce((total, key) => {
@@ -954,16 +1030,14 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     consolidatedCharts,
     "mitienda",
     year - 1,
-    currentYear,
-    currentMonth
+    lastAvailableMonth
   );
 
   const previousClicmenuSeries = getMonthlySeries(
     consolidatedCharts,
     "clicmenu",
     year - 1,
-    currentYear,
-    currentMonth
+    lastAvailableMonth
   );
 
   const ingresosAnualesPrevios = visibleSystems.reduce((total, key) => {
@@ -1105,9 +1179,18 @@ export default function Metricas({ darkMode = false, setView }: Props) {
       setError("");
 
       const token = getAuthToken();
+      const params = new URLSearchParams({ system: "all" });
+
+      if (selectedYear) {
+        params.set("year", selectedYear);
+      }
+
+      if (selectedMonth) {
+        params.set("month", selectedMonth);
+      }
 
       const response = await fetch(
-        `${API_BASE_URL}/superadmin/metricas-generales?year=${year}&month=${queryMonth}&system=all`,
+        `${API_BASE_URL}/superadmin/metricas-generales?${params.toString()}`,
         {
           method: "GET",
           headers: {
@@ -1119,12 +1202,22 @@ export default function Metricas({ darkMode = false, setView }: Props) {
 
       const json: MetricasResponse = await response.json();
 
-      if (!response.ok || !json?.success || !json?.data?.snapshots) {
+      if (
+        !response.ok ||
+        !json?.success ||
+        !json?.filters ||
+        !json?.period ||
+        !json?.data?.snapshots
+      ) {
         throw new Error(
           json?.message || "La respuesta de métricas no fue válida."
         );
       }
 
+      setFilters(json.filters);
+      setPeriod(json.period);
+      setSelectedYear(String(json.filters.year));
+      setSelectedMonth(String(json.filters.month));
       setSnapshots(json.data.snapshots);
     } catch (err: any) {
       setSnapshots([]);
@@ -1132,7 +1225,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [queryMonth, year]);
+  }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
     fetchMetricas();
@@ -1143,14 +1236,14 @@ export default function Metricas({ darkMode = false, setView }: Props) {
       {
         title: "Ingresos acumulados",
         value: formatMoney(ingresosAnuales),
-        helper: `Total registrado en ${year}`,
+        helper: `Total registrado en ${year || "el año seleccionado"}`,
         icon: <AccountBalanceWalletIcon />,
         tone: "primary" as const,
       },
       {
         title: "Ingresos del periodo",
         value: formatMoney(ingresosMes),
-        helper: `Mes consultado: ${MONTHS[Math.max(queryMonth - 1, 0)]}`,
+        helper: `Periodo consultado: ${periodLabel}`,
         icon: <ReceiptLongIcon />,
         tone: "info" as const,
       },
@@ -1178,7 +1271,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
       ingresosAnuales,
       ingresosAnualesPrevios,
       ingresosMes,
-      queryMonth,
+      periodLabel,
       sistemasActivos,
       totalEmpresas,
       year,
@@ -1230,15 +1323,18 @@ export default function Metricas({ darkMode = false, setView }: Props) {
           },
         }}
       >
-        <Stack
-          position="relative"
-          zIndex={1}
-          direction={{ xs: "column", lg: "row" }}
-          justifyContent="space-between"
-          alignItems={{ xs: "stretch", lg: "center" }}
-          spacing={3}
+        <Box
+          sx={{
+            position: "relative",
+            zIndex: 1,
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr)",
+            gap: { xs: 2, md: 2.5 },
+            width: "100%",
+            minWidth: 0,
+          }}
         >
-          <Box>
+          <Box sx={{ width: "100%", minWidth: 0 }}>
             <Chip
               icon={<InsightsIcon />}
               label="Panel ejecutivo"
@@ -1259,6 +1355,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                 fontSize: { xs: 28, sm: 34, md: 42 },
                 lineHeight: 1.08,
                 letterSpacing: { xs: -0.4, md: -1 },
+                whiteSpace: { xs: "normal", md: "nowrap" },
               }}
             >
               Métricas generales
@@ -1278,10 +1375,12 @@ export default function Metricas({ darkMode = false, setView }: Props) {
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
               mt={2.5}
+              flexWrap="wrap"
+              useFlexGap
             >
               <Chip
                 icon={<CalendarMonthIcon />}
-                label={`Periodo ${year}-${String(queryMonth).padStart(2, "0")}`}
+                label={`Periodo ${periodLabel}`}
                 sx={{
                   color: "#fff",
                   bgcolor: "rgba(255,255,255,.12)",
@@ -1301,15 +1400,22 @@ export default function Metricas({ darkMode = false, setView }: Props) {
             </Stack>
           </Box>
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.5}
+          <Box
             sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "120px 160px minmax(220px, 1fr) 160px",
+              },
+              gap: 1.5,
+              width: "100%",
+              minWidth: 0,
               p: { xs: 1, sm: 1.5 },
-              width: { xs: "100%", lg: "auto" },
               borderRadius: 3,
               bgcolor: "rgba(255,255,255,.1)",
               backdropFilter: "blur(10px)",
+              boxSizing: "border-box",
             }}
           >
             <TextField
@@ -1317,15 +1423,40 @@ export default function Metricas({ darkMode = false, setView }: Props) {
               size="small"
               label="Año"
               value={selectedYear}
-              onChange={(event) => setSelectedYear(event.target.value)}
+              onChange={(event) => {
+                setSelectedYear(event.target.value);
+                setSelectedMonth("");
+              }}
+              disabled={yearOptions.length === 0}
               sx={{
-                minWidth: { xs: "100%", sm: 120 },
+                width: "100%",
+                minWidth: 0,
                 "& .MuiInputBase-root": { bgcolor: "background.paper" },
               }}
             >
               {yearOptions.map((item) => (
-                <MenuItem key={item} value={String(item)}>
-                  {item}
+                <MenuItem key={String(item.value)} value={String(item.value)}>
+                  {item.label}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label="Mes"
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(event.target.value)}
+              disabled={monthOptions.length === 0}
+              sx={{
+                width: "100%",
+                minWidth: 0,
+                "& .MuiInputBase-root": { bgcolor: "background.paper" },
+              }}
+            >
+              {monthOptions.map((item) => (
+                <MenuItem key={String(item.value)} value={String(item.value)}>
+                  {item.label}
                 </MenuItem>
               ))}
             </TextField>
@@ -1339,7 +1470,8 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                 setSystemFilter(event.target.value as SystemKey)
               }
               sx={{
-                minWidth: { xs: "100%", sm: 190 },
+                width: "100%",
+                minWidth: 0,
                 "& .MuiInputBase-root": { bgcolor: "background.paper" },
               }}
             >
@@ -1360,13 +1492,18 @@ export default function Metricas({ darkMode = false, setView }: Props) {
               onClick={fetchMetricas}
               disabled={loading}
               sx={{
-                minWidth: { xs: "100%", sm: 130 },
+                width: "100%",
+                minWidth: 0,
+                minHeight: 40,
+                whiteSpace: "nowrap",
+                overflow: "visible",
                 bgcolor: isDark ? "rgba(255,255,255,.16)" : "#fff",
                 color: isDark ? "#fff" : "#0F4C81",
                 border: isDark
                   ? "1px solid rgba(255,255,255,.22)"
                   : "1px solid rgba(255,255,255,.7)",
                 fontWeight: 900,
+                "& .MuiButton-startIcon": { flexShrink: 0 },
                 "&:hover": {
                   bgcolor: isDark ? "rgba(255,255,255,.24)" : "#F8FAFC",
                 },
@@ -1374,8 +1511,8 @@ export default function Metricas({ darkMode = false, setView }: Props) {
             >
               Actualizar
             </Button>
-          </Stack>
-        </Stack>
+          </Box>
+        </Box>
       </Paper>
 
       {error && (
@@ -1439,7 +1576,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                     </Typography>
 
                     <Typography variant="body2" color="text.secondary">
-                      {selectedSystemLabel} · {year}
+                      {selectedSystemLabel} · {periodLabel}
                     </Typography>
                   </Box>
 
@@ -1935,6 +2072,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                   icon={<StorefrontIcon />}
                   income={mitiendaIncomeAnnual}
                   currentIncome={mitiendaCurrentIncome}
+                  periodIncomeLabel={periodIncomeLabel}
                   accounts={mitiendaAccounts}
                   activePlans={mitiendaPlansActive}
                   expiredPlans={mitiendaPlansExpired}
@@ -1989,6 +2127,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                   icon={<RestaurantIcon />}
                   income={clicmenuIncomeAnnual}
                   currentIncome={clicmenuCurrentIncome}
+                  periodIncomeLabel={periodIncomeLabel}
                   accounts={clicmenuAccounts}
                   activePlans={clicmenuPlansActive}
                   expiredPlans={clicmenuPlansExpired}
@@ -2017,7 +2156,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
               <Stack direction="row" spacing={1} alignItems="center">
                 <InfoOutlinedIcon color="info" fontSize="small" />
                 <Typography variant="body2">
-                  Los meses futuros no se muestran en la gráfica del año actual.
+                  Los meses disponibles y el periodo mostrado son definidos por el backend.
                 </Typography>
               </Stack>
 

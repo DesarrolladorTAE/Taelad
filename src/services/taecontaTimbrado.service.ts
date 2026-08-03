@@ -1,32 +1,134 @@
 import axios, {
   AxiosError,
+  AxiosResponse,
 } from "axios";
 
 import axiosClient from "./axiosClient";
 
 import {
+  TaecontaFacturaPreviewResponse,
   TaecontaTimbradoDetalleResponse,
   TaecontaTimbradosParams,
   TaecontaTimbradosResponse,
   TimbrarCompraTaecontaPayload,
   TimbrarCfdiTaecontaResponse,
-  TaecontaFacturaPreviewResponse,
 } from "../types/taecontaTimbrado";
 
 const BASE_URL = "/superadmin/taeconta";
 
-/**
- * Obtiene el mensaje contenido dentro de una respuesta Blob.
- *
- * Cuando se solicita un PDF con responseType "blob",
- * los errores JSON del backend también llegan como Blob.
- */
-async function extractBlobErrorMessage(
+type ApiErrorPayload = {
+  message?: string;
+  user_message?: string;
+  technical_message?: string;
+  error?: string;
+  error_code?: string | number | null;
+  provider?: string | null;
+  errors?:
+    | Record<string, string[]>
+    | string[];
+};
+
+function firstValidationError(
+  errors?:
+    | Record<string, string[]>
+    | string[],
+): string | null {
+  if (!errors) {
+    return null;
+  }
+
+  if (Array.isArray(errors)) {
+    const first = errors.find(
+      (message) =>
+        typeof message === "string" &&
+        message.trim() !== "",
+    );
+
+    return first?.trim() || null;
+  }
+
+  for (const messages of Object.values(errors)) {
+    const first = messages?.find(
+      (message) =>
+        typeof message === "string" &&
+        message.trim() !== "",
+    );
+
+    if (first) {
+      return first.trim();
+    }
+  }
+
+  return null;
+}
+
+function errorMessageFromPayload(
+  payload: unknown,
+  fallback: string,
+): string {
+  if (
+    !payload ||
+    typeof payload !== "object"
+  ) {
+    return fallback;
+  }
+
+  const data =
+    payload as ApiErrorPayload;
+
+  /*
+   * Los errores específicos del PAC tienen prioridad sobre
+   * el mensaje genérico "Falló timbrado...".
+   */
+  const validationMessage =
+    firstValidationError(
+      data.errors,
+    );
+
+  if (validationMessage) {
+    return validationMessage;
+  }
+
+  if (
+    typeof data.user_message ===
+      "string" &&
+    data.user_message.trim() !== ""
+  ) {
+    return data.user_message.trim();
+  }
+
+  if (
+    typeof data.technical_message ===
+      "string" &&
+    data.technical_message.trim() !== ""
+  ) {
+    return data.technical_message.trim();
+  }
+
+  if (
+    typeof data.message === "string" &&
+    data.message.trim() !== ""
+  ) {
+    return data.message.trim();
+  }
+
+  if (
+    typeof data.error === "string" &&
+    data.error.trim() !== ""
+  ) {
+    return data.error.trim();
+  }
+
+  return fallback;
+}
+
+async function extractRequestErrorMessage(
   error: unknown,
   fallback: string,
 ): Promise<string> {
   if (!axios.isAxiosError(error)) {
-    return error instanceof Error
+    return error instanceof Error &&
+      error.message.trim() !== ""
       ? error.message
       : fallback;
   }
@@ -47,88 +149,132 @@ async function extractBlobErrorMessage(
       }
 
       try {
-        const parsed = JSON.parse(
-          text,
-        ) as {
-          message?: string;
-          errors?: Record<
-            string,
-            string[]
-          >;
-        };
-
-        if (
-          typeof parsed.message ===
-            "string" &&
-          parsed.message.trim() !== ""
-        ) {
-          return parsed.message;
-        }
-
-        const firstError =
-          parsed.errors
-            ? Object.values(
-                parsed.errors,
-              )[0]?.[0]
-            : null;
-
-        if (firstError) {
-          return firstError;
-        }
+        return errorMessageFromPayload(
+          JSON.parse(text),
+          fallback,
+        );
       } catch {
-        return text
+        const cleanText = text
+          .replace(/<style[\s\S]*?<\/style>/gi, " ")
+          .replace(/<script[\s\S]*?<\/script>/gi, " ")
           .replace(/<[^>]+>/g, " ")
           .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 300) || fallback;
+          .trim();
+
+        return cleanText
+          ? cleanText.slice(0, 300)
+          : fallback;
       }
     } catch {
       return fallback;
     }
   }
 
-  if (
-    responseData &&
-    typeof responseData === "object"
-  ) {
-    const data =
-      responseData as {
-        message?: string;
-        errors?: Record<
-          string,
-          string[]
-        >;
-      };
-
-    if (
-      typeof data.message ===
-        "string" &&
-      data.message.trim() !== ""
-    ) {
-      return data.message;
-    }
-
-    const firstError =
-      data.errors
-        ? Object.values(
-            data.errors,
-          )[0]?.[0]
-        : null;
-
-    if (firstError) {
-      return firstError;
-    }
-  }
-
-  return (
-    axiosError.message ||
-    fallback
+  return errorMessageFromPayload(
+    responseData,
+    axiosError.message || fallback,
   );
 }
 
-/**
- * Lista los procesos de timbrado.
- */
+function fileNameFromDisposition(
+  disposition: unknown,
+  fallback: string,
+): string {
+  if (
+    typeof disposition !== "string" ||
+    disposition.trim() === ""
+  ) {
+    return fallback;
+  }
+
+  const utf8Match =
+    disposition.match(
+      /filename\*\s*=\s*UTF-8''([^;]+)/i,
+    );
+
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(
+        utf8Match[1]
+          .trim()
+          .replace(/^["']|["']$/g, ""),
+      );
+    } catch {
+      return utf8Match[1]
+        .trim()
+        .replace(/^["']|["']$/g, "");
+    }
+  }
+
+  const standardMatch =
+    disposition.match(
+      /filename\s*=\s*"([^"]+)"/i,
+    ) ??
+    disposition.match(
+      /filename\s*=\s*([^;]+)/i,
+    );
+
+  return standardMatch?.[1]
+    ? standardMatch[1]
+        .trim()
+        .replace(/^["']|["']$/g, "")
+    : fallback;
+}
+
+function triggerBlobDownload(
+  blob: Blob,
+  fileName: string,
+): void {
+  const url =
+    window.URL.createObjectURL(blob);
+
+  const anchor =
+    document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.rel = "noopener";
+  anchor.style.display = "none";
+
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  window.setTimeout(() => {
+    window.URL.revokeObjectURL(url);
+  }, 100);
+}
+
+function assertNonEmptyBlob(
+  blob: Blob,
+  message: string,
+): void {
+  if (
+    !(blob instanceof Blob) ||
+    blob.size === 0
+  ) {
+    throw new Error(message);
+  }
+}
+
+function downloadFileName(
+  response: AxiosResponse<Blob>,
+  fallback: string,
+): string {
+  return fileNameFromDisposition(
+    response.headers[
+      "content-disposition"
+    ],
+    fallback,
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| LISTADO Y DETALLE
+|--------------------------------------------------------------------------
+*/
+
 export async function obtenerTimbradosTaeconta(
   params: TaecontaTimbradosParams = {},
 ): Promise<TaecontaTimbradosResponse> {
@@ -159,9 +305,6 @@ export async function obtenerTimbradosTaeconta(
   return response.data;
 }
 
-/**
- * Obtiene el detalle de un proceso de timbrado.
- */
 export async function obtenerTimbradoTaeconta(
   id: number,
 ): Promise<TaecontaTimbradoDetalleResponse> {
@@ -173,9 +316,12 @@ export async function obtenerTimbradoTaeconta(
   return response.data;
 }
 
-/**
- * Obtiene la información fiscal previa al timbrado.
- */
+/*
+|--------------------------------------------------------------------------
+| PREVISUALIZACIÓN Y TIMBRADO
+|--------------------------------------------------------------------------
+*/
+
 export async function obtenerPrevisualizacionFacturaTaeconta(
   historialClienteId: number,
 ): Promise<TaecontaFacturaPreviewResponse> {
@@ -187,46 +333,53 @@ export async function obtenerPrevisualizacionFacturaTaeconta(
   return response.data;
 }
 
-/**
- * Genera y timbra el CFDI de un movimiento.
- */
 export async function timbrarCompraTaeconta(
   payload: TimbrarCompraTaecontaPayload,
 ): Promise<TimbrarCfdiTaecontaResponse> {
-  const response =
-    await axiosClient.post<TimbrarCfdiTaecontaResponse>(
-      `${BASE_URL}/timbrar`,
-      {
-        historial_cliente_id:
-          payload.historial_cliente_id,
+  try {
+    const response =
+      await axiosClient.post<TimbrarCfdiTaecontaResponse>(
+        `${BASE_URL}/timbrar`,
+        {
+          historial_cliente_id:
+            payload.historial_cliente_id,
 
-        uso_cfdi:
-          payload.uso_cfdi
-            ?.trim()
-            .toUpperCase() ||
-          "G03",
+          uso_cfdi:
+            payload.uso_cfdi
+              ?.trim()
+              .toUpperCase() ||
+            "G03",
 
-        /*
-         * Este flujo trabaja únicamente con PUE.
-         */
-        metodo_pago: "PUE",
+          /*
+           * Este flujo fiscal solamente permite PUE.
+           */
+          metodo_pago: "PUE",
 
-        forma_pago:
-          payload.forma_pago
-            ?.trim() ||
-          "03",
-      },
-    );
+          forma_pago:
+            payload.forma_pago
+              ?.trim() ||
+            "03",
+        },
+      );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    const message =
+      await extractRequestErrorMessage(
+        error,
+        "No fue posible timbrar el CFDI.",
+      );
+
+    throw new Error(message);
+  }
 }
 
-/**
- * Obtiene el PDF fiscal directamente desde el proxy Laravel.
- *
- * No descarga ni almacena el archivo. Devuelve un Blob para
- * crear una URL temporal y mostrarlo dentro de un iframe.
- */
+/*
+|--------------------------------------------------------------------------
+| VISUALIZACIÓN DE DOCUMENTOS
+|--------------------------------------------------------------------------
+*/
+
 export async function obtenerFacturaPdfTaeconta(
   historialClienteId: number,
 ): Promise<Blob> {
@@ -243,78 +396,52 @@ export async function obtenerFacturaPdfTaeconta(
         },
       );
 
-    const blob =
-      response.data;
+    assertNonEmptyBlob(
+      response.data,
+      "El servidor devolvió un PDF vacío.",
+    );
 
-    if (
-      !(blob instanceof Blob) ||
-      blob.size === 0
-    ) {
-      throw new Error(
-        "El servidor devolvió un PDF vacío.",
-      );
-    }
+    const contentType = String(
+      response.headers[
+        "content-type"
+      ] ??
+        response.data.type ??
+        "",
+    ).toLowerCase();
 
-    const contentType =
-      String(
-        response.headers[
-          "content-type"
-        ] ??
-          blob.type ??
-          "",
-      ).toLowerCase();
-
-    /*
-     * Laravel ya valida la firma PDF.
-     * Aquí se conserva una validación adicional del cliente.
-     */
     if (
       contentType &&
       !contentType.includes(
         "application/pdf",
       )
     ) {
-      const possibleMessage =
-        await blob.text();
-
-      try {
-        const parsed = JSON.parse(
-          possibleMessage,
-        ) as {
-          message?: string;
-        };
-
-        throw new Error(
-          parsed.message ||
-            "El servidor no devolvió un PDF válido.",
-        );
-      } catch (parseError) {
-        if (
-          parseError instanceof Error &&
-          parseError.message !==
-            "Unexpected end of JSON input"
-        ) {
-          throw parseError;
-        }
-
-        throw new Error(
+      const message =
+        await extractRequestErrorMessage(
+          new AxiosError(
+            "Respuesta PDF inválida.",
+            undefined,
+            undefined,
+            undefined,
+            response,
+          ),
           "El servidor no devolvió un PDF válido.",
         );
-      }
+
+      throw new Error(message);
     }
 
-    return blob.type ===
+    return response.data.type ===
       "application/pdf"
-      ? blob
+      ? response.data
       : new Blob(
-          [blob],
+          [response.data],
           {
             type: "application/pdf",
           },
         );
   } catch (error) {
     const message =
-      await extractBlobErrorMessage(
+      await extractRequestErrorMessage(
         error,
         "No fue posible obtener el PDF de la factura.",
       );
@@ -323,11 +450,6 @@ export async function obtenerFacturaPdfTaeconta(
   }
 }
 
-/**
- * Obtiene el XML fiscal directamente desde el proxy Laravel.
- *
- * Se devuelve como texto para mostrarlo dentro del panel.
- */
 export async function obtenerFacturaXmlTaeconta(
   historialClienteId: number,
 ): Promise<string> {
@@ -337,15 +459,9 @@ export async function obtenerFacturaXmlTaeconta(
         `${BASE_URL}/historial-clientes/${historialClienteId}/factura/xml`,
         {
           responseType: "text",
-
-          /*
-           * Evita que Axios intente interpretar automáticamente
-           * el XML como JSON.
-           */
           transformResponse: [
             (data) => data,
           ],
-
           headers: {
             Accept:
               "application/xml,text/xml,text/plain",
@@ -388,15 +504,14 @@ export async function obtenerFacturaXmlTaeconta(
 
     if (!looksLikeXml) {
       try {
-        const parsed = JSON.parse(
-          normalized,
-        ) as {
-          message?: string;
-        };
+        const parsed =
+          JSON.parse(normalized);
 
         throw new Error(
-          parsed.message ||
+          errorMessageFromPayload(
+            parsed,
             "El servidor no devolvió un XML válido.",
+          ),
         );
       } catch (parseError) {
         if (
@@ -424,9 +539,171 @@ export async function obtenerFacturaXmlTaeconta(
     }
 
     const message =
-      await extractBlobErrorMessage(
+      await extractRequestErrorMessage(
         error,
         "No fue posible obtener el XML de la factura.",
+      );
+
+    throw new Error(message);
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| DESCARGAS CONTROLADAS POR LARAVEL
+|--------------------------------------------------------------------------
+*/
+
+export async function descargarFacturaPdfTaeconta(
+  historialClienteId: number,
+): Promise<void> {
+  try {
+    const response =
+      await axiosClient.get<Blob>(
+        `${BASE_URL}/historial-clientes/${historialClienteId}/factura/pdf/download`,
+        {
+          responseType: "blob",
+          headers: {
+            Accept:
+              "application/pdf",
+          },
+        },
+      );
+
+    assertNonEmptyBlob(
+      response.data,
+      "El servidor devolvió un PDF vacío.",
+    );
+
+    const contentType = String(
+      response.headers[
+        "content-type"
+      ] ??
+        response.data.type ??
+        "",
+    ).toLowerCase();
+
+    if (
+      contentType &&
+      !contentType.includes(
+        "application/pdf",
+      )
+    ) {
+      const message =
+        await extractRequestErrorMessage(
+          new AxiosError(
+            "Respuesta PDF inválida.",
+            undefined,
+            undefined,
+            undefined,
+            response,
+          ),
+          "El servidor no devolvió un PDF válido.",
+        );
+
+      throw new Error(message);
+    }
+
+    const fileName =
+      downloadFileName(
+        response,
+        `factura-${historialClienteId}.pdf`,
+      );
+
+    triggerBlobDownload(
+      response.data.type ===
+        "application/pdf"
+        ? response.data
+        : new Blob(
+            [response.data],
+            {
+              type: "application/pdf",
+            },
+          ),
+      fileName,
+    );
+  } catch (error) {
+    const message =
+      await extractRequestErrorMessage(
+        error,
+        "No fue posible descargar el PDF de la factura.",
+      );
+
+    throw new Error(message);
+  }
+}
+
+export async function descargarFacturaXmlTaeconta(
+  historialClienteId: number,
+): Promise<void> {
+  try {
+    const response =
+      await axiosClient.get<Blob>(
+        `${BASE_URL}/historial-clientes/${historialClienteId}/factura/xml/download`,
+        {
+          responseType: "blob",
+          headers: {
+            Accept:
+              "application/xml,text/xml",
+          },
+        },
+      );
+
+    assertNonEmptyBlob(
+      response.data,
+      "El servidor devolvió un XML vacío.",
+    );
+
+    const contentType = String(
+      response.headers[
+        "content-type"
+      ] ??
+        response.data.type ??
+        "",
+    ).toLowerCase();
+
+    if (
+      contentType &&
+      !contentType.includes("xml")
+    ) {
+      const message =
+        await extractRequestErrorMessage(
+          new AxiosError(
+            "Respuesta XML inválida.",
+            undefined,
+            undefined,
+            undefined,
+            response,
+          ),
+          "El servidor no devolvió un XML válido.",
+        );
+
+      throw new Error(message);
+    }
+
+    const fileName =
+      downloadFileName(
+        response,
+        `factura-${historialClienteId}.xml`,
+      );
+
+    triggerBlobDownload(
+      response.data.type
+        ? response.data
+        : new Blob(
+            [response.data],
+            {
+              type:
+                "application/xml;charset=UTF-8",
+            },
+          ),
+      fileName,
+    );
+  } catch (error) {
+    const message =
+      await extractRequestErrorMessage(
+        error,
+        "No fue posible descargar el XML de la factura.",
       );
 
     throw new Error(message);
