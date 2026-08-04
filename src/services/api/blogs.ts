@@ -314,8 +314,10 @@ export type BlogPostAdPayload = {
   sort_order?: number | null;
 
   /*
-   * Debe contener al menos un ID válido y sin duplicados,
-   * todos pertenecientes al mismo blog.
+   * Las imágenes son opcionales.
+   *
+   * Puede enviarse un arreglo vacío o cualquier
+   * cantidad de IDs válidos, sin duplicados.
    */
   media_ids: BlogPostAdMediaIds;
 };
@@ -587,12 +589,15 @@ function assertPostAdPayload(
     );
   }
 
-  if (
-    !Array.isArray(payload.media_ids) ||
-    payload.media_ids.length === 0
-  ) {
+  /*
+   * Las imágenes son opcionales.
+   *
+   * Solo se valida que media_ids sea un arreglo.
+   * Un arreglo vacío es válido.
+   */
+  if (!Array.isArray(payload.media_ids)) {
     throw new Error(
-      `${prefix}debe seleccionar al menos una imagen.`
+      `${prefix}las imágenes deben enviarse como una lista.`
     );
   }
 

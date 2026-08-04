@@ -310,17 +310,21 @@ function isHttpUrl(
 function toBlogPostAdMediaIds(
   mediaIds: number[]
 ): BlogPostAdMediaIds {
-  const uniqueMediaIds = Array.from(
-    new Set(mediaIds)
-  );
-
-  if (uniqueMediaIds.length === 0) {
-    throw new Error(
-      "Cada anuncio debe contener al menos una imagen."
-    );
-  }
-
-  return uniqueMediaIds as BlogPostAdMediaIds;
+  /*
+   * Las imágenes son opcionales.
+   * No existe cantidad mínima ni máxima.
+   */
+  return Array.from(
+    new Set(
+      mediaIds
+        .map(Number)
+        .filter(
+          (mediaId) =>
+            Number.isInteger(mediaId) &&
+            mediaId > 0
+        )
+    )
+  ) as BlogPostAdMediaIds;
 }
 
 function slugify(value: string): string {
@@ -494,10 +498,7 @@ function validateAdForm(
       "El orden debe ser un número entero igual o mayor que cero.";
   }
 
-  if (form.media_ids.length === 0) {
-    errors.media_ids =
-      "Selecciona al menos una imagen.";
-  } else if (
+  if (
     new Set(form.media_ids).size !==
     form.media_ids.length
   ) {
@@ -1415,14 +1416,6 @@ export default function BlogPostsSection({
     const caption =
       contentImageCaption.trim();
 
-    if (!caption) {
-      setContentImageError(
-        "Escribe el pie de imagen o descripción."
-      );
-
-      return;
-    }
-
     const inserted =
       contentImageInserterRef.current?.({
         /*
@@ -1440,7 +1433,10 @@ export default function BlogPostsSection({
         title:
           selectedMedia.caption || null,
 
-        caption,
+        /*
+         * El pie de imagen es opcional.
+         */
+        caption: caption || null,
       }) ?? false;
 
     if (!inserted) {
@@ -1907,7 +1903,7 @@ export default function BlogPostsSection({
     if (invalidAd) {
       setFormTab(4);
       setFormError(
-        `Revisa el anuncio “${invalidAd.title}”. Cada anuncio debe tener al menos una imagen.`
+        `Revisa los datos del anuncio “${invalidAd.title}”.`
       );
       return;
     }
@@ -1922,20 +1918,20 @@ export default function BlogPostsSection({
     const embeddedAds: BlogPostAdPayload[] =
       sortAds(ads).map(
         (ad, index) => {
-          const mediaIds =
-            ad.media_ids?.length > 0
-              ? ad.media_ids
-              : ad.images
-                  .slice()
-                  .sort(
-                    (first, second) =>
-                      first.sort_order -
-                      second.sort_order
-                  )
-                  .map(
-                    (image) =>
-                      image.media_id
-                  );
+          /*
+           * Las imágenes son opcionales.
+           *
+           * Se utiliza exclusivamente media_ids para
+           * respetar cuando el usuario deja el anuncio
+           * sin imágenes. No se reconstruye desde
+           * ad.images porque eso volvería a enviar
+           * imágenes eliminadas previamente.
+           */
+          const mediaIds = Array.isArray(
+            ad.media_ids
+          )
+            ? ad.media_ids
+            : [];
 
           return {
             ...(ad.id > 0
@@ -2100,18 +2096,34 @@ export default function BlogPostsSection({
       link_text: ad.link_text ?? "Ver más",
       status: ad.status,
       sort_order: ad.sort_order,
-      media_ids:
-        ad.media_ids?.length > 0
-          ? ad.media_ids
-          : ad.images
-              ?.sort(
+      media_ids: Array.isArray(
+        ad.media_ids
+      )
+        ? ad.media_ids
+            .map(Number)
+            .filter(
+              (mediaId) =>
+                Number.isInteger(mediaId) &&
+                mediaId > 0
+            )
+        : Array.isArray(ad.images)
+          ? ad.images
+              .slice()
+              .sort(
                 (first, second) =>
                   first.sort_order -
                   second.sort_order
               )
               .map(
-                (image) => image.media_id
-              ) ?? [],
+                (image) =>
+                  Number(image.media_id)
+              )
+              .filter(
+                (mediaId) =>
+                  Number.isInteger(mediaId) &&
+                  mediaId > 0
+              )
+          : [],
     };
   }
 
@@ -2182,6 +2194,12 @@ export default function BlogPostsSection({
     const validationErrors =
       validateAdForm(adForm);
 
+    /*
+     * Las imágenes son opcionales. Se elimina cualquier
+     * error residual de media_ids antes de validar.
+     */
+    delete validationErrors.media_ids;
+
     setAdFormErrors(validationErrors);
     setAdError(null);
 
@@ -2212,8 +2230,15 @@ export default function BlogPostsSection({
       const images =
         adForm.media_ids.map(
           (mediaId, index) => {
+            const existingImages =
+              Array.isArray(
+                editingAd?.images
+              )
+                ? editingAd?.images ?? []
+                : [];
+
             const existingImage =
-              editingAd?.images.find(
+              existingImages.find(
                 (image) =>
                   image.media_id ===
                   mediaId
@@ -2258,8 +2283,11 @@ export default function BlogPostsSection({
         status: adForm.status,
         sort_order: nextSortOrder,
 
-        media_ids:
-          adForm.media_ids.slice(),
+        media_ids: Array.isArray(
+          adForm.media_ids
+        )
+          ? adForm.media_ids.slice()
+          : [],
 
         images_count:
           images.length,
@@ -4500,8 +4528,8 @@ export default function BlogPostsSection({
                     >
                       Los anuncios activos se mostrarán
                       públicamente después del contenido
-                      de la publicación. Cada anuncio debe
-                      tener al menos una imagen.
+                      de la publicación. Las imágenes son
+                      opcionales y no tienen límite máximo.
                     </Alert>
                   </Grid>
 
@@ -4667,11 +4695,21 @@ export default function BlogPostsSection({
                                         </Typography>
                                       )}
 
+                                      {(!Array.isArray(ad.images) ||
+                                        ad.images.length === 0) && (
+                                        <Alert
+                                          severity="info"
+                                          icon={false}
+                                        >
+                                          Este anuncio no tiene imágenes. Se mostrará públicamente con su título, descripción y botón.
+                                        </Alert>
+                                      )}
+
                                       <Grid
                                         container
                                         spacing={1.5}
                                       >
-                                        {ad.images.map(
+                                        {(ad.images ?? []).map(
                                           (image) => (
                                             <Grid
                                               item
@@ -4854,9 +4892,9 @@ export default function BlogPostsSection({
             variant="body2"
             color="text.secondary"
           >
-            Selecciona una o varias imágenes. En la vista
-            pública se mostrarán como un carrusel automático
-            y abrirán la misma URL de destino.
+            Las imágenes son opcionales y no tienen límite
+            máximo. Cuando se agreguen varias, se mostrarán
+            como un carrusel automático.
           </Typography>
         </DialogTitle>
 
@@ -5094,7 +5132,11 @@ export default function BlogPostsSection({
                   }
                 >
                   {adFormErrors.media_ids ??
-                    `${adForm.media_ids.length} imágenes seleccionadas`}
+                    (
+                      adForm.media_ids.length > 0
+                        ? `${adForm.media_ids.length} imágenes seleccionadas · sin límite máximo`
+                        : "Sin imágenes · opcional"
+                    )}
                 </Typography>
               </Box>
 
@@ -5186,9 +5228,9 @@ export default function BlogPostsSection({
               severity="info"
               icon={false}
             >
-              Sube las imágenes que necesites. En público
-              se verá una imagen a la vez y el carrusel
-              cambiará automáticamente cada 3 segundos.
+              Puedes guardar el anuncio sin imágenes o subir
+              todas las que necesites. No existe límite máximo.
+              Cuando haya varias, cambiarán automáticamente.
             </Alert>
           </Stack>
         </DialogContent>
@@ -5905,27 +5947,21 @@ export default function BlogPostsSection({
                           helperText="Describe la imagen para accesibilidad y SEO."
                         />
 
-                        <TextField
-                          required
-                          fullWidth
-                          multiline
-                          minRows={2}
-                          label="Pie de imagen o descripción"
-                          value={
-                            contentImageCaption
-                          }
-                          onChange={(event) => {
-                            setContentImageCaption(
-                              event.target.value
-                            );
+                    <TextField
+  fullWidth
+  multiline
+  minRows={2}
+  label="Pie de imagen o descripción"
+  value={contentImageCaption}
+  onChange={(event) => {
+    setContentImageCaption(
+      event.target.value
+    );
 
-                            setContentImageError(
-                              null
-                            );
-                          }}
-                          helperText="Se mostrará debajo de la imagen en la página pública."
-                        />
-
+    setContentImageError(null);
+  }}
+  helperText="Opcional. Cuando se capture, se mostrará debajo de la imagen en la página pública."
+/>
                         <TextField
                           fullWidth
                           label="Hipervínculo generado automáticamente"
@@ -6454,7 +6490,7 @@ export default function BlogPostsSection({
                               container
                               spacing={1.5}
                             >
-                              {ad.images.map(
+                              {(ad.images ?? []).map(
                                 (image) => (
                                   <Grid
                                     item
