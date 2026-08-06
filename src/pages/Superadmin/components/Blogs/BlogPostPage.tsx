@@ -51,6 +51,164 @@ function formatDate(value: string | null): string {
   }).format(date);
 }
 
+/**
+ * Convierte las referencias de imagen creadas por el editor
+ * en imágenes visibles para la página pública.
+ */
+function renderBlogImageReferences(
+  html: string
+): string {
+  if (
+    !html ||
+    typeof window === "undefined" ||
+    typeof DOMParser === "undefined"
+  ) {
+    return html;
+  }
+
+  const parser = new DOMParser();
+
+  const documentFragment = parser.parseFromString(
+    `<div id="blog-content-root">${html}</div>`,
+    "text/html"
+  );
+
+  const root = documentFragment.getElementById(
+    "blog-content-root"
+  );
+
+  if (!root) {
+    return html;
+  }
+
+  root
+    .querySelectorAll<HTMLElement>(
+      "figure[data-blog-image-reference]"
+    )
+    .forEach((figure) => {
+      const link =
+        figure.querySelector<HTMLAnchorElement>(
+          "a[href]"
+        );
+
+      const source = (
+        figure.getAttribute("data-image-src") ||
+        link?.getAttribute("href") ||
+        ""
+      ).trim();
+
+      if (!source) {
+        return;
+      }
+
+      const image =
+        documentFragment.createElement("img");
+
+      image.setAttribute("src", source);
+      image.setAttribute("loading", "lazy");
+      image.setAttribute("decoding", "async");
+
+      const alt = (
+        figure.getAttribute("data-image-alt") ||
+        ""
+      ).trim();
+
+      image.setAttribute(
+        "alt",
+        alt || "Imagen de la publicación"
+      );
+
+      const title = (
+        figure.getAttribute("data-image-title") ||
+        ""
+      ).trim();
+
+      if (title) {
+        image.setAttribute("title", title);
+      }
+
+      const publicFigure =
+        documentFragment.createElement("figure");
+
+      publicFigure.className =
+        "public-blog-image";
+
+      publicFigure.appendChild(image);
+
+      const currentCaption =
+        figure.querySelector("figcaption");
+
+      const captionText =
+        currentCaption?.textContent?.trim() || "";
+
+      if (captionText) {
+        const caption =
+          documentFragment.createElement(
+            "figcaption"
+          );
+
+        caption.textContent = captionText;
+
+        publicFigure.appendChild(caption);
+      }
+
+      figure.replaceWith(publicFigure);
+    });
+
+  return root.innerHTML;
+}
+
+/**
+ * Sanitiza el HTML público y conserva los atributos de formato
+ * que previamente fueron filtrados por el backend.
+ */
+function sanitizePublicBlogContent(
+  html: string
+): string {
+  const normalizedHtml =
+    renderBlogImageReferences(html);
+
+  return DOMPurify.sanitize(normalizedHtml, {
+    USE_PROFILES: {
+      html: true,
+    },
+
+    ADD_TAGS: ["mark"],
+
+    ADD_ATTR: [
+      "style",
+      "class",
+      "target",
+      "rel",
+      "loading",
+      "decoding",
+      "data-blog-image-reference",
+      "data-image-src",
+      "data-image-alt",
+      "data-image-title",
+      "data-image-reference-link",
+    ],
+
+    ALLOW_DATA_ATTR: true,
+
+    FORBID_TAGS: [
+      "script",
+      "style",
+      "iframe",
+      "object",
+      "embed",
+      "form",
+      "input",
+      "button",
+      "textarea",
+      "select",
+      "option",
+    ],
+
+    KEEP_CONTENT: true,
+  });
+}
+
 export default function BlogPostPage() {
   const { postSlug } = useParams<{
     postSlug: string;
@@ -115,7 +273,7 @@ export default function BlogPostPage() {
       }
     }
 
-    loadPost();
+    void loadPost();
 
     return () => {
       active = false;
@@ -127,11 +285,9 @@ export default function BlogPostPage() {
       return "";
     }
 
-    return DOMPurify.sanitize(post.content, {
-      USE_PROFILES: {
-        html: true,
-      },
-    });
+    return sanitizePublicBlogContent(
+      post.content
+    );
   }, [post?.content]);
 
   useEffect(() => {
@@ -401,6 +557,10 @@ export default function BlogPostPage() {
             />
           )}
 
+          {/*
+           * Este título proviene del campo title de la publicación.
+           * No pertenece al contenido del editor enriquecido.
+           */}
           <Typography
             component="h1"
             variant="h3"
@@ -481,6 +641,8 @@ export default function BlogPostPage() {
               post.cover.alt_text ||
               post.title
             }
+            loading="eager"
+            decoding="async"
             sx={{
               width: "100%",
               maxHeight: 480,
@@ -498,43 +660,73 @@ export default function BlogPostPage() {
             __html: sanitizedContent,
           }}
           sx={{
+            width: "100%",
+            minWidth: 0,
+
+            /*
+             * Valores predeterminados. Los estilos inline
+             * provenientes del editor tienen prioridad.
+             */
             fontSize: "1.05rem",
             lineHeight: 1.9,
             color: "text.primary",
+
+            overflowWrap: "anywhere",
+            wordBreak: "normal",
 
             "& p": {
               mb: 2,
             },
 
-            "& h2": {
+            /*
+             * Solo se controlan márgenes. No se fuerza
+             * tamaño, fuente, color, alineación ni interlineado.
+             */
+            "& h1, & h2, & h3, & h4, & h5, & h6": {
               mt: 4,
               mb: 2,
-              fontSize: {
-                xs: "1.6rem",
-                md: "2rem",
-              },
-              fontWeight: 700,
             },
 
-            "& h3": {
-              mt: 3,
-              mb: 2,
-              fontSize: {
-                xs: "1.3rem",
-                md: "1.6rem",
-              },
-              fontWeight: 700,
+            "& span, & mark": {
+              maxWidth: "100%",
+            },
+
+            "& mark": {
+              padding: 0,
             },
 
             "& img": {
+              display: "block",
               maxWidth: "100%",
               height: "auto",
+              mx: "auto",
               borderRadius: 2,
+            },
+
+            "& figure": {
+              width: "100%",
+              maxWidth: "100%",
+              m: 0,
+              my: 3,
+            },
+
+            "& figure.public-blog-image": {
+              textAlign: "center",
+            },
+
+            "& figure.public-blog-image figcaption": {
+              mt: 1,
+              color: "text.secondary",
+              fontSize: "0.9rem",
+              lineHeight: 1.55,
+              textAlign: "center",
             },
 
             "& a": {
               color: "primary.main",
               overflowWrap: "anywhere",
+              textDecoration: "underline",
+              textUnderlineOffset: "3px",
             },
 
             "& ul, & ol": {
@@ -551,11 +743,38 @@ export default function BlogPostPage() {
               color: "text.secondary",
             },
 
+            "& hr": {
+              my: 3,
+              border: 0,
+              borderTop: "1px solid",
+              borderColor: "divider",
+            },
+
+            "& table": {
+              width: "100%",
+              borderCollapse: "collapse",
+              display: "block",
+              overflowX: "auto",
+            },
+
+            "& th, & td": {
+              p: 1,
+              border: "1px solid",
+              borderColor: "divider",
+              textAlign: "left",
+            },
+
             "& pre": {
+              maxWidth: "100%",
               overflowX: "auto",
               p: 2,
               borderRadius: 2,
               bgcolor: "action.hover",
+            },
+
+            "& code": {
+              fontFamily:
+                '"Courier New", monospace',
             },
           }}
         />

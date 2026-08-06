@@ -191,6 +191,50 @@ const FONT_SIZES = [
   },
 ];
 
+const LINE_HEIGHTS = [
+  {
+    value: "",
+    label: "Interlineado normal",
+  },
+  {
+    value: "1",
+    label: "1.0",
+  },
+  {
+    value: "1.15",
+    label: "1.15",
+  },
+  {
+    value: "1.25",
+    label: "1.25",
+  },
+  {
+    value: "1.4",
+    label: "1.4",
+  },
+  {
+    value: "1.5",
+    label: "1.5",
+  },
+  {
+    value: "1.7",
+    label: "1.7",
+  },
+  {
+    value: "2",
+    label: "2.0",
+  },
+  {
+    value: "2.5",
+    label: "2.5",
+  },
+  {
+    value: "3",
+    label: "3.0",
+  },
+];
+
+
 function normalizeEmptyContent(
   html: string
 ): string {
@@ -800,6 +844,24 @@ export default function BlogRichTextEditor({
         : "";
     }, [editor, revision]);
 
+  const currentLineHeight =
+    useMemo(() => {
+      void revision;
+
+      if (!editor) {
+        return "";
+      }
+
+      const lineHeight =
+        editor.getAttributes(
+          "textStyle"
+        ).lineHeight;
+
+      return typeof lineHeight === "string"
+        ? lineHeight
+        : "";
+    }, [editor, revision]);
+
   const textColor = useMemo(() => {
     void revision;
 
@@ -933,6 +995,26 @@ export default function BlogRichTextEditor({
       .chain()
       .focus()
       .setFontSize(fontSize)
+      .run();
+  }
+
+  function applyLineHeight(
+    lineHeight: string
+  ) {
+    if (!lineHeight) {
+      editor
+        .chain()
+        .focus()
+        .unsetLineHeight()
+        .run();
+
+      return;
+    }
+
+    editor
+      .chain()
+      .focus()
+      .setLineHeight(lineHeight)
       .run();
   }
 
@@ -1299,6 +1381,57 @@ export default function BlogRichTextEditor({
                       value={size.value}
                     >
                       {size.label}
+                    </MenuItem>
+                  )
+                )}
+              </Select>
+            </FormControl>
+
+            {/* INTERLINEADO */}
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: {
+                  xs: "100%",
+                  sm: 155,
+                },
+              }}
+            >
+              <Select
+                value={currentLineHeight}
+                displayEmpty
+                disabled={disabled}
+                onChange={(event) =>
+                  applyLineHeight(
+                    String(
+                      event.target.value
+                    )
+                  )
+                }
+                renderValue={(selected) => {
+                  const lineHeight =
+                    LINE_HEIGHTS.find(
+                      (item) =>
+                        item.value ===
+                        selected
+                    );
+
+                  return (
+                    lineHeight?.label ??
+                    "Interlineado"
+                  );
+                }}
+              >
+                {LINE_HEIGHTS.map(
+                  (lineHeight) => (
+                    <MenuItem
+                      key={
+                        lineHeight.value ||
+                        "default"
+                      }
+                      value={lineHeight.value}
+                    >
+                      {lineHeight.label}
                     </MenuItem>
                   )
                 )}

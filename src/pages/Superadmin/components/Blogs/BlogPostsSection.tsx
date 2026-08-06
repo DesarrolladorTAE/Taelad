@@ -357,6 +357,63 @@ function formatDate(value: string | null): string {
   }).format(date);
 }
 
+/**
+ * Limpia el HTML de la publicación sin eliminar los estilos
+ * seguros generados por TipTap.
+ *
+ * El backend realiza la validación principal. Esta segunda capa
+ * protege la vista previa del administrador y conserva fuente,
+ * tamaño, color, resaltado, alineación e interlineado.
+ */
+function sanitizeRichTextContent(
+  content: string
+): string {
+  if (!content.trim()) {
+    return "";
+  }
+
+  return DOMPurify.sanitize(content, {
+    USE_PROFILES: {
+      html: true,
+    },
+
+    ALLOW_DATA_ATTR: true,
+
+    ADD_TAGS: [
+      "mark",
+      "figure",
+      "figcaption",
+    ],
+
+    ADD_ATTR: [
+      "style",
+      "class",
+      "target",
+      "rel",
+      "data-blog-image-reference",
+      "data-blog-image",
+      "data-image-src",
+      "data-image-alt",
+      "data-image-title",
+      "data-image-reference-link",
+    ],
+
+    FORBID_TAGS: [
+      "script",
+      "style",
+      "iframe",
+      "object",
+      "embed",
+      "form",
+      "input",
+      "button",
+      "textarea",
+      "select",
+      "option",
+    ],
+  });
+}
+
 function getStatusLabel(status: BlogPostStatus): string {
   const labels: Record<BlogPostStatus, string> = {
     draft: "Borrador",
@@ -6368,7 +6425,27 @@ export default function BlogPostsSection({
               {selectedPost.content ? (
                 <Box
                   sx={{
-                    lineHeight: 1.75,
+                    /*
+                     * Valores predeterminados únicamente. Los estilos
+                     * inline guardados por TipTap tienen prioridad.
+                     */
+                    fontSize: "1rem",
+                    lineHeight: 1.7,
+                    color: "text.primary",
+                    overflowWrap: "anywhere",
+
+                    "& p": {
+                      my: 1,
+                    },
+
+                    "& h1, & h2, & h3, & h4, & h5, & h6": {
+                      mt: 2,
+                      mb: 1,
+                    },
+
+                    "& mark": {
+                      borderRadius: 0.5,
+                    },
 
                     "& img": {
                       maxWidth: "100%",
@@ -6397,7 +6474,7 @@ export default function BlogPostsSection({
                     },
                   }}
                   dangerouslySetInnerHTML={{
-                    __html: DOMPurify.sanitize(
+                    __html: sanitizeRichTextContent(
                       selectedPost.content
                     ),
                   }}
