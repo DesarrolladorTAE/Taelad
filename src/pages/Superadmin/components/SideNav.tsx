@@ -19,24 +19,35 @@ import {
   MiscellaneousServices,
 } from "@mui/icons-material";
 
-import { useNavigate } from "react-router-dom";
+import {
+  useNavigate,
+} from "react-router-dom";
+
 import {
   useEffect,
   useState,
 } from "react";
 
-import { usersApi } from "../../../services/api";
+import {
+  usersApi,
+} from "../../../services/api";
 
 type Props = {
   darkMode: boolean;
+
   setDarkMode: (
     value: boolean,
   ) => void;
-  setView: (view: string) => void;
+
+  setView: (
+    view: string,
+  ) => void;
+
   activeView?: string;
 };
 
-export const SIDEBAR_WIDTH = 280;
+export const SIDEBAR_WIDTH =
+  280;
 
 function aplicarClaseTema(
   isDark: boolean,
@@ -78,7 +89,8 @@ export default function SideNav({
   setView,
   activeView = "dashboard",
 }: Props) {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const [user, setUser] =
     useState<any>(null);
@@ -103,7 +115,9 @@ export default function SideNav({
 
   useEffect(() => {
     const savedTheme =
-      localStorage.getItem("theme");
+      localStorage.getItem(
+        "theme",
+      );
 
     const savedDarkMode =
       localStorage.getItem(
@@ -111,36 +125,58 @@ export default function SideNav({
       );
 
     const isDark =
-      savedTheme === "dark" ||
-      savedDarkMode === "true";
+      savedTheme ===
+        "dark" ||
+      savedDarkMode ===
+        "true";
 
-    setDarkMode(isDark);
+    setDarkMode(
+      isDark,
+    );
 
     localStorage.setItem(
       "theme",
-      isDark ? "dark" : "light",
+      isDark
+        ? "dark"
+        : "light",
     );
 
     localStorage.setItem(
       "darkMode",
-      isDark ? "true" : "false",
+      isDark
+        ? "true"
+        : "false",
     );
 
-    aplicarClaseTema(isDark);
+    aplicarClaseTema(
+      isDark,
+    );
   }, [setDarkMode]);
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("TOKEN");
+    localStorage.removeItem(
+      "token",
+    );
+
+    localStorage.removeItem(
+      "TOKEN",
+    );
+
     localStorage.removeItem(
       "AUTH_TOKEN",
     );
-    localStorage.removeItem("USER");
+
+    localStorage.removeItem(
+      "USER",
+    );
+
     localStorage.removeItem(
       "superadmin_view",
     );
 
-    navigate("/auth/login");
+    navigate(
+      "/auth/login",
+    );
   };
 
   const cambiarVista = (
@@ -151,35 +187,51 @@ export default function SideNav({
       view,
     );
 
-    setView(view);
+    setView(
+      view,
+    );
 
-    if (view === "tea-te-da-mas") {
-      window.setTimeout(() => {
-        window.dispatchEvent(
-          new Event(
-            "tea-te-da-mas:reset",
-          ),
-        );
-      }, 0);
+    if (
+      view ===
+      "tea-te-da-mas"
+    ) {
+      window.setTimeout(
+        () => {
+          window.dispatchEvent(
+            new Event(
+              "tea-te-da-mas:reset",
+            ),
+          );
+        },
+        0,
+      );
     }
   };
 
   const cambiarModoOscuro = (
     value: boolean,
   ) => {
-    setDarkMode(value);
+    setDarkMode(
+      value,
+    );
 
     localStorage.setItem(
       "theme",
-      value ? "dark" : "light",
+      value
+        ? "dark"
+        : "light",
     );
 
     localStorage.setItem(
       "darkMode",
-      value ? "true" : "false",
+      value
+        ? "true"
+        : "false",
     );
 
-    aplicarClaseTema(value);
+    aplicarClaseTema(
+      value,
+    );
   };
 
   const nombreCompleto =
@@ -190,49 +242,74 @@ export default function SideNav({
   const isActive = (
     view: string,
   ) => {
-    if (view === "sistemas") {
+    if (
+      view === "sistemas"
+    ) {
       return (
-        activeView === "sistemas" ||
+        activeView ===
+          "sistemas" ||
         activeView.startsWith(
           "mitienda-",
         ) ||
         activeView.startsWith(
           "clicmenu-",
         ) ||
-        activeView === "clicmenu"
+        activeView ===
+          "clicmenu" ||
+        activeView.startsWith(
+          "taeconta-",
+        )
       );
     }
 
-    return activeView === view;
+    return (
+      activeView === view
+    );
   };
 
   const menuButtonSx =
     (view: string) =>
     (theme: any) => {
-      const active = isActive(view);
+      const active =
+        isActive(view);
 
       return {
         color: active
-          ? theme.palette.primary.main
-          : theme.palette.text.primary,
+          ? theme.palette
+              .primary.main
+          : theme.palette
+              .text.primary,
 
-        backgroundColor: active
-          ? theme.palette.action.selected
-          : "transparent",
+        backgroundColor:
+          active
+            ? theme.palette
+                .action
+                .selected
+            : "transparent",
 
-        justifyContent: "flex-start",
+        justifyContent:
+          "flex-start",
+
         mb: 1,
+
         gap: 1,
-        textTransform: "none",
-        fontWeight: active
-          ? 800
-          : 600,
+
+        textTransform:
+          "none",
+
+        fontWeight:
+          active
+            ? 800
+            : 600,
+
         minHeight: 42,
+
         borderRadius: 2,
 
         "&:hover": {
           backgroundColor:
-            theme.palette.action.hover,
+            theme.palette
+              .action.hover,
         },
       };
     };
@@ -242,55 +319,69 @@ export default function SideNav({
       <GlobalStyles
         styles={() => ({
           html: {
-            backgroundColor: darkMode
-              ? "#0b0f19"
-              : "#f5f7fb",
+            backgroundColor:
+              darkMode
+                ? "#0b0f19"
+                : "#f5f7fb",
 
-            colorScheme: darkMode
-              ? "dark"
-              : "light",
+            colorScheme:
+              darkMode
+                ? "dark"
+                : "light",
 
-            overflowX: "hidden",
+            overflowX:
+              "hidden",
 
-            scrollbarWidth: "thin",
+            scrollbarWidth:
+              "thin",
 
-            scrollbarColor: darkMode
-              ? "#334155 transparent"
-              : "#CBD5E1 transparent",
+            scrollbarColor:
+              darkMode
+                ? "#334155 transparent"
+                : "#CBD5E1 transparent",
           },
 
           body: {
             margin: 0,
 
-            backgroundColor: darkMode
-              ? "#0b0f19"
-              : "#f5f7fb",
+            backgroundColor:
+              darkMode
+                ? "#0b0f19"
+                : "#f5f7fb",
 
-            colorScheme: darkMode
-              ? "dark"
-              : "light",
+            colorScheme:
+              darkMode
+                ? "dark"
+                : "light",
 
-            overflowX: "hidden",
+            overflowX:
+              "hidden",
 
-            scrollbarWidth: "thin",
+            scrollbarWidth:
+              "thin",
 
-            scrollbarColor: darkMode
-              ? "#334155 transparent"
-              : "#CBD5E1 transparent",
+            scrollbarColor:
+              darkMode
+                ? "#334155 transparent"
+                : "#CBD5E1 transparent",
           },
 
           "#root": {
-            minHeight: "100vh",
+            minHeight:
+              "100vh",
 
-            backgroundColor: darkMode
-              ? "#0b0f19"
-              : "#f5f7fb",
+            backgroundColor:
+              darkMode
+                ? "#0b0f19"
+                : "#f5f7fb",
           },
 
           "html::-webkit-scrollbar, body::-webkit-scrollbar":
             {
               width: "8px",
-              height: "8px",
+
+              height:
+                "8px",
             },
 
           "html::-webkit-scrollbar-track, body::-webkit-scrollbar-track":
@@ -301,11 +392,13 @@ export default function SideNav({
 
           "html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb":
             {
-              backgroundColor: darkMode
-                ? "#334155"
-                : "#CBD5E1",
+              backgroundColor:
+                darkMode
+                  ? "#334155"
+                  : "#CBD5E1",
 
-              borderRadius: "10px",
+              borderRadius:
+                "10px",
 
               border:
                 "2px solid transparent",
@@ -316,9 +409,10 @@ export default function SideNav({
 
           "html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover":
             {
-              backgroundColor: darkMode
-                ? "#475569"
-                : "#94A3B8",
+              backgroundColor:
+                darkMode
+                  ? "#475569"
+                  : "#94A3B8",
             },
         })}
       />
@@ -326,36 +420,52 @@ export default function SideNav({
       <Box
         component="aside"
         sx={(theme) => ({
-          width: SIDEBAR_WIDTH,
-          height: "100vh",
-          position: "fixed",
+          width:
+            SIDEBAR_WIDTH,
+
+          height:
+            "100vh",
+
+          position:
+            "fixed",
+
           left: 0,
+
           top: 0,
+
           zIndex: 1200,
 
           backgroundColor:
-            theme.palette.background
+            theme.palette
+              .background
               .paper,
 
           color:
-            theme.palette.text.primary,
+            theme.palette
+              .text.primary,
 
           borderRight: `1px solid ${theme.palette.divider}`,
 
           p: 3,
-          overflowY: "auto",
 
-          scrollbarWidth: "thin",
+          overflowY:
+            "auto",
+
+          scrollbarWidth:
+            "thin",
 
           scrollbarColor:
-            theme.palette.mode === "dark"
+            theme.palette
+              .mode === "dark"
               ? "#334155 transparent"
               : "#CBD5E1 transparent",
 
-          "&::-webkit-scrollbar": {
-            width: 8,
-            height: 8,
-          },
+          "&::-webkit-scrollbar":
+            {
+              width: 8,
+
+              height: 8,
+            },
 
           "&::-webkit-scrollbar-track":
             {
@@ -366,12 +476,14 @@ export default function SideNav({
           "&::-webkit-scrollbar-thumb":
             {
               backgroundColor:
-                theme.palette.mode ===
+                theme.palette
+                  .mode ===
                 "dark"
                   ? "#334155"
                   : "#CBD5E1",
 
-              borderRadius: 10,
+              borderRadius:
+                10,
 
               border:
                 "2px solid transparent",
@@ -383,7 +495,8 @@ export default function SideNav({
           "&::-webkit-scrollbar-thumb:hover":
             {
               backgroundColor:
-                theme.palette.mode ===
+                theme.palette
+                  .mode ===
                 "dark"
                   ? "#475569"
                   : "#94A3B8",
@@ -392,9 +505,14 @@ export default function SideNav({
       >
         <Box
           sx={{
-            display: "flex",
-            alignItems: "center",
+            display:
+              "flex",
+
+            alignItems:
+              "center",
+
             gap: 1.5,
+
             mb: 4,
           }}
         >
@@ -404,11 +522,17 @@ export default function SideNav({
             alt="Logo"
             sx={{
               width: 55,
-              height: "auto",
+
+              height:
+                "auto",
             }}
           />
 
-          <Box sx={{ minWidth: 0 }}>
+          <Box
+            sx={{
+              minWidth: 0,
+            }}
+          >
             <Typography
               fontSize={15}
               fontWeight={800}
@@ -428,9 +552,12 @@ export default function SideNav({
             <Typography
               fontSize={11}
               noWrap
-              sx={{ opacity: 0.7 }}
+              sx={{
+                opacity: 0.7,
+              }}
             >
-              {user?.email || ""}
+              {user?.email ||
+                ""}
             </Typography>
           </Box>
         </Box>
@@ -441,7 +568,9 @@ export default function SideNav({
             "dashboard",
           )}
           onClick={() =>
-            cambiarVista("dashboard")
+            cambiarVista(
+              "dashboard",
+            )
           }
         >
           <Dashboard />
@@ -454,7 +583,9 @@ export default function SideNav({
             "metricas",
           )}
           onClick={() =>
-            cambiarVista("metricas")
+            cambiarVista(
+              "metricas",
+            )
           }
         >
           <Analytics />
@@ -467,7 +598,9 @@ export default function SideNav({
             "sistemas",
           )}
           onClick={() =>
-            cambiarVista("sistemas")
+            cambiarVista(
+              "sistemas",
+            )
           }
         >
           <Apps />
@@ -506,9 +639,13 @@ export default function SideNav({
 
         <Button
           fullWidth
-          sx={menuButtonSx("usuarios")}
+          sx={menuButtonSx(
+            "usuarios",
+          )}
           onClick={() =>
-            cambiarVista("usuarios")
+            cambiarVista(
+              "usuarios",
+            )
           }
         >
           <People />
@@ -547,9 +684,14 @@ export default function SideNav({
 
         <Box
           sx={{
-            display: "flex",
-            alignItems: "center",
+            display:
+              "flex",
+
+            alignItems:
+              "center",
+
             mt: 2,
+
             gap: 1,
           }}
         >
@@ -567,9 +709,12 @@ export default function SideNav({
               darkMode,
             )}
             color="primary"
-            onChange={(event) =>
+            onChange={(
+              event,
+            ) =>
               cambiarModoOscuro(
-                event.target.checked,
+                event.target
+                  .checked,
               )
             }
           />
@@ -580,7 +725,10 @@ export default function SideNav({
           onClick={logout}
           sx={{
             mt: 4,
-            fontWeight: 600,
+
+            fontWeight:
+              600,
+
             gap: 1,
           }}
         >

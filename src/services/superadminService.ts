@@ -82,6 +82,208 @@ export async function getSuperAdminSystems() {
 }
 
 // =========================
+// SYSTEMS - TAECONTA (NUEVO)
+// =========================
+
+/*
+ * Integración nueva y aislada para:
+ * Superadmin -> Sistemas -> TAECONTA
+ *
+ * IMPORTANTE:
+ * - No reutiliza los endpoints TAECONTA anteriores.
+ * - Todas las llamadas pasan por el backend de Tecnologías.
+ * - El token privado TAECONTA nunca se expone al frontend.
+ * - Esta integración es exclusivamente de lectura.
+ */
+
+const TAECONTA_SYSTEM_BASE_PATH =
+  "/superadmin/systems/taeconta";
+
+export type TaecontaSystemRecord =
+  Record<string, unknown>;
+
+export type TaecontaSystemBaseResponse = {
+  success: boolean;
+  message?: string;
+  [key: string]: unknown;
+};
+
+export type TaecontaSystemHealthResponse =
+  TaecontaSystemBaseResponse & {
+    system?: string;
+    service?: string;
+    status?: string;
+    timestamp?: string;
+  };
+
+export type TaecontaSystemListResponse<
+  T = TaecontaSystemRecord,
+> = TaecontaSystemBaseResponse & {
+  data?: T[];
+};
+
+export type TaecontaSystemBanner = {
+  id: number;
+  nombre_imagen?: string | null;
+  url_imagen?: string | null;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
+  activo?: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type TaecontaSystemBannerResponse =
+  TaecontaSystemBaseResponse & {
+    activo?: boolean;
+    data?: TaecontaSystemBanner | null;
+  };
+
+export type TaecontaSystemTimbradosParams = {
+  page?: number;
+  perPage?: number;
+  pacId?: number | string;
+  empresaId?: number | string;
+  search?: string;
+  from?: string;
+  to?: string;
+  orderBy?:
+    | "created_at"
+    | "fecha"
+    | "uuid"
+    | "serie"
+    | "folio"
+    | "pac_created_at";
+  order?: "asc" | "desc";
+};
+
+export type TaecontaSystemPagination = {
+  current_page?: number;
+  last_page?: number;
+  per_page?: number;
+  total?: number;
+  from?: number | null;
+  to?: number | null;
+  [key: string]: unknown;
+};
+
+export type TaecontaSystemTimbradosResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemRecord[];
+    pagination?: TaecontaSystemPagination;
+  };
+
+export async function getTaecontaSystemHealth(): Promise<TaecontaSystemHealthResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemHealthResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/health`,
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemTimbres(): Promise<TaecontaSystemListResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemListResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/timbres`,
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemEmpresas(): Promise<TaecontaSystemListResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemListResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas`,
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemIndicadores(): Promise<TaecontaSystemListResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemListResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/indicadores`,
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemTimbrados(
+  params: TaecontaSystemTimbradosParams = {},
+): Promise<TaecontaSystemTimbradosResponse> {
+  const {
+    page = 1,
+    perPage = 25,
+    pacId,
+    empresaId,
+    search,
+    from,
+    to,
+    orderBy = "created_at",
+    order = "desc",
+  } = params;
+
+  const response =
+    await axiosClient.get<TaecontaSystemTimbradosResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/timbrados`,
+      {
+        params: {
+          page,
+          per_page: perPage,
+          pac_id:
+            pacId !== undefined &&
+            pacId !== null &&
+            pacId !== ""
+              ? pacId
+              : undefined,
+          empresa_id:
+            empresaId !== undefined &&
+            empresaId !== null &&
+            empresaId !== ""
+              ? empresaId
+              : undefined,
+          search:
+            search?.trim() || undefined,
+          from: from || undefined,
+          to: to || undefined,
+          order_by: orderBy,
+          order,
+        },
+      },
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemPlanes(): Promise<TaecontaSystemListResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemListResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/planes`,
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemPaquetes(): Promise<TaecontaSystemListResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemListResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/paquetes`,
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemBanner(): Promise<TaecontaSystemBannerResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemBannerResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/banner`,
+    );
+
+  return response.data;
+}
+
+// =========================
 // USERS
 // =========================
 

@@ -5,7 +5,6 @@ import Usuarios from "./components/Usuarios";
 import Metricas from "./components/Metricas";
 import Sistemas from "./components/Sistemas";
 import Facturacion from "./components/Facturacion";
-import Administradores from "./components/TablaServices";
 import Configuracion from "./components/Configuracion";
 
 import MiTiendaDashboard from "./components/MiTiendaDashboard";
@@ -19,7 +18,9 @@ import ClicMenuInicio from "./components/ClicMenu/ClicMenuInicio";
 import TeaTeDaMas from "./components/TeaTeDaMas";
 import BlogAdminShell from "./components/Blogs/BlogAdminShell";
 import TablaServices from "./components/TablaServices";
-import TaecontaTimbradoPage from "./taeconta/TaecontaTimbradoPage";
+
+import TaecontaInicio from "./taeconta-system/TaecontaInicio";
+import TaecontaSystemPage from "./taeconta-system/TaecontaSystemPage";
 
 export default function SuperAdminPanel() {
   return (
@@ -27,7 +28,11 @@ export default function SuperAdminPanel() {
       {(darkMode, view, setView) => {
         switch (view) {
           case "dashboard":
-            return <Dashboard darkMode={darkMode} />;
+            return (
+              <Dashboard
+                darkMode={darkMode}
+              />
+            );
 
           case "metricas":
             return (
@@ -38,25 +43,60 @@ export default function SuperAdminPanel() {
             );
 
           case "sistemas":
-            return <Sistemas setView={setView} />;
+            return (
+              <Sistemas
+                setView={setView}
+              />
+            );
+
+          /*
+          |--------------------------------------------------------------------------
+          | TAECONTA
+          |--------------------------------------------------------------------------
+          */
+
+          case "taeconta-inicio":
+            return (
+              <TaecontaInicio
+                setView={setView}
+              />
+            );
+
+          case "taeconta-informacion":
+            return (
+              <TaecontaSystemPage />
+            );
+
+          /*
+          |--------------------------------------------------------------------------
+          | OTROS MÓDULOS
+          |--------------------------------------------------------------------------
+          */
 
           case "tea-te-da-mas":
             return <TeaTeDaMas />;
 
-         case "facturacion":
-  return <TaecontaTimbradoPage />;
+          case "facturacion":
+            return <Facturacion />;
+
           case "usuarios":
-  return <Usuarios />;
+            return <Usuarios />;
 
-case "tabla_services":
-  return (
-    <TablaServices
-      volver={() => setView("dashboard")}
-    />
-  );
+          case "tabla_services":
+            return (
+              <TablaServices
+                volver={() =>
+                  setView(
+                    "dashboard",
+                  )
+                }
+              />
+            );
 
-case "configuracion":
-  return <Configuracion />;
+          case "configuracion":
+            return (
+              <Configuracion />
+            );
 
           /*
           |--------------------------------------------------------------------------
@@ -65,16 +105,32 @@ case "configuracion":
           */
 
           case "mitienda-dashboard":
-            return <MiTiendaDashboard setView={setView} />;
+            return (
+              <MiTiendaDashboard
+                setView={setView}
+              />
+            );
 
           case "mitienda-tiendas":
-            return <MiTiendaTiendas setView={setView} />;
+            return (
+              <MiTiendaTiendas
+                setView={setView}
+              />
+            );
 
           case "mitienda-ventas":
-            return <MiTiendaVentas setView={setView} />;
+            return (
+              <MiTiendaVentas
+                setView={setView}
+              />
+            );
 
           case "mitienda-suscripciones":
-            return <MiTiendaSuscripcionesGlobal setView={setView} />;
+            return (
+              <MiTiendaSuscripcionesGlobal
+                setView={setView}
+              />
+            );
 
           case "mitienda-blogs":
             return (
@@ -93,10 +149,16 @@ case "configuracion":
           */
 
           case "clicmenu-inicio":
-            return <ClicMenuInicio setView={setView} />;
+            return (
+              <ClicMenuInicio
+                setView={setView}
+              />
+            );
 
           case "clicmenu":
-            return <ClicMenuDashboard />;
+            return (
+              <ClicMenuDashboard />
+            );
 
           case "clicmenu-blogs":
             return (
@@ -125,7 +187,11 @@ case "configuracion":
             );
 
           default:
-            return <Dashboard darkMode={darkMode} />;
+            return (
+              <Dashboard
+                darkMode={darkMode}
+              />
+            );
         }
       }}
     </Shell>

@@ -24,70 +24,70 @@ const Index1 = React.lazy(
   () =>
     import(
       "../pages/landings/Index1"
-    )
+    ),
 );
 
 const Index3 = React.lazy(
   () =>
     import(
       "../pages/landings/Index3"
-    )
+    ),
 );
 
 const Index4 = React.lazy(
   () =>
     import(
       "../pages/landings/Index4"
-    )
+    ),
 );
 
 const Index5 = React.lazy(
   () =>
     import(
       "../pages/landings/Index5"
-    )
+    ),
 );
 
 const Index6 = React.lazy(
   () =>
     import(
       "../pages/landings/Index6"
-    )
+    ),
 );
 
 const FacEle = React.lazy(
   () =>
     import(
       "../pages/landings/Index1/FacEle"
-    )
+    ),
 );
 
 const ConEle = React.lazy(
   () =>
     import(
       "../pages/landings/Index1/ConEle"
-    )
+    ),
 );
 
 const DisWeb = React.lazy(
   () =>
     import(
       "../pages/landings/Index1/DisWeb"
-    )
+    ),
 );
 
 const ImaCor = React.lazy(
   () =>
     import(
       "../pages/landings/Index1/ImaCor"
-    )
+    ),
 );
 
 const MarDig = React.lazy(
   () =>
     import(
       "../pages/landings/Index1/MarDig"
-    )
+    ),
 );
 
 // =========================
@@ -98,15 +98,16 @@ const Blogs = React.lazy(
   () =>
     import(
       "../pages/landings/Index1/Blogs"
-    )
+    ),
 );
 
-const BlogPostDetail = React.lazy(
-  () =>
-    import(
-      "../pages/landings/Index1/BlogPostDetail"
-    )
-);
+const BlogPostDetail =
+  React.lazy(
+    () =>
+      import(
+        "../pages/landings/Index1/BlogPostDetail"
+      ),
+  );
 
 // =========================
 // PANELES
@@ -116,15 +117,16 @@ const Panel = React.lazy(
   () =>
     import(
       "../pages/users/panel"
-    )
+    ),
 );
 
-const Superadmin = React.lazy(
-  () =>
-    import(
-      "../pages/Superadmin/panel"
-    )
-);
+const Superadmin =
+  React.lazy(
+    () =>
+      import(
+        "../pages/Superadmin/panel"
+      ),
+  );
 
 // =========================
 // TAECONTA
@@ -135,29 +137,35 @@ const TaecontaEmpresasPage =
     () =>
       import(
         "../pages/taeconta/TaecontaEmpresasPage"
-      )
+      ),
   );
-const TaecontaTimbradoPage = React.lazy(
-  () => import("../pages/Superadmin/taeconta/TaecontaTimbradoPage")
-);
+
+const TaecontaTimbradoPage =
+  React.lazy(
+    () =>
+      import(
+        "../pages/Superadmin/taeconta/TaecontaTimbradoPage"
+      ),
+  );
 
 // =========================
 // TARJETAS
 // =========================
 
-const TarjetaJennys = React.lazy(
-  () =>
-    import(
-      "../tarjetas/TarjetaJennys"
-    )
-);
+const TarjetaJennys =
+  React.lazy(
+    () =>
+      import(
+        "../tarjetas/TarjetaJennys"
+      ),
+  );
 
 const EnlacesTerrestres =
   React.lazy(
     () =>
       import(
         "../tarjetas/EnlacesTerrestres"
-      )
+      ),
   );
 
 const BalnearioSantaMaria =
@@ -165,7 +173,7 @@ const BalnearioSantaMaria =
     () =>
       import(
         "../tarjetas/balneario-rancho-santa-maria"
-      )
+      ),
   );
 
 // =========================
@@ -176,7 +184,7 @@ const Nosotros = React.lazy(
   () =>
     import(
       "../pages/TaeFooter/Nosotros"
-    )
+    ),
 );
 
 const AvisoPrivacidad =
@@ -184,7 +192,7 @@ const AvisoPrivacidad =
     () =>
       import(
         "../pages/TaeFooter/Aviso"
-      )
+      ),
   );
 
 const TerminosCondiciones =
@@ -192,7 +200,7 @@ const TerminosCondiciones =
     () =>
       import(
         "../pages/TaeFooter/TerCon"
-      )
+      ),
   );
 
 // =========================
@@ -203,7 +211,7 @@ const NotFound = React.lazy(
   () =>
     import(
       "../pages/errors/NotFound"
-    )
+    ),
 );
 
 // =========================
@@ -214,14 +222,14 @@ const Login = React.lazy(
   () =>
     import(
       "../pages/auth/Login"
-    )
+    ),
 );
 
 const SignUp = React.lazy(
   () =>
     import(
       "../pages/auth/Signin"
-    )
+    ),
 );
 
 type LoadComponentProps = {
@@ -231,7 +239,11 @@ type LoadComponentProps = {
 
 function Loading() {
   return (
-    <div style={{ padding: 20 }}>
+    <div
+      style={{
+        padding: 20,
+      }}
+    >
       Cargando…
     </div>
   );
@@ -242,17 +254,15 @@ function LoadComponent({
 }: LoadComponentProps) {
   return (
     <Suspense
-      fallback={<Loading />}
+      fallback={
+        <Loading />
+      }
     >
       <Component />
     </Suspense>
   );
 }
 
-/*
- * Conserva la compatibilidad con las URLs largas
- * que pudieron compartirse antes de usar la ruta corta.
- */
 function LegacyBlogPostRedirect() {
   const {
     postSlug = "",
@@ -272,8 +282,33 @@ function LegacyBlogPostRedirect() {
   return (
     <Navigate
       to={`/blogs/${encodeURIComponent(
-        postSlug
+        postSlug,
       )}`}
+      replace
+    />
+  );
+}
+
+type SuperadminViewRedirectProps = {
+  view: string;
+};
+
+function SuperadminViewRedirect({
+  view,
+}: SuperadminViewRedirectProps) {
+  if (
+    typeof window !==
+    "undefined"
+  ) {
+    localStorage.setItem(
+      "superadmin_view",
+      view,
+    );
+  }
+
+  return (
+    <Navigate
+      to="/superadmin/"
       replace
     />
   );
@@ -283,14 +318,18 @@ export default function AllRoutes() {
   return useRoutes([
     {
       path: "/",
+
       element: <Root />,
 
       children: [
         {
           index: true,
+
           element: (
             <LoadComponent
-              component={Index1}
+              component={
+                Index1
+              }
             />
           ),
         },
@@ -300,7 +339,9 @@ export default function AllRoutes() {
         // =========================
 
         {
-          path: "landing",
+          path:
+            "landing",
+
           element: (
             <Navigate
               to="/"
@@ -308,75 +349,120 @@ export default function AllRoutes() {
             />
           ),
         },
+
         {
-          path: "index3",
+          path:
+            "index3",
+
           element: (
             <LoadComponent
-              component={Index3}
+              component={
+                Index3
+              }
             />
           ),
         },
+
         {
-          path: "index4",
+          path:
+            "index4",
+
           element: (
             <LoadComponent
-              component={Index4}
+              component={
+                Index4
+              }
             />
           ),
         },
+
         {
-          path: "index5",
+          path:
+            "index5",
+
           element: (
             <LoadComponent
-              component={Index5}
+              component={
+                Index5
+              }
             />
           ),
         },
+
         {
-          path: "index6",
+          path:
+            "index6",
+
           element: (
             <LoadComponent
-              component={Index6}
+              component={
+                Index6
+              }
             />
           ),
         },
+
         {
-          path: "facturacion",
+          path:
+            "facturacion",
+
           element: (
             <LoadComponent
-              component={FacEle}
+              component={
+                FacEle
+              }
             />
           ),
         },
+
         {
-          path: "contabilidad",
+          path:
+            "contabilidad",
+
           element: (
             <LoadComponent
-              component={ConEle}
+              component={
+                ConEle
+              }
             />
           ),
         },
+
         {
-          path: "desarrollo",
+          path:
+            "desarrollo",
+
           element: (
             <LoadComponent
-              component={DisWeb}
+              component={
+                DisWeb
+              }
             />
           ),
         },
+
         {
-          path: "diseno",
+          path:
+            "diseno",
+
           element: (
             <LoadComponent
-              component={ImaCor}
+              component={
+                ImaCor
+              }
             />
           ),
         },
+
         {
-          path: "marketing",
+          path:
+            "marketing",
+
           element: (
             <LoadComponent
-              component={MarDig}
+              component={
+                MarDig
+              }
             />
           ),
         },
@@ -386,15 +472,22 @@ export default function AllRoutes() {
         // =========================
 
         {
-          path: "blogs",
+          path:
+            "blogs",
+
           element: (
             <LoadComponent
-              component={Blogs}
+              component={
+                Blogs
+              }
             />
           ),
         },
+
         {
-          path: "blogs/:postSlug",
+          path:
+            "blogs/:postSlug",
+
           element: (
             <LoadComponent
               component={
@@ -404,11 +497,10 @@ export default function AllRoutes() {
           ),
         },
 
-        /*
-         * Redirecciones de compatibilidad.
-         */
         {
-          path: "blog",
+          path:
+            "blog",
+
           element: (
             <Navigate
               to="/blogs"
@@ -416,15 +508,20 @@ export default function AllRoutes() {
             />
           ),
         },
+
         {
-          path: "blog/:postSlug",
+          path:
+            "blog/:postSlug",
+
           element: (
             <LegacyBlogPostRedirect />
           ),
         },
+
         {
           path:
             "blogs/:systemSlug/:blogSlug/posts/:postSlug",
+
           element: (
             <LegacyBlogPostRedirect />
           ),
@@ -435,16 +532,22 @@ export default function AllRoutes() {
         // =========================
 
         {
-          path: "nosotros",
+          path:
+            "nosotros",
+
           element: (
             <LoadComponent
-              component={Nosotros}
+              component={
+                Nosotros
+              }
             />
           ),
         },
+
         {
           path:
             "aviso-privacidad",
+
           element: (
             <LoadComponent
               component={
@@ -453,9 +556,11 @@ export default function AllRoutes() {
             />
           ),
         },
+
         {
           path:
             "terminos-condiciones",
+
           element: (
             <LoadComponent
               component={
@@ -472,6 +577,7 @@ export default function AllRoutes() {
         {
           path:
             "jennysbananasandfruits",
+
           element: (
             <LoadComponent
               component={
@@ -480,9 +586,11 @@ export default function AllRoutes() {
             />
           ),
         },
+
         {
           path:
             "enlaces-terrestres",
+
           element: (
             <LoadComponent
               component={
@@ -491,9 +599,11 @@ export default function AllRoutes() {
             />
           ),
         },
+
         {
           path:
             "balneario-rancho-santa-maria",
+
           element: (
             <LoadComponent
               component={
@@ -510,55 +620,124 @@ export default function AllRoutes() {
         {
           path:
             "superadmin/mitienda/:id/dashboard",
+
           element: (
             <MiTiendaDashboard />
           ),
         },
+
         {
           path:
             "superadmin/mitienda/:id/tiendas",
+
           element: (
             <MiTiendaTiendas />
           ),
         },
+
         {
           path:
             "superadmin/mitienda/:id/ventas",
+
           element: (
             <MiTiendaVentas />
           ),
         },
+
         {
           path:
             "superadmin/mitienda/tiendas/:tiendaId",
+
           element: (
             <MiTiendaDetalle />
           ),
         },
 
-// =========================
-// TAECONTA
-// =========================
+        // =========================
+        // TAECONTA
+        // =========================
 
-{
-  path: "taeconta/empresas",
-  element: <LoadComponent component={TaecontaEmpresasPage} />,
-},
-{
-  path: "superadmin/taeconta/empresas",
-  element: <LoadComponent component={TaecontaEmpresasPage} />,
-},
-{
-  path: "superadmin/facturacion/timbrado",
-  element: <LoadComponent component={TaecontaTimbradoPage} />,
-},
+        {
+          path:
+            "taeconta/empresas",
+
+          element: (
+            <LoadComponent
+              component={
+                TaecontaEmpresasPage
+              }
+            />
+          ),
+        },
+
+        /*
+         * Compatibilidad con la URL
+         * anterior de empresas.
+         *
+         * Ahora entra al módulo dentro
+         * del Shell del Superadmin.
+         */
+        {
+          path:
+            "superadmin/taeconta/empresas",
+
+          element: (
+            <SuperadminViewRedirect
+              view="taeconta-informacion"
+            />
+          ),
+        },
+
+        /*
+         * Entrada nueva de TAECONTA.
+         */
+        {
+          path:
+            "superadmin/systems/taeconta",
+
+          element: (
+            <SuperadminViewRedirect
+              view="taeconta-inicio"
+            />
+          ),
+        },
+
+        /*
+         * Entrada directa a información
+         * manteniendo el Shell.
+         */
+        {
+          path:
+            "superadmin/systems/taeconta/informacion",
+
+          element: (
+            <SuperadminViewRedirect
+              view="taeconta-informacion"
+            />
+          ),
+        },
+
+        {
+          path:
+            "superadmin/facturacion/timbrado",
+
+          element: (
+            <LoadComponent
+              component={
+                TaecontaTimbradoPage
+              }
+            />
+          ),
+        },
 
         // =========================
         // AUTH
         // =========================
 
         {
-          path: "auth",
+          path:
+            "auth",
+
           element: (
             <Navigate
               to="/auth/login"
@@ -566,19 +745,29 @@ export default function AllRoutes() {
             />
           ),
         },
+
         {
-          path: "auth/login",
+          path:
+            "auth/login",
+
           element: (
             <LoadComponent
-              component={Login}
+              component={
+                Login
+              }
             />
           ),
         },
+
         {
-          path: "auth/signup",
+          path:
+            "auth/signup",
+
           element: (
             <LoadComponent
-              component={SignUp}
+              component={
+                SignUp
+              }
             />
           ),
         },
@@ -588,18 +777,27 @@ export default function AllRoutes() {
         // =========================
 
         {
-          path: "panel/*",
+          path:
+            "panel/*",
+
           element: (
             <LoadComponent
-              component={Panel}
+              component={
+                Panel
+              }
             />
           ),
         },
+
         {
-          path: "superadmin/*",
+          path:
+            "superadmin/*",
+
           element: (
             <LoadComponent
-              component={Superadmin}
+              component={
+                Superadmin
+              }
             />
           ),
         },
@@ -610,9 +808,12 @@ export default function AllRoutes() {
 
         {
           path: "*",
+
           element: (
             <LoadComponent
-              component={NotFound}
+              component={
+                NotFound
+              }
             />
           ),
         },
