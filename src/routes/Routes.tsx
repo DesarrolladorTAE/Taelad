@@ -690,6 +690,11 @@ export default function AllRoutes() {
 
         /*
          * Entrada nueva de TAECONTA.
+         *
+         * Abre directamente el Dashboard real dentro
+         * del Shell del Superadmin.
+         *
+         * "taeconta-inicio" ya no se usa para esta ruta.
          */
         {
           path:
@@ -697,7 +702,7 @@ export default function AllRoutes() {
 
           element: (
             <SuperadminViewRedirect
-              view="taeconta-inicio"
+              view="taeconta-informacion"
             />
           ),
         },

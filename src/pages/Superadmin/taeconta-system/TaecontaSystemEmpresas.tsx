@@ -25,6 +25,8 @@ import {
   TableRow,
   TextField,
   Tooltip,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
   useMediaQuery,
   useTheme,
@@ -85,6 +87,19 @@ type EstadoEmpresa = {
     | "info"
     | "default";
 };
+
+type CuentaVigenciaFilter =
+  | "todas"
+  | "vigentes"
+  | "proximas7"
+  | "proximas30"
+  | "vencidas";
+
+const CUENTA_FILTER_KEY =
+  "taeconta_cuentas_vigencia";
+
+const CUENTA_FOCUS_KEY =
+  "taeconta_cuentas_focus";
 
 const ROWS_PER_PAGE_OPTIONS = [
   10,
@@ -1196,6 +1211,42 @@ export default function TaecontaSystemEmpresas({
     useState("");
 
   const [
+    vigenciaFilter,
+    setVigenciaFilter,
+  ] =
+    useState<CuentaVigenciaFilter>(
+      () => {
+        const stored =
+          sessionStorage.getItem(
+            CUENTA_FILTER_KEY,
+          );
+
+        if (
+          stored === "vigentes" ||
+          stored === "proximas7" ||
+          stored === "proximas30" ||
+          stored === "vencidas" ||
+          stored === "todas"
+        ) {
+          return stored;
+        }
+
+        return "todas";
+      },
+    );
+
+  const [
+    vigenciaCounts,
+    setVigenciaCounts,
+  ] = useState({
+    todas: 0,
+    vigentes: 0,
+    proximas7: 0,
+    proximas30: 0,
+    vencidas: 0,
+  });
+
+  const [
     page,
     setPage,
   ] =
@@ -1248,7 +1299,10 @@ export default function TaecontaSystemEmpresas({
           indicadoresResponse,
         ] =
           await Promise.all([
-            getTaecontaSystemEmpresas(),
+            getTaecontaSystemEmpresas({
+              vigencia:
+                vigenciaFilter,
+            }),
             getTaecontaSystemIndicadores(),
           ]);
 
@@ -1263,17 +1317,57 @@ export default function TaecontaSystemEmpresas({
             indicadoresResponse,
           ),
         );
+
+        const counts =
+          empresasResponse
+            ?.meta
+            ?.counts;
+
+        setVigenciaCounts({
+          todas:
+            Number(
+              counts
+                ?.todas ??
+                0,
+            ) || 0,
+
+          vigentes:
+            Number(
+              counts
+                ?.vigentes ??
+                0,
+            ) || 0,
+
+          proximas7:
+            Number(
+              counts
+                ?.proximas7 ??
+                0,
+            ) || 0,
+
+          proximas30:
+            Number(
+              counts
+                ?.proximas30 ??
+                0,
+            ) || 0,
+
+          vencidas:
+            Number(
+              counts
+                ?.vencidas ??
+                0,
+            ) || 0,
+        });
       } catch (
         requestError: any
       ) {
         console.error(
-          "ERROR EMPRESAS TAECONTA:",
+          "ERROR CUENTAS TAECONTA:",
           requestError,
         );
 
         setEmpresas([]);
-
-        setIndicadores([]);
 
         setError(
           requestError
@@ -1282,16 +1376,52 @@ export default function TaecontaSystemEmpresas({
             ?.message ||
             requestError
               ?.message ||
-            "No fue posible consultar las empresas de TAECONTA.",
+            "No fue posible consultar las cuentas de TAECONTA.",
         );
       } finally {
         setLoading(false);
       }
-    }, []);
+    }, [vigenciaFilter]);
 
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    sessionStorage.setItem(
+      CUENTA_FILTER_KEY,
+      vigenciaFilter,
+    );
+  }, [vigenciaFilter]);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (
+      sessionStorage.getItem(
+        CUENTA_FOCUS_KEY,
+      ) !== "1"
+    ) {
+      return;
+    }
+
+    sessionStorage.removeItem(
+      CUENTA_FOCUS_KEY,
+    );
+
+    window.setTimeout(() => {
+      document
+        .getElementById(
+          "taeconta-cuentas",
+        )
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 120);
+  }, [loading]);
 
   /*
   |--------------------------------------------------------------------------
@@ -1471,6 +1601,7 @@ export default function TaecontaSystemEmpresas({
     filters.year,
     filters.indicadorId,
     localSearch,
+    vigenciaFilter,
     rowsPerPage,
   ]);
 
@@ -1535,6 +1666,7 @@ export default function TaecontaSystemEmpresas({
 
   return (
     <Paper
+      id="taeconta-cuentas"
       elevation={0}
       sx={{
         width: "100%",
@@ -1615,14 +1747,14 @@ export default function TaecontaSystemEmpresas({
                 fontWeight: 900,
               }}
             >
-              Empresas
+              Cuentas
             </Typography>
 
             <Chip
               size="small"
               label={`${filtered.length.toLocaleString(
                 "es-MX",
-              )} registros`}
+              )} cuentas`}
               variant="outlined"
               sx={{
                 fontWeight: 700,
@@ -1646,7 +1778,7 @@ export default function TaecontaSystemEmpresas({
               value={
                 localSearch
               }
-              placeholder="Buscar en empresas"
+              placeholder="Buscar en cuentas"
               onChange={(
                 event,
               ) => {
@@ -1673,7 +1805,7 @@ export default function TaecontaSystemEmpresas({
               }}
             />
 
-            <Tooltip title="Actualizar empresas">
+            <Tooltip title="Actualizar cuentas">
               <span>
                 <IconButton
                   disabled={loading}
@@ -1708,6 +1840,102 @@ export default function TaecontaSystemEmpresas({
               </span>
             </Tooltip>
           </Stack>
+        </Stack>
+
+        <Stack
+          direction={{
+            xs: "column",
+            sm: "row",
+          }}
+          spacing={1}
+          alignItems={{
+            xs: "stretch",
+            sm: "center",
+          }}
+          sx={{
+            mt: 1.25,
+          }}
+        >
+          <Box
+            sx={{
+              flexShrink: 0,
+            }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              fontWeight={800}
+              display="block"
+            >
+              Vigencia de cuentas
+            </Typography>
+
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{
+                fontSize: 9,
+              }}
+            >
+              Filtro aplicado desde TAECONTA
+            </Typography>
+          </Box>
+
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={vigenciaFilter}
+            onChange={(
+              _event,
+              value:
+                | CuentaVigenciaFilter
+                | null,
+            ) => {
+              if (value) {
+                setVigenciaFilter(
+                  value,
+                );
+              }
+            }}
+            sx={{
+              maxWidth: "100%",
+              overflowX: "auto",
+
+              "& .MuiToggleButton-root":
+                {
+                  px: 1.1,
+                  py: 0.55,
+                  textTransform:
+                    "none",
+                  whiteSpace:
+                    "nowrap",
+                  fontSize:
+                    10.5,
+                  fontWeight:
+                    800,
+                },
+            }}
+          >
+            <ToggleButton value="todas">
+              Todas ({vigenciaCounts.todas.toLocaleString("es-MX")})
+            </ToggleButton>
+
+            <ToggleButton value="vigentes">
+              Vigentes ({vigenciaCounts.vigentes.toLocaleString("es-MX")})
+            </ToggleButton>
+
+            <ToggleButton value="proximas7">
+              Próx. 7 días ({vigenciaCounts.proximas7.toLocaleString("es-MX")})
+            </ToggleButton>
+
+            <ToggleButton value="proximas30">
+              Próx. 30 días ({vigenciaCounts.proximas30.toLocaleString("es-MX")})
+            </ToggleButton>
+
+            <ToggleButton value="vencidas">
+              Vencidas ({vigenciaCounts.vencidas.toLocaleString("es-MX")})
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Stack>
       </Box>
 
@@ -1752,7 +1980,7 @@ export default function TaecontaSystemEmpresas({
               color="text.secondary"
               fontSize={11.5}
             >
-              Consultando empresas...
+              Consultando cuentas...
             </Typography>
           </Stack>
         </Box>
@@ -1789,7 +2017,7 @@ export default function TaecontaSystemEmpresas({
             color="text.secondary"
             fontSize={11.5}
           >
-            No hay empresas que coincidan
+            No hay cuentas que coincidan
             con los filtros seleccionados.
           </Typography>
         </Box>

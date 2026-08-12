@@ -123,12 +123,26 @@ export default function Sistemas({
         return;
 
       case "taeconta":
-        setView?.(
-          "taeconta-inicio",
+        /*
+         * Entrada normal desde Sistemas.
+         *
+         * Debe abrir directamente el Dashboard completo
+         * de TAECONTA, desde arriba.
+         *
+         * Se limpia cualquier filtro/focus que pudiera
+         * venir de Métricas o Alertas.
+         */
+        sessionStorage.setItem(
+          "taeconta_cuentas_vigencia",
+          "todas",
+        );
+
+        sessionStorage.removeItem(
+          "taeconta_cuentas_focus",
         );
 
         navigate(
-          "/superadmin/",
+          "/superadmin/systems/taeconta",
         );
 
         return;

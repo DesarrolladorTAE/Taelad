@@ -127,6 +127,41 @@ export type TaecontaSystemListResponse<
   data?: T[];
 };
 
+export type TaecontaSystemCuentaVigencia =
+  | "todas"
+  | "vigentes"
+  | "proximas7"
+  | "proximas30"
+  | "vencidas";
+
+export type TaecontaSystemEmpresasParams = {
+  vigencia?: TaecontaSystemCuentaVigencia;
+};
+
+export type TaecontaSystemEmpresasMeta =
+  TaecontaSystemBaseResponse["meta"] & {
+    total?: number;
+    filter?: {
+      vigencia?: TaecontaSystemCuentaVigencia;
+    };
+    counts?: {
+      todas?: number;
+      vigentes?: number;
+      proximas7?: number;
+      proximas30?: number;
+      vencidas?: number;
+    };
+    today?: string;
+    next_7_date?: string;
+    next_30_date?: string;
+    generated_at?: string;
+  };
+
+export type TaecontaSystemEmpresasResponse =
+  Omit<TaecontaSystemListResponse, "meta"> & {
+    meta?: TaecontaSystemEmpresasMeta;
+  };
+
 // =========================
 // TAECONTA - PAQUETES
 // =========================
@@ -153,12 +188,26 @@ export type TaecontaSystemPaqueteResponse =
     data?: TaecontaSystemPaquete | null;
   };
 
+export type TaecontaSystemPaqueteCreatePayload = {
+  nombre: string;
+  costo: number | string;
+  cantidad_timbres: number | string;
+  imagen?: File | null;
+};
+
 export type TaecontaSystemPaqueteUpdatePayload = {
   nombre?: string;
   costo?: number | string;
   cantidad_timbres?: number | string;
   imagen?: File | null;
 };
+
+export type TaecontaSystemPaqueteDeleteResponse =
+  TaecontaSystemBaseResponse & {
+    data?: {
+      id: number;
+    };
+  };
 
 // =========================
 // TAECONTA - BANNER
@@ -203,6 +252,72 @@ export type TaecontaSystemBannerUpdatePayload = {
   fecha_inicio: string;
   fecha_fin: string;
   activo?: boolean;
+};
+
+
+// =========================
+// TAECONTA - CONFIGURACIÓN
+// =========================
+
+export type TaecontaSystemConfiguracionLogin = {
+  exists: boolean;
+  type: "image" | "video" | null;
+  extension?: string | null;
+  url?: string | null;
+  file_name?: string | null;
+  mime_type?: string | null;
+  size_mb?: number | null;
+};
+
+export type TaecontaSystemConfiguracionLoginResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemConfiguracionLogin | null;
+  };
+
+export type TaecontaSystemConfiguracionLoginUpdatePayload = {
+  archivo: File;
+};
+
+export type TaecontaSystemConfiguracionIndicador = {
+  id: number;
+  nombre: string;
+  color: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type TaecontaSystemConfiguracionIndicadoresResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemConfiguracionIndicador[];
+  };
+
+export type TaecontaSystemConfiguracionIndicadorResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemConfiguracionIndicador | null;
+  };
+
+export type TaecontaSystemConfiguracionIndicadorPayload = {
+  nombre: string;
+  color: string;
+};
+
+export type TaecontaSystemConfiguracionIndicadorDeleteResponse =
+  TaecontaSystemBaseResponse;
+
+export type TaecontaSystemConfiguracionTerminos = {
+  id: number;
+  contenido: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type TaecontaSystemConfiguracionTerminosResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemConfiguracionTerminos | null;
+  };
+
+export type TaecontaSystemConfiguracionTerminosUpdatePayload = {
+  contenido: string;
 };
 
 // =========================
@@ -261,10 +376,21 @@ export async function getTaecontaSystemTimbres(): Promise<TaecontaSystemListResp
   return response.data;
 }
 
-export async function getTaecontaSystemEmpresas(): Promise<TaecontaSystemListResponse> {
+export async function getTaecontaSystemEmpresas(
+  params: TaecontaSystemEmpresasParams = {},
+): Promise<TaecontaSystemEmpresasResponse> {
+  const {
+    vigencia = "todas",
+  } = params;
+
   const response =
-    await axiosClient.get<TaecontaSystemListResponse>(
+    await axiosClient.get<TaecontaSystemEmpresasResponse>(
       `${TAECONTA_SYSTEM_BASE_PATH}/empresas`,
+      {
+        params: {
+          vigencia,
+        },
+      },
     );
 
   return response.data;
@@ -359,6 +485,43 @@ export async function getTaecontaSystemPaquete(
   return response.data;
 }
 
+export async function createTaecontaSystemPaquete(
+  payload: TaecontaSystemPaqueteCreatePayload,
+): Promise<TaecontaSystemPaqueteResponse> {
+  const formData = new FormData();
+
+  formData.append(
+    "nombre",
+    payload.nombre.trim(),
+  );
+
+  formData.append(
+    "costo",
+    String(payload.costo),
+  );
+
+  formData.append(
+    "cantidad_timbres",
+    String(payload.cantidad_timbres),
+  );
+
+  if (payload.imagen instanceof File) {
+    formData.append(
+      "imagen",
+      payload.imagen,
+      payload.imagen.name,
+    );
+  }
+
+  const response =
+    await axiosClient.post<TaecontaSystemPaqueteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/paquetes`,
+      formData,
+    );
+
+  return response.data;
+}
+
 export async function updateTaecontaSystemPaquete(
   id: number | string,
   payload: TaecontaSystemPaqueteUpdatePayload,
@@ -400,6 +563,17 @@ export async function updateTaecontaSystemPaquete(
     await axiosClient.post<TaecontaSystemPaqueteResponse>(
       `${TAECONTA_SYSTEM_BASE_PATH}/paquetes/${id}`,
       formData,
+    );
+
+  return response.data;
+}
+
+export async function deleteTaecontaSystemPaquete(
+  id: number | string,
+): Promise<TaecontaSystemPaqueteDeleteResponse> {
+  const response =
+    await axiosClient.delete<TaecontaSystemPaqueteDeleteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/paquetes/${id}`,
     );
 
   return response.data;
@@ -527,6 +701,114 @@ export async function toggleTaecontaSystemBannerActivo(
   const response =
     await axiosClient.patch<TaecontaSystemBannerWriteResponse>(
       `${TAECONTA_SYSTEM_BASE_PATH}/banners/${id}/toggle-activo`,
+    );
+
+  return response.data;
+}
+
+
+// =========================
+// TAECONTA - CONFIGURACIÓN
+// =========================
+
+export async function getTaecontaSystemConfiguracionLogin(): Promise<TaecontaSystemConfiguracionLoginResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemConfiguracionLoginResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/configuracion/login`,
+    );
+
+  return response.data;
+}
+
+export async function updateTaecontaSystemConfiguracionLogin(
+  payload: TaecontaSystemConfiguracionLoginUpdatePayload,
+): Promise<TaecontaSystemConfiguracionLoginResponse> {
+  const formData = new FormData();
+
+  formData.append(
+    "archivo",
+    payload.archivo,
+    payload.archivo.name,
+  );
+
+  const response =
+    await axiosClient.post<TaecontaSystemConfiguracionLoginResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/configuracion/login`,
+      formData,
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemConfiguracionIndicadores(): Promise<TaecontaSystemConfiguracionIndicadoresResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemConfiguracionIndicadoresResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/configuracion/indicadores`,
+    );
+
+  return response.data;
+}
+
+export async function createTaecontaSystemConfiguracionIndicador(
+  payload: TaecontaSystemConfiguracionIndicadorPayload,
+): Promise<TaecontaSystemConfiguracionIndicadorResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemConfiguracionIndicadorResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/configuracion/indicadores`,
+      {
+        nombre: payload.nombre.trim(),
+        color: payload.color.trim(),
+      },
+    );
+
+  return response.data;
+}
+
+export async function updateTaecontaSystemConfiguracionIndicador(
+  id: number | string,
+  payload: TaecontaSystemConfiguracionIndicadorPayload,
+): Promise<TaecontaSystemConfiguracionIndicadorResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemConfiguracionIndicadorResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/configuracion/indicadores/${id}`,
+      {
+        nombre: payload.nombre.trim(),
+        color: payload.color.trim(),
+      },
+    );
+
+  return response.data;
+}
+
+export async function deleteTaecontaSystemConfiguracionIndicador(
+  id: number | string,
+): Promise<TaecontaSystemConfiguracionIndicadorDeleteResponse> {
+  const response =
+    await axiosClient.delete<TaecontaSystemConfiguracionIndicadorDeleteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/configuracion/indicadores/${id}`,
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemConfiguracionTerminos(): Promise<TaecontaSystemConfiguracionTerminosResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemConfiguracionTerminosResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/configuracion/terminos`,
+    );
+
+  return response.data;
+}
+
+export async function updateTaecontaSystemConfiguracionTerminos(
+  payload: TaecontaSystemConfiguracionTerminosUpdatePayload,
+): Promise<TaecontaSystemConfiguracionTerminosResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemConfiguracionTerminosResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/configuracion/terminos`,
+      {
+        contenido: payload.contenido,
+      },
     );
 
   return response.data;

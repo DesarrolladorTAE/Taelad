@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 
+import { useNavigate } from "react-router-dom";
+
 import {
   Alert,
   alpha,
@@ -44,6 +46,13 @@ type Props = {
   setView?: (view: string) => void;
 };
 
+type TaecontaCuentaVigenciaFilter =
+  | "todas"
+  | "vigentes"
+  | "proximas7"
+  | "proximas30"
+  | "vencidas";
+
 type MiTiendaFiltro =
   | "todas"
   | "activas"
@@ -52,6 +61,11 @@ type MiTiendaFiltro =
   | "demo_vencido"
   | "plan_activo"
   | "plan_vencido";
+
+type ClicMenuFiltro =
+  | "todas"
+  | "activas"
+  | "vencidas";
 
 type SystemKey = "todos" | "mitienda" | "clicmenu" | "taeconta";
 type ApiSystemKey = "mitienda" | "clicmenu" | "taeconta";
@@ -960,6 +974,10 @@ function TaecontaSummary({
   timbresAsignados,
   timbresDisponibles,
   accent,
+  onTodasClick,
+  onVigentesClick,
+  onVencidasClick,
+  onProximas30Click,
 }: {
   income: number;
   currentIncome: number;
@@ -976,16 +994,84 @@ function TaecontaSummary({
   timbresAsignados: number;
   timbresDisponibles: number;
   accent: string;
+  onTodasClick?: () => void;
+  onVigentesClick?: () => void;
+  onVencidasClick?: () => void;
+  onProximas30Click?: () => void;
 }) {
   const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
 
-  const metricBox = {
-    p: 1.5,
-    borderRadius: 2.5,
-    border: `1px solid ${alpha(accent, isDark ? 0.28 : 0.18)}`,
-    bgcolor: alpha(accent, isDark ? 0.08 : 0.04),
-    height: "100%",
+  const isDark =
+    theme.palette.mode === "dark";
+
+  const clickableSx = (
+    callback?: () => void,
+  ) => ({
+    minWidth: 0,
+
+    p: callback
+      ? 1
+      : 0,
+
+    mx: callback
+      ? -1
+      : 0,
+
+    my: callback
+      ? -1
+      : 0,
+
+    borderRadius: 2,
+
+    cursor: callback
+      ? "pointer"
+      : "default",
+
+    transition:
+      "background-color .18s ease, transform .18s ease",
+
+    "&:hover": callback
+      ? {
+          bgcolor: alpha(
+            accent,
+            isDark
+              ? 0.12
+              : 0.06,
+          ),
+
+          transform:
+            "translateY(-1px)",
+        }
+      : undefined,
+
+    "&:focus-visible": callback
+      ? {
+          outline: `2px solid ${alpha(
+            accent,
+            0.7,
+          )}`,
+
+          outlineOffset: 2,
+        }
+      : undefined,
+  });
+
+  const activateWithKeyboard = (
+    event: KeyboardEvent<HTMLDivElement>,
+    callback?: () => void,
+  ) => {
+    if (!callback) {
+      return;
+    }
+
+    if (
+      event.key === "Enter" ||
+      event.key === " "
+    ) {
+      event.preventDefault();
+
+      callback();
+    }
   };
 
   return (
@@ -993,161 +1079,621 @@ function TaecontaSummary({
       variant="outlined"
       sx={{
         p: 2.5,
+
         height: "100%",
+
+        minWidth: 0,
+
+        overflow: "hidden",
+
         borderRadius: 4,
-        borderColor: alpha(accent, 0.25),
-        background: `linear-gradient(145deg, ${alpha(
+
+        borderColor: alpha(
           accent,
-          isDark ? 0.12 : 0.06
-        )}, ${theme.palette.background.paper} 42%)`,
+          0.25,
+        ),
+
+        background: `linear-gradient(
+          145deg,
+          ${alpha(
+            accent,
+            isDark
+              ? 0.12
+              : 0.06,
+          )},
+          ${theme.palette.background.paper} 42%
+        )`,
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1.5} mb={2.5}>
-        <Avatar sx={{ bgcolor: alpha(accent, 0.14), color: accent }}>
+      {/* HEADER */}
+
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.5}
+        mb={2.5}
+        sx={{
+          minWidth: 0,
+        }}
+      >
+        <Avatar
+          sx={{
+            flexShrink: 0,
+
+            bgcolor: alpha(
+              accent,
+              0.14,
+            ),
+
+            color: accent,
+          }}
+        >
           <BusinessCenterIcon />
         </Avatar>
 
-        <Box>
-          <Typography fontWeight={900}>TAECONTA</Typography>
-          <Typography variant="caption" color="text.secondary">
-            Resumen financiero, empresas, CFDI y timbres
+        <Box
+          sx={{
+            minWidth: 0,
+          }}
+        >
+          <Typography
+            fontWeight={900}
+          >
+            TAECONTA
+          </Typography>
+
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: "block",
+
+              lineHeight: 1.45,
+
+              overflowWrap:
+                "anywhere",
+            }}
+          >
+            Resumen financiero, cuentas,
+            CFDI y timbres
           </Typography>
         </Box>
       </Stack>
 
-      <Grid container spacing={2}>
-        <Grid item xs={6}>
-          <Typography variant="caption" color="text.secondary">
+      <Grid
+        container
+        spacing={2}
+        sx={{
+          minWidth: 0,
+        }}
+      >
+        {/* INGRESOS */}
+
+        <Grid
+          item
+          xs={6}
+          sx={{
+            minWidth: 0,
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+          >
             Ingreso anual
           </Typography>
-          <Typography fontWeight={900}>{formatMoney(income)}</Typography>
+
+          <Typography
+            fontWeight={900}
+            sx={{
+              fontSize: {
+                xs: 15,
+                sm: 16,
+              },
+
+              whiteSpace:
+                "nowrap",
+            }}
+          >
+            {formatMoney(income)}
+          </Typography>
         </Grid>
 
-        <Grid item xs={6}>
-          <Typography variant="caption" color="text.secondary">
+        <Grid
+          item
+          xs={6}
+          sx={{
+            minWidth: 0,
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+          >
             {periodIncomeLabel}
           </Typography>
-          <Typography fontWeight={900}>{formatMoney(currentIncome)}</Typography>
+
+          <Typography
+            fontWeight={900}
+            sx={{
+              fontSize: {
+                xs: 15,
+                sm: 16,
+              },
+
+              whiteSpace:
+                "nowrap",
+            }}
+          >
+            {formatMoney(
+              currentIncome,
+            )}
+          </Typography>
         </Grid>
 
-        <Grid item xs={6} sm={3}>
-          <Box sx={metricBox}>
-            <Typography variant="caption" color="text.secondary">
-              Empresas
+        {/* CUENTAS */}
+
+        <Grid
+          item
+          xs={4}
+          sx={{
+            minWidth: 0,
+          }}
+        >
+          <Box
+            role={
+              onTodasClick
+                ? "button"
+                : undefined
+            }
+            tabIndex={
+              onTodasClick
+                ? 0
+                : undefined
+            }
+            onClick={
+              onTodasClick
+            }
+            onKeyDown={(
+              event,
+            ) =>
+              activateWithKeyboard(
+                event,
+                onTodasClick,
+              )
+            }
+            sx={clickableSx(
+              onTodasClick,
+            )}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
+              Cuentas
             </Typography>
-            <Typography variant="h6" fontWeight={900}>
-              {formatNumber(empresas)}
+
+            <Typography
+              variant="h6"
+              fontWeight={900}
+            >
+              {formatNumber(
+                empresas,
+              )}
             </Typography>
           </Box>
         </Grid>
 
-        <Grid item xs={6} sm={3}>
-          <Box sx={metricBox}>
-            <Typography variant="caption" color="text.secondary">
+        <Grid
+          item
+          xs={4}
+          sx={{
+            minWidth: 0,
+          }}
+        >
+          <Box
+            role={
+              onVigentesClick
+                ? "button"
+                : undefined
+            }
+            tabIndex={
+              onVigentesClick
+                ? 0
+                : undefined
+            }
+            onClick={
+              onVigentesClick
+            }
+            onKeyDown={(
+              event,
+            ) =>
+              activateWithKeyboard(
+                event,
+                onVigentesClick,
+              )
+            }
+            sx={clickableSx(
+              onVigentesClick,
+            )}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
               Vigentes
             </Typography>
-            <Typography variant="h6" fontWeight={900} color="success.main">
-              {formatNumber(vigentes)}
+
+            <Typography
+              variant="h6"
+              fontWeight={900}
+              color="success.main"
+            >
+              {formatNumber(
+                vigentes,
+              )}
             </Typography>
           </Box>
         </Grid>
 
-        <Grid item xs={6} sm={3}>
-          <Box sx={metricBox}>
-            <Typography variant="caption" color="text.secondary">
+        <Grid
+          item
+          xs={4}
+          sx={{
+            minWidth: 0,
+          }}
+        >
+          <Box
+            role={
+              onVencidasClick
+                ? "button"
+                : undefined
+            }
+            tabIndex={
+              onVencidasClick
+                ? 0
+                : undefined
+            }
+            onClick={
+              onVencidasClick
+            }
+            onKeyDown={(
+              event,
+            ) =>
+              activateWithKeyboard(
+                event,
+                onVencidasClick,
+              )
+            }
+            sx={clickableSx(
+              onVencidasClick,
+            )}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
               Vencidas
             </Typography>
-            <Typography variant="h6" fontWeight={900} color="error.main">
-              {formatNumber(vencidas)}
+
+            <Typography
+              variant="h6"
+              fontWeight={900}
+              color="error.main"
+            >
+              {formatNumber(
+                vencidas,
+              )}
             </Typography>
           </Box>
         </Grid>
 
-        <Grid item xs={6} sm={3}>
-          <Box sx={metricBox}>
-            <Typography variant="caption" color="text.secondary">
+        {/* PRÓXIMAS + OPERACIONES */}
+
+        <Grid
+          item
+          xs={6}
+          sx={{
+            minWidth: 0,
+          }}
+        >
+          <Box
+            role={
+              onProximas30Click
+                ? "button"
+                : undefined
+            }
+            tabIndex={
+              onProximas30Click
+                ? 0
+                : undefined
+            }
+            onClick={
+              onProximas30Click
+            }
+            onKeyDown={(
+              event,
+            ) =>
+              activateWithKeyboard(
+                event,
+                onProximas30Click,
+              )
+            }
+            sx={clickableSx(
+              onProximas30Click,
+            )}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{
+                whiteSpace:
+                  "normal",
+
+                lineHeight:
+                  1.35,
+              }}
+            >
               Próx. 30 días
             </Typography>
-            <Typography variant="h6" fontWeight={900} color="warning.main">
-              {formatNumber(proximas30)}
+
+            <Typography
+              variant="h6"
+              fontWeight={900}
+              color="warning.main"
+            >
+              {formatNumber(
+                proximas30,
+              )}
             </Typography>
           </Box>
         </Grid>
 
-        <Grid item xs={12}>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.25}
-            sx={{ mt: 0.5 }}
+        <Grid
+          item
+          xs={6}
+          sx={{
+            minWidth: 0,
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
           >
-            <Chip
-              variant="outlined"
-              label={`Operaciones: ${formatNumber(operaciones)}`}
-              sx={{ fontWeight: 850 }}
-            />
-            <Chip
-              variant="outlined"
-              label={`Ticket promedio: ${formatMoney(ticketPromedio)}`}
-              sx={{ fontWeight: 850 }}
-            />
-          </Stack>
+            Operaciones
+          </Typography>
+
+          <Typography
+            variant="h6"
+            fontWeight={900}
+          >
+            {formatNumber(
+              operaciones,
+            )}
+          </Typography>
         </Grid>
 
-        <Grid item xs={12} sm={6}>
+        {/* TICKET */}
+
+        <Grid
+          item
+          xs={12}
+          sx={{
+            minWidth: 0,
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+          >
+            Ticket promedio
+          </Typography>
+
+          <Typography
+            fontWeight={900}
+          >
+            {formatMoney(
+              ticketPromedio,
+            )}
+          </Typography>
+        </Grid>
+
+        {/* CFDI */}
+
+        <Grid
+          item
+          xs={12}
+        >
           <Box
             sx={{
               p: 1.5,
+
               borderRadius: 2.5,
-              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-              bgcolor: alpha(theme.palette.info.main, isDark ? 0.09 : 0.04),
+
+              minWidth: 0,
+
+              border:
+                "1px solid",
+
+              borderColor: alpha(
+                theme.palette.info.main,
+                0.2,
+              ),
+
+              bgcolor: alpha(
+                theme.palette.info.main,
+                isDark
+                  ? 0.09
+                  : 0.04,
+              ),
             }}
           >
-            <Typography variant="caption" color="text.secondary" fontWeight={900}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              fontWeight={900}
+              display="block"
+              mb={0.75}
+            >
               CFDI
             </Typography>
-            <Stack direction="row" justifyContent="space-between" mt={0.6}>
-              <Typography variant="body2">Timbrados</Typography>
-              <Typography variant="body2" fontWeight={900}>
-                {formatNumber(cfdiTimbrados)}
+
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              spacing={1}
+            >
+              <Typography
+                variant="body2"
+              >
+                Timbrados
+              </Typography>
+
+              <Typography
+                variant="body2"
+                fontWeight={900}
+              >
+                {formatNumber(
+                  cfdiTimbrados,
+                )}
               </Typography>
             </Stack>
-            <Stack direction="row" justifyContent="space-between" mt={0.4}>
-              <Typography variant="body2">Cancelados</Typography>
-              <Typography variant="body2" fontWeight={900}>
-                {formatNumber(cfdiCancelados)}
+
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              spacing={1}
+              mt={0.45}
+            >
+              <Typography
+                variant="body2"
+              >
+                Cancelados
+              </Typography>
+
+              <Typography
+                variant="body2"
+                fontWeight={900}
+              >
+                {formatNumber(
+                  cfdiCancelados,
+                )}
               </Typography>
             </Stack>
           </Box>
         </Grid>
 
-        <Grid item xs={12} sm={6}>
+        {/* TIMBRES */}
+
+        <Grid
+          item
+          xs={12}
+        >
           <Box
             sx={{
               p: 1.5,
+
               borderRadius: 2.5,
-              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-              bgcolor: alpha(theme.palette.success.main, isDark ? 0.09 : 0.04),
+
+              minWidth: 0,
+
+              border:
+                "1px solid",
+
+              borderColor: alpha(
+                theme.palette.success.main,
+                0.2,
+              ),
+
+              bgcolor: alpha(
+                theme.palette.success.main,
+                isDark
+                  ? 0.09
+                  : 0.04,
+              ),
             }}
           >
-            <Typography variant="caption" color="text.secondary" fontWeight={900}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              fontWeight={900}
+              display="block"
+              mb={0.75}
+            >
               Timbres
             </Typography>
-            <Stack direction="row" justifyContent="space-between" mt={0.6}>
-              <Typography variant="body2">PAC</Typography>
-              <Typography variant="body2" fontWeight={900}>
-                {formatNumber(timbresPac)}
+
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              spacing={1}
+            >
+              <Typography
+                variant="body2"
+              >
+                PAC
+              </Typography>
+
+              <Typography
+                variant="body2"
+                fontWeight={900}
+              >
+                {formatNumber(
+                  timbresPac,
+                )}
               </Typography>
             </Stack>
-            <Stack direction="row" justifyContent="space-between" mt={0.4}>
-              <Typography variant="body2">Asignados</Typography>
-              <Typography variant="body2" fontWeight={900}>
-                {formatNumber(timbresAsignados)}
+
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              spacing={1}
+              mt={0.45}
+            >
+              <Typography
+                variant="body2"
+              >
+                Asignados
+              </Typography>
+
+              <Typography
+                variant="body2"
+                fontWeight={900}
+              >
+                {formatNumber(
+                  timbresAsignados,
+                )}
               </Typography>
             </Stack>
-            <Stack direction="row" justifyContent="space-between" mt={0.4}>
-              <Typography variant="body2">Disponibles</Typography>
-              <Typography variant="body2" fontWeight={900} color="success.main">
-                {formatNumber(timbresDisponibles)}
+
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              spacing={1}
+              mt={0.45}
+            >
+              <Typography
+                variant="body2"
+              >
+                Disponibles
+              </Typography>
+
+              <Typography
+                variant="body2"
+                fontWeight={900}
+                color="success.main"
+              >
+                {formatNumber(
+                  timbresDisponibles,
+                )}
               </Typography>
             </Stack>
           </Box>
@@ -1159,6 +1705,7 @@ function TaecontaSummary({
 
 export default function Metricas({ darkMode = false, setView }: Props) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isDark = theme.palette.mode === "dark" || darkMode;
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -1539,6 +2086,36 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     );
 
     setView?.("mitienda-tiendas");
+  };
+
+  const abrirClicMenu = (filtro: ClicMenuFiltro) => {
+    sessionStorage.setItem(
+      "clicmenu_metricas_filtro",
+      filtro
+    );
+
+    sessionStorage.setItem(
+      "clicmenu_metricas_focus",
+      "1"
+    );
+
+    setView?.("clicmenu");
+  };
+
+  const abrirCuentasTaeconta = (
+    filtro: TaecontaCuentaVigenciaFilter
+  ) => {
+    sessionStorage.setItem(
+      "taeconta_cuentas_vigencia",
+      filtro
+    );
+
+    sessionStorage.setItem(
+      "taeconta_cuentas_focus",
+      "1"
+    );
+
+    navigate("/superadmin/systems/taeconta");
   };
 
   const totalIncomeForParticipation =
@@ -2579,12 +3156,12 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                 >
                   <Typography fontWeight={950} mb={0.5}>
                     {systemFilter === "taeconta"
-                      ? "Estado de empresas TAECONTA"
+                      ? "Estado de cuentas TAECONTA"
                       : "Estado de suscripciones"}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {systemFilter === "taeconta"
-                      ? "Vigencia de las empresas registradas"
+                      ? "Vigencia de las cuentas registradas"
                       : systemFilter === "todos"
                         ? "Mi Tienda y Clic Menú; TAECONTA se muestra por separado"
                         : "Indicadores para el sistema filtrado"}
@@ -2603,13 +3180,45 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                           theme.palette.success.main,
                           0.2
                         )}`,
+                        cursor:
+                          systemFilter === "taeconta"
+                            ? "pointer"
+                            : "default",
+                        transition:
+                          "transform .18s ease, box-shadow .18s ease",
+                        "&:hover":
+                          systemFilter === "taeconta"
+                            ? {
+                                transform: "translateY(-2px)",
+                                boxShadow: `0 10px 24px ${alpha(
+                                  theme.palette.success.main,
+                                  0.14
+                                )}`,
+                              }
+                            : undefined,
                       }}
                     >
                       <Stack direction="row" justifyContent="space-between">
-                        <Box>
+                        <Box
+                      role={systemFilter === "taeconta" ? "button" : undefined}
+                      tabIndex={systemFilter === "taeconta" ? 0 : undefined}
+                      onClick={() => {
+                        if (systemFilter === "taeconta") {
+                          abrirCuentasTaeconta("vigentes");
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (
+                          systemFilter === "taeconta" &&
+                          (event.key === "Enter" || event.key === " ")
+                        ) {
+                          event.preventDefault();
+                          abrirCuentasTaeconta("vigentes");
+                        }
+                      }}>
                           <Typography variant="caption" color="text.secondary">
                             {systemFilter === "taeconta"
-                              ? "Empresas vigentes"
+                              ? "Cuentas vigentes"
                               : "Planes activos"}
                           </Typography>
                           <Typography variant="h4" fontWeight={950}>
@@ -2636,13 +3245,45 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                           theme.palette.error.main,
                           0.2
                         )}`,
+                        cursor:
+                          systemFilter === "taeconta"
+                            ? "pointer"
+                            : "default",
+                        transition:
+                          "transform .18s ease, box-shadow .18s ease",
+                        "&:hover":
+                          systemFilter === "taeconta"
+                            ? {
+                                transform: "translateY(-2px)",
+                                boxShadow: `0 10px 24px ${alpha(
+                                  theme.palette.error.main,
+                                  0.14
+                                )}`,
+                              }
+                            : undefined,
                       }}
                     >
                       <Stack direction="row" justifyContent="space-between">
-                        <Box>
+                        <Box
+                      role={systemFilter === "taeconta" ? "button" : undefined}
+                      tabIndex={systemFilter === "taeconta" ? 0 : undefined}
+                      onClick={() => {
+                        if (systemFilter === "taeconta") {
+                          abrirCuentasTaeconta("vencidas");
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (
+                          systemFilter === "taeconta" &&
+                          (event.key === "Enter" || event.key === " ")
+                        ) {
+                          event.preventDefault();
+                          abrirCuentasTaeconta("vencidas");
+                        }
+                      }}>
                           <Typography variant="caption" color="text.secondary">
                             {systemFilter === "taeconta"
-                              ? "Empresas vencidas"
+                              ? "Cuentas vencidas"
                               : "Planes vencidos"}
                           </Typography>
                           <Typography variant="h4" fontWeight={950}>
@@ -2669,10 +3310,42 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                           theme.palette.warning.main,
                           0.2
                         )}`,
+                        cursor:
+                          systemFilter === "taeconta"
+                            ? "pointer"
+                            : "default",
+                        transition:
+                          "transform .18s ease, box-shadow .18s ease",
+                        "&:hover":
+                          systemFilter === "taeconta"
+                            ? {
+                                transform: "translateY(-2px)",
+                                boxShadow: `0 10px 24px ${alpha(
+                                  theme.palette.warning.main,
+                                  0.14
+                                )}`,
+                              }
+                            : undefined,
                       }}
                     >
                       <Stack direction="row" justifyContent="space-between">
-                        <Box>
+                        <Box
+                      role={systemFilter === "taeconta" ? "button" : undefined}
+                      tabIndex={systemFilter === "taeconta" ? 0 : undefined}
+                      onClick={() => {
+                        if (systemFilter === "taeconta") {
+                          abrirCuentasTaeconta("proximas7");
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (
+                          systemFilter === "taeconta" &&
+                          (event.key === "Enter" || event.key === " ")
+                        ) {
+                          event.preventDefault();
+                          abrirCuentasTaeconta("proximas7");
+                        }
+                      }}>
                           <Typography variant="caption" color="text.secondary">
                             {systemFilter === "taeconta"
                               ? "Próximas a vencer (7 días)"
@@ -2763,6 +3436,15 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                   activePlans={clicmenuPlansActive}
                   expiredPlans={clicmenuPlansExpired}
                   accent={theme.palette.warning.main}
+                  onAccountsClick={() =>
+                    abrirClicMenu("todas")
+                  }
+                  onActiveClick={() =>
+                    abrirClicMenu("activas")
+                  }
+                  onExpiredClick={() =>
+                    abrirClicMenu("vencidas")
+                  }
                 />
               </Grid>
             )}
@@ -2785,6 +3467,18 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                   timbresAsignados={taecontaTimbresAsignados}
                   timbresDisponibles={taecontaTimbresDisponibles}
                   accent={theme.palette.success.main}
+                  onTodasClick={() =>
+                    abrirCuentasTaeconta("todas")
+                  }
+                  onVigentesClick={() =>
+                    abrirCuentasTaeconta("vigentes")
+                  }
+                  onVencidasClick={() =>
+                    abrirCuentasTaeconta("vencidas")
+                  }
+                  onProximas30Click={() =>
+                    abrirCuentasTaeconta("proximas30")
+                  }
                 />
               </Grid>
             )}

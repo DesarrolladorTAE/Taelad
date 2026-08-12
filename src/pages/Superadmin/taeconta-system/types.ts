@@ -9,7 +9,7 @@ export type TaecontaSection =
   | "historial"
   | "planes"
   | "paquetes"
-  | "banner"
+  | "preferencias"
   | "reporte-ventas";
 
 export type TaecontaEmpresaFilters = {

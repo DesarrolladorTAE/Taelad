@@ -19,7 +19,6 @@ import TeaTeDaMas from "./components/TeaTeDaMas";
 import BlogAdminShell from "./components/Blogs/BlogAdminShell";
 import TablaServices from "./components/TablaServices";
 
-import TaecontaInicio from "./taeconta-system/TaecontaInicio";
 import TaecontaSystemPage from "./taeconta-system/TaecontaSystemPage";
 
 export default function SuperAdminPanel() {
@@ -53,15 +52,16 @@ export default function SuperAdminPanel() {
           |--------------------------------------------------------------------------
           | TAECONTA
           |--------------------------------------------------------------------------
+          |
+          | "taeconta-inicio" se conserva únicamente por compatibilidad
+          | con rutas o estados anteriores.
+          |
+          | Ya NO renderiza TaecontaInicio.
+          | Ambos accesos abren directamente el Dashboard real de TAECONTA.
+          |
           */
 
           case "taeconta-inicio":
-            return (
-              <TaecontaInicio
-                setView={setView}
-              />
-            );
-
           case "taeconta-informacion":
             return (
               <TaecontaSystemPage />

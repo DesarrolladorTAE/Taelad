@@ -76,6 +76,129 @@ function createEmptySalesFilters(): SalesFiltersState {
   };
 }
 
+type ClicMenuMetricasFiltro =
+  | "todas"
+  | "activas"
+  | "vencidas"
+  | "proximas7";
+
+type MonthSelection =
+  | number
+  | "all";
+
+function createInitialSalesFilters(): SalesFiltersState {
+  const filters = createEmptySalesFilters();
+
+  /*
+   * IMPORTANTE:
+   * Este inicializador debe ser puro.
+   *
+   * React 18 + StrictMode puede ejecutar dos veces los inicializadores
+   * de estado durante desarrollo. Por eso aquí SOLO leemos sessionStorage
+   * y NO eliminamos todavía la intención de navegación.
+   */
+  const filtro = sessionStorage.getItem(
+    "clicmenu_metricas_filtro"
+  ) as ClicMenuMetricasFiltro | null;
+
+  if (filtro === "activas") {
+    filters.status = "active";
+  }
+
+  if (filtro === "vencidas") {
+    filters.status = "expired";
+  }
+
+  return filters;
+}
+
+function getInitialClicMenuNavigationFilter(): ClicMenuMetricasFiltro | null {
+  const value = sessionStorage.getItem(
+    "clicmenu_metricas_filtro"
+  );
+
+  if (
+    value === "todas" ||
+    value === "activas" ||
+    value === "vencidas" ||
+    value === "proximas7"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function getInitialMonthSelection(): MonthSelection {
+  return getInitialClicMenuNavigationFilter()
+    ? "all"
+    : new Date().getMonth() + 1;
+}
+
+function getLastMonthForYear(year: number) {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  if (year < currentYear) {
+    return 12;
+  }
+
+  return now.getMonth() + 1;
+}
+
+function getMonthSelectionLabel(
+  year: number,
+  month: MonthSelection
+) {
+  if (month === "all") {
+    return `Enero - ${getMonthName(
+      getLastMonthForYear(year)
+    )} ${year}`;
+  }
+
+  return `${getMonthName(month)} ${year}`;
+}
+
+function getSaleExpirationDate(sale: any): Date | null {
+  const possibleValues = [
+    sale?.ends_at,
+    sale?.expires_at,
+    sale?.subscription?.ends_at,
+    sale?.subscription?.expires_at,
+    sale?.current_subscription?.ends_at,
+    sale?.current_subscription?.expires_at,
+  ];
+
+  for (const value of possibleValues) {
+    if (!value) continue;
+
+    const date = new Date(value);
+
+    if (!Number.isNaN(date.getTime())) {
+      return date;
+    }
+  }
+
+  return null;
+}
+
+function saleExpiresWithinDays(sale: any, days: number) {
+  const expiration = getSaleExpirationDate(sale);
+
+  if (!expiration) return false;
+
+  const now = new Date();
+  const end = new Date(now);
+
+  end.setDate(end.getDate() + days);
+  end.setHours(23, 59, 59, 999);
+
+  return (
+    expiration.getTime() >= now.getTime() &&
+    expiration.getTime() <= end.getTime()
+  );
+}
+
 function getArray<T>(payload: any): T[] {
   if (!payload) return [];
 
@@ -498,11 +621,15 @@ export default function ClicMenuDashboard() {
   const [error, setError] = useState("");
 
   const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [month, setMonth] = useState<MonthSelection>(() =>
+    getInitialMonthSelection()
+  );
   const [planFilter, setPlanFilter] = useState("todos");
 
   const [consultedYear, setConsultedYear] = useState(now.getFullYear());
-  const [consultedMonth, setConsultedMonth] = useState(now.getMonth() + 1);
+  const [consultedMonth, setConsultedMonth] = useState<MonthSelection>(() =>
+    getInitialMonthSelection()
+  );
   const [consultedPlanFilter, setConsultedPlanFilter] = useState("todos");
 
   const [dashboard, setDashboard] = useState<any>(null);
@@ -519,8 +646,13 @@ export default function ClicMenuDashboard() {
   const [ownerSearch, setOwnerSearch] = useState("");
   const [restaurantSearch, setRestaurantSearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
+  const [navigationFilter, setNavigationFilter] =
+    useState<ClicMenuMetricasFiltro | null>(() =>
+      getInitialClicMenuNavigationFilter()
+    );
+
   const [salesFilters, setSalesFilters] = useState<SalesFiltersState>(() =>
-    createEmptySalesFilters()
+    createInitialSalesFilters()
   );
 
   const [ownerModalOpen, setOwnerModalOpen] = useState(false);
@@ -570,7 +702,12 @@ export default function ClicMenuDashboard() {
   }, [monthlySales, consultedPlanFilter]);
 
   const visibleSalesSummary = useMemo(() => {
-    if (!consultedPlanFilter || consultedPlanFilter === "todos") {
+    const shouldBuildLocalSummary =
+      consultedMonth === "all" ||
+      (!!consultedPlanFilter &&
+        consultedPlanFilter !== "todos");
+
+    if (!shouldBuildLocalSummary) {
       return salesSummary;
     }
 
@@ -585,7 +722,12 @@ export default function ClicMenuDashboard() {
         return total + getSaleAmount(sale);
       }, 0),
     };
-  }, [salesSummary, monthlySalesByPlan, consultedPlanFilter]);
+  }, [
+    salesSummary,
+    monthlySalesByPlan,
+    consultedPlanFilter,
+    consultedMonth,
+  ]);
 
   const ownersTotal = useMemo(() => {
     return getTotal(dashboard?.owners, owners.length);
@@ -674,6 +816,13 @@ export default function ClicMenuDashboard() {
     const advancedPlanFilter = normalizeAdvancedPlanFilter(salesFilters.plan_id);
 
     return monthlySalesByPlan.filter((sale) => {
+      if (
+        navigationFilter === "proximas7" &&
+        !saleExpiresWithinDays(sale, 7)
+      ) {
+        return false;
+      }
+
       if (q) {
         const text = normalizeText(
           [
@@ -713,7 +862,7 @@ export default function ClicMenuDashboard() {
 
       return true;
     });
-  }, [monthlySalesByPlan, salesFilters]);
+  }, [monthlySalesByPlan, salesFilters, navigationFilter]);
 
   const buildSalesParams = (
     targetYear: number,
@@ -723,7 +872,7 @@ export default function ClicMenuDashboard() {
     const params: Record<string, any> = {
       year: targetYear,
       month: targetMonth,
-      per_page: 50,
+      per_page: 100,
       include_internal: false,
     };
 
@@ -757,13 +906,28 @@ export default function ClicMenuDashboard() {
   };
 
   const aplicarFiltrosVentas = () => {
-    cargarDashboard(Number(year), Number(month), false, salesFilters, planFilter);
+    cargarDashboard(
+      Number(year),
+      month,
+      false,
+      salesFilters,
+      planFilter
+    );
   };
 
   const limpiarFiltrosVentas = () => {
     const emptyFilters = createEmptySalesFilters();
+
+    setNavigationFilter(null);
     setSalesFilters(emptyFilters);
-    cargarDashboard(Number(year), Number(month), false, emptyFilters, planFilter);
+
+    cargarDashboard(
+      Number(year),
+      month,
+      false,
+      emptyFilters,
+      planFilter
+    );
   };
 
   const exportarVentasCsv = () => {
@@ -800,9 +964,13 @@ export default function ClicMenuDashboard() {
 
     const planSlug = consultedPlanFilter || "todos";
 
-    const fileName = `clicmenu_ventas_${consultedYear}_${String(
-      consultedMonth
-    ).padStart(2, "0")}_${planSlug}.csv`;
+    const monthSlug =
+      consultedMonth === "all"
+        ? "enero-hasta-mes-actual"
+        : String(consultedMonth).padStart(2, "0");
+
+    const fileName =
+      `clicmenu_ventas_${consultedYear}_${monthSlug}_${planSlug}.csv`;
 
     const blob = new Blob([`\uFEFF${csv}`], {
       type: "text/csv;charset=utf-8;",
@@ -817,9 +985,96 @@ export default function ClicMenuDashboard() {
     URL.revokeObjectURL(url);
   };
 
+  const cargarVentasMesCompletas = async (
+    targetYear: number,
+    targetMonth: number,
+    targetFilters: SalesFiltersState
+  ) => {
+    const rows: any[] = [];
+    let page = 1;
+    let previousFingerprint = "";
+
+    while (page <= 50) {
+      const params = buildSalesParams(
+        targetYear,
+        targetMonth,
+        targetFilters
+      );
+
+      params.page = page;
+      params.per_page = 100;
+
+      const response =
+        await clicMenuService.monthlySales(
+          params
+        );
+
+      const pageRows =
+        getArray<any>(response.data);
+
+      if (pageRows.length === 0) {
+        break;
+      }
+
+      /*
+       * Protección por si un endpoint externo ignorara "page":
+       * evita repetir indefinidamente la misma página.
+       */
+      const firstRow = pageRows[0];
+      const lastRow =
+        pageRows[pageRows.length - 1];
+
+      const fingerprint = JSON.stringify([
+        firstRow?.id,
+        firstRow?.created_at,
+        lastRow?.id,
+        lastRow?.created_at,
+        pageRows.length,
+      ]);
+
+      if (
+        page > 1 &&
+        fingerprint === previousFingerprint
+      ) {
+        break;
+      }
+
+      previousFingerprint = fingerprint;
+      rows.push(...pageRows);
+
+      const payload = response.data || {};
+
+      const currentPage = Number(
+        payload?.meta?.current_page ??
+          payload?.current_page ??
+          payload?.data?.current_page ??
+          page
+      );
+
+      const lastPage = Number(
+        payload?.meta?.last_page ??
+          payload?.last_page ??
+          payload?.data?.last_page ??
+          0
+      );
+
+      if (
+        (lastPage > 0 &&
+          currentPage >= lastPage) ||
+        pageRows.length < 100
+      ) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return rows;
+  };
+
   const cargarDashboard = async (
     targetYear: number = year,
-    targetMonth: number = month,
+    targetMonth: MonthSelection = month,
     silent = false,
     targetFilters: SalesFiltersState = salesFilters,
     targetPlanFilter: string = planFilter
@@ -828,15 +1083,22 @@ export default function ClicMenuDashboard() {
       if (!silent) setLoading(true);
       setError("");
 
-      const salesParams = buildSalesParams(
-        targetYear,
-        targetMonth,
-        targetFilters
-      );
+      /*
+       * Cuando se consulta "Todos los meses", el Dashboard base se obtiene
+       * usando el último mes disponible del año, pero las ventas se cargan
+       * desde enero hasta ese mes y luego se unifican localmente.
+       *
+       * Esto permite aplicar los filtros de Activo, Vencido, Demo y
+       * próximos 7 días sobre todo el periodo acumulado.
+       */
+      const referenceMonth =
+        targetMonth === "all"
+          ? getLastMonthForYear(targetYear)
+          : targetMonth;
 
       const dashboardResponse = await clicMenuService.dashboard({
         year: targetYear,
-        month: targetMonth,
+        month: referenceMonth,
         per_page: 15,
       });
 
@@ -844,22 +1106,59 @@ export default function ClicMenuDashboard() {
         data: [],
       };
 
-      let salesSummaryData = dashboardResponse.data?.sales_summary || {};
+      const salesSummaryData =
+        dashboardResponse.data?.sales_summary || {};
 
       try {
-        const monthlySalesResponse = await clicMenuService.monthlySales(
-          salesParams
+        if (targetMonth === "all") {
+          const months = Array.from(
+            { length: referenceMonth },
+            (_, index) => index + 1
+          );
+
+          const salesByMonth =
+            await Promise.all(
+              months.map((monthNumber) =>
+                cargarVentasMesCompletas(
+                  targetYear,
+                  monthNumber,
+                  targetFilters
+                )
+              )
+            );
+
+          const combinedSales =
+            salesByMonth.flat();
+
+          monthlySalesData = {
+            data: combinedSales,
+            total: combinedSales.length,
+          };
+        } else {
+          const singleMonthSales =
+            await cargarVentasMesCompletas(
+              targetYear,
+              targetMonth,
+              targetFilters
+            );
+
+          monthlySalesData = {
+            data: singleMonthSales,
+            total: singleMonthSales.length,
+          };
+        }
+      } catch (monthlyErr: any) {
+        console.error(
+          "Error cargando ventas de ClicMenu:",
+          monthlyErr
         );
 
-        monthlySalesData = monthlySalesResponse.data;
-      } catch (monthlyErr: any) {
-        console.error("Error cargando ventas mensuales ClicMenu:", monthlyErr);
-
-        const fallbackSales = getArray<any>(monthlySalesData);
+        const fallbackSales =
+          getArray<any>(monthlySalesData);
 
         if (fallbackSales.length === 0) {
           setError(
-            "No fue posible cargar el detalle de ventas mensuales. Intenta consultar nuevamente."
+            "No fue posible cargar el detalle de ventas. Intenta consultar nuevamente."
           );
         }
       }
@@ -872,9 +1171,16 @@ export default function ClicMenuDashboard() {
 
       setConsultedYear(targetYear);
       setConsultedMonth(targetMonth);
-      setConsultedPlanFilter(targetPlanFilter);
+      setConsultedPlanFilter(
+        targetPlanFilter
+      );
     } catch (err: any) {
-      setError(getErrorMessage(err, "No fue posible cargar ClicMenu."));
+      setError(
+        getErrorMessage(
+          err,
+          "No fue posible cargar ClicMenu."
+        )
+      );
     } finally {
       if (!silent) setLoading(false);
     }
@@ -954,14 +1260,55 @@ export default function ClicMenuDashboard() {
   };
 
   useEffect(() => {
-    cargarDashboard(now.getFullYear(), now.getMonth() + 1);
+    cargarDashboard(
+      now.getFullYear(),
+      month
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    /*
+     * La intención proveniente de Métricas ya fue consumida por
+     * createInitialSalesFilters(). Se elimina DESPUÉS del montaje
+     * para que StrictMode no pueda borrar el valor antes de tiempo.
+     */
+    sessionStorage.removeItem(
+      "clicmenu_metricas_filtro"
+    );
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const shouldFocus =
+      sessionStorage.getItem(
+        "clicmenu_metricas_focus"
+      ) === "1";
+
+    if (!shouldFocus) return;
+
+    const timeoutId = window.setTimeout(() => {
+      document
+        .getElementById("clicmenu-filtros-ventas")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+
+      sessionStorage.removeItem(
+        "clicmenu_metricas_focus"
+      );
+    }, 180);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loading]);
+
   const consultar = () => {
     const targetYear = Number(year);
-    const targetMonth = Number(month);
+    const targetMonth = month;
 
+    setNavigationFilter(null);
     setSelectedOwnerId(null);
     setSelectedRestaurantId(null);
     setRestaurants([]);
@@ -1569,7 +1916,10 @@ export default function ClicMenuDashboard() {
                   Periodo actual
                 </Typography>
                 <Typography variant="body2" color="primary" fontWeight={800}>
-                  {getMonthName(consultedMonth)} {consultedYear}
+                  {getMonthSelectionLabel(
+                    consultedYear,
+                    consultedMonth
+                  )}
                 </Typography>
               </Box>
             </Stack>
@@ -1664,8 +2014,23 @@ export default function ClicMenuDashboard() {
                   select
                   size="small"
                   value={month}
-                  onChange={(event) => setMonth(Number(event.target.value))}
+                  onChange={(event) => {
+                    const value = event.target.value;
+
+                    setMonth(
+                      value === "all"
+                        ? "all"
+                        : Number(value)
+                    );
+                  }}
                 >
+                  <MenuItem value="all">
+                    Todos (Enero - {getMonthName(
+                      getLastMonthForYear(
+                        Number(year)
+                      )
+                    )})
+                  </MenuItem>
                   <MenuItem value={1}>Enero</MenuItem>
                   <MenuItem value={2}>Febrero</MenuItem>
                   <MenuItem value={3}>Marzo</MenuItem>
@@ -1717,12 +2082,39 @@ export default function ClicMenuDashboard() {
               </Grid>
             </Grid>
 
-            <Typography variant="body2" color="text.secondary">
-              Plan consultado:{" "}
-              <Typography component="span" fontWeight={900} color="text.primary">
-                {getPlanFilterLabel(consultedPlanFilter)}
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              flexWrap="wrap"
+              useFlexGap
+            >
+              <Typography variant="body2" color="text.secondary">
+                Periodo consultado:{" "}
+                <Typography
+                  component="span"
+                  fontWeight={900}
+                  color="text.primary"
+                >
+                  {getMonthSelectionLabel(
+                    consultedYear,
+                    consultedMonth
+                  )}
+                </Typography>
               </Typography>
-            </Typography>
+
+              <Typography variant="body2" color="text.secondary">
+                Plan consultado:{" "}
+                <Typography
+                  component="span"
+                  fontWeight={900}
+                  color="text.primary"
+                >
+                  {getPlanFilterLabel(
+                    consultedPlanFilter
+                  )}
+                </Typography>
+              </Typography>
+            </Stack>
 
             <Grid container spacing={1.5} alignItems="stretch">
               <Grid item xs={12} sm={6} md={3}>
@@ -1764,21 +2156,42 @@ export default function ClicMenuDashboard() {
           </Stack>
         </Paper>
 
-        <SalesTableCard
-          title={`Ventas del periodo (${getMonthName(
-            consultedMonth
-          )} ${consultedYear})`}
-          sales={filteredSales}
-          totalSales={monthlySalesByPlan.length}
-          salesFilters={salesFilters}
-          ownerOptions={owners}
-          restaurantOptions={restaurants}
-          onSalesFilterChange={cambiarSalesFilter}
-          onApplyFilters={aplicarFiltrosVentas}
-          onClearFilters={limpiarFiltrosVentas}
-          onExportCsv={exportarVentasCsv}
-          exportDisabled={filteredSales.length === 0}
-        />
+        <Box
+          id="clicmenu-filtros-ventas"
+          sx={{
+            scrollMarginTop: 24,
+          }}
+        >
+          {navigationFilter === "proximas7" && (
+            <Alert
+              severity="warning"
+              sx={{
+                mb: 1.5,
+                borderRadius: 3,
+              }}
+            >
+              Mostrando únicamente los planes de Clic Menú que vencen en los
+              próximos 7 días.
+            </Alert>
+          )}
+
+          <SalesTableCard
+            title={`Ventas del periodo (${getMonthSelectionLabel(
+              consultedYear,
+              consultedMonth
+            )})`}
+            sales={filteredSales}
+            totalSales={monthlySalesByPlan.length}
+            salesFilters={salesFilters}
+            ownerOptions={owners}
+            restaurantOptions={restaurants}
+            onSalesFilterChange={cambiarSalesFilter}
+            onApplyFilters={aplicarFiltrosVentas}
+            onClearFilters={limpiarFiltrosVentas}
+            onExportCsv={exportarVentasCsv}
+            exportDisabled={filteredSales.length === 0}
+          />
+        </Box>
 
         <Grid container spacing={2} alignItems="stretch">
           <Grid item xs={12}>

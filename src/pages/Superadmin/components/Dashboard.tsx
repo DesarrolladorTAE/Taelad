@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { useNavigate } from "react-router-dom";
+
 import {
   Alert,
   Avatar,
@@ -34,7 +36,41 @@ import {
 
 type Props = {
   darkMode: boolean;
+  setView?: (view: string) => void;
 };
+
+type TaecontaCuentaVigenciaFilter =
+  | "todas"
+  | "vigentes"
+  | "proximas7"
+  | "proximas30"
+  | "vencidas";
+
+type ClicMenuAlertaFiltro =
+  | "todas"
+  | "activas"
+  | "vencidas";
+
+type MiTiendaAlertaFiltro =
+  | "todas"
+  | "activas"
+  | "vencidas"
+  | "plan_activo"
+  | "plan_vencido";
+
+type DashboardAlertAction =
+  | {
+      system: "taeconta";
+      filter: TaecontaCuentaVigenciaFilter;
+    }
+  | {
+      system: "clicmenu";
+      filter: ClicMenuAlertaFiltro;
+    }
+  | {
+      system: "mitienda";
+      filter: MiTiendaAlertaFiltro;
+    };
 
 type MetricSnapshot = {
   id: number;
@@ -325,6 +361,218 @@ function chartIncomeBySystem(
   );
 }
 
+function normalizeAlertText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function dashboardAlertAction(
+  alert: DashboardAlert
+): DashboardAlertAction | null {
+  const rawSystem = normalizeAlertText(
+    alert.system_key
+  ).replace(/[^a-z0-9]/g, "");
+
+  const text = normalizeAlertText(
+    [
+      alert.alert_type,
+      alert.title,
+      alert.message,
+    ].join(" ")
+  );
+
+  /*
+   * Algunas alertas específicas llegan con system_key genérico
+   * (por ejemplo "consolidado"), pero el título/mensaje sí indica
+   * claramente "Clic Menú", "MiTienda" o "TAECONTA".
+   *
+   * Primero respetamos system_key cuando es específico. Si no lo es,
+   * resolvemos el sistema únicamente cuando el texto lo identifica
+   * de forma explícita. Las alertas realmente generales permanecen
+   * informativas.
+   */
+  let system = rawSystem;
+
+  if (
+    !["taeconta", "clicmenu", "clicmenuapp", "mitienda", "mitiendaenlineamx", "mtelmx"].includes(system)
+  ) {
+    const compactText = text.replace(/[^a-z0-9]/g, "");
+
+    if (
+      compactText.includes("taeconta") ||
+      compactText.includes("taeconta")
+    ) {
+      system = "taeconta";
+    } else if (
+      compactText.includes("clicmenu")
+    ) {
+      system = "clicmenu";
+    } else if (
+      compactText.includes("mitiendaenlineamx") ||
+      compactText.includes("mitienda") ||
+      compactText.includes("mtelmx")
+    ) {
+      system = "mitienda";
+    }
+  }
+
+  if (system === "taeconta") {
+    const isCuentaAlert =
+      text.includes("cuenta") ||
+      text.includes("empresa");
+
+    if (!isCuentaAlert) {
+      return null;
+    }
+
+    if (
+      text.includes("proxim") &&
+      text.includes("venc")
+    ) {
+      if (
+        text.includes("7 dia") ||
+        text.includes("7 dias") ||
+        text.includes("_7") ||
+        text.includes("-7")
+      ) {
+        return {
+          system: "taeconta",
+          filter: "proximas7",
+        };
+      }
+
+      return {
+        system: "taeconta",
+        filter: "proximas30",
+      };
+    }
+
+    if (
+      text.includes("vencid") ||
+      text.includes("expir")
+    ) {
+      return {
+        system: "taeconta",
+        filter: "vencidas",
+      };
+    }
+
+    if (
+      text.includes("vigent") ||
+      text.includes("activ")
+    ) {
+      return {
+        system: "taeconta",
+        filter: "vigentes",
+      };
+    }
+
+    return {
+      system: "taeconta",
+      filter: "todas",
+    };
+  }
+
+  if (
+    system === "clicmenu" ||
+    system === "clicmenuapp"
+  ) {
+    if (
+      text.includes("vencid") ||
+      text.includes("expir")
+    ) {
+      return {
+        system: "clicmenu",
+        filter: "vencidas",
+      };
+    }
+
+    /*
+     * Clic Menú no tendrá un botón visible de 7/15/30 días.
+     * Una alerta de próximo vencimiento abre la sección de planes
+     * activos, que son los candidatos todavía vigentes.
+     */
+    if (
+      text.includes("proxim") &&
+      text.includes("venc")
+    ) {
+      return {
+        system: "clicmenu",
+        filter: "activas",
+      };
+    }
+
+    if (
+      text.includes("activ") ||
+      text.includes("vigent")
+    ) {
+      return {
+        system: "clicmenu",
+        filter: "activas",
+      };
+    }
+
+    return {
+      system: "clicmenu",
+      filter: "todas",
+    };
+  }
+
+  if (
+    system === "mitienda" ||
+    system === "mitiendaenlineamx" ||
+    system === "mtelmx"
+  ) {
+    if (
+      text.includes("vencid") ||
+      text.includes("expir")
+    ) {
+      return {
+        system: "mitienda",
+        filter: "plan_vencido",
+      };
+    }
+
+    if (
+      text.includes("proxim") &&
+      text.includes("venc")
+    ) {
+      return {
+        system: "mitienda",
+        filter: "plan_activo",
+      };
+    }
+
+    if (
+      text.includes("activ") ||
+      text.includes("vigent")
+    ) {
+      return {
+        system: "mitienda",
+        filter: "plan_activo",
+      };
+    }
+
+    return {
+      system: "mitienda",
+      filter: "todas",
+    };
+  }
+
+  return null;
+}
+
+function taecontaVisibleText(
+  value: string | null | undefined
+): string {
+  return String(value ?? "")
+    .replace(/Empresas TAECONTA/gi, "Cuentas TAECONTA")
+    .replace(/empresa\(s\)/gi, "cuenta(s)")
+    .replace(/empresas/gi, "cuentas");
+}
+
 function alertSeverity(
   severity: string
 ): "error" | "warning" | "success" | "info" {
@@ -349,7 +597,8 @@ function alertSeverity(
   return "info";
 }
 
-export default function Dashboard({ darkMode }: Props) {
+export default function Dashboard({ darkMode, setView }: Props) {
+  const navigate = useNavigate();
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -359,6 +608,100 @@ export default function Dashboard({ darkMode }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [autoSyncInfo, setAutoSyncInfo] = useState<AutoSyncInfo | null>(null);
+
+  const abrirCuentasTaeconta = (
+    filtro: TaecontaCuentaVigenciaFilter
+  ) => {
+    sessionStorage.setItem(
+      "taeconta_cuentas_vigencia",
+      filtro
+    );
+
+    sessionStorage.setItem(
+      "taeconta_cuentas_focus",
+      "1"
+    );
+
+    navigate("/superadmin/systems/taeconta");
+  };
+
+  const abrirClicMenuDesdeAlerta = (
+    filtro: ClicMenuAlertaFiltro
+  ) => {
+    sessionStorage.setItem(
+      "clicmenu_metricas_filtro",
+      filtro
+    );
+
+    sessionStorage.setItem(
+      "clicmenu_metricas_focus",
+      "1"
+    );
+
+    localStorage.setItem(
+      "superadmin_view",
+      "clicmenu"
+    );
+
+    if (setView) {
+      setView("clicmenu");
+      return;
+    }
+
+    /*
+     * Fallback de compatibilidad:
+     * si Dashboard todavía fue montado sin setView desde panel.tsx,
+     * recargamos /superadmin/ para que el Shell lea superadmin_view.
+     */
+    window.location.assign(
+      "/superadmin/"
+    );
+  };
+
+  const abrirMiTiendaDesdeAlerta = (
+    filtro: MiTiendaAlertaFiltro
+  ) => {
+    sessionStorage.setItem(
+      "mitienda_filtro_tiendas",
+      filtro
+    );
+
+    localStorage.setItem(
+      "superadmin_view",
+      "mitienda-tiendas"
+    );
+
+    if (setView) {
+      setView("mitienda-tiendas");
+      return;
+    }
+
+    window.location.assign(
+      "/superadmin/"
+    );
+  };
+
+  const ejecutarAlerta = (
+    action: DashboardAlertAction
+  ) => {
+    if (action.system === "taeconta") {
+      abrirCuentasTaeconta(
+        action.filter
+      );
+      return;
+    }
+
+    if (action.system === "clicmenu") {
+      abrirClicMenuDesdeAlerta(
+        action.filter
+      );
+      return;
+    }
+
+    abrirMiTiendaDesdeAlerta(
+      action.filter
+    );
+  };
 
   const fetchDashboard = useCallback(
     async (silent = false) => {
@@ -1405,20 +1748,71 @@ export default function Dashboard({ darkMode }: Props) {
                       </Typography>
                     ) : (
                       <Stack spacing={1.5}>
-                        {alerts.slice(0, 5).map((alert) => (
-                          <Alert
-                            key={alert.id}
-                            severity={alertSeverity(alert.severity)}
-                            variant="outlined"
-                          >
-                            <Typography fontWeight={800} fontSize={13}>
-                              {alert.title}
-                            </Typography>
-                            {alert.message && (
-                              <Typography fontSize={12}>{alert.message}</Typography>
-                            )}
-                          </Alert>
-                        ))}
+                        {alerts.slice(0, 5).map((alert) => {
+                          const action =
+                            dashboardAlertAction(alert);
+
+                          const clickable =
+                            action !== null;
+
+                          return (
+                            <Alert
+                              key={alert.id}
+                              severity={alertSeverity(alert.severity)}
+                              variant="outlined"
+                              role={clickable ? "button" : undefined}
+                              tabIndex={clickable ? 0 : undefined}
+                              onClick={() => {
+                                if (action) {
+                                  ejecutarAlerta(
+                                    action
+                                  );
+                                }
+                              }}
+                              onKeyDown={(event) => {
+                                if (
+                                  action &&
+                                  (event.key === "Enter" ||
+                                    event.key === " ")
+                                ) {
+                                  event.preventDefault();
+                                  ejecutarAlerta(
+                                    action
+                                  );
+                                }
+                              }}
+                              sx={{
+                                cursor: clickable
+                                  ? "pointer"
+                                  : "default",
+                                transition:
+                                  "transform .18s ease, box-shadow .18s ease",
+                                "&:hover": clickable
+                                  ? {
+                                      transform:
+                                        "translateY(-2px)",
+                                      boxShadow:
+                                        "0 8px 20px rgba(15,23,42,.10)",
+                                    }
+                                  : undefined,
+                              }}
+                            >
+                              <Typography fontWeight={800} fontSize={13}>
+                                {alert.system_key === "taeconta"
+                                  ? taecontaVisibleText(alert.title)
+                                  : alert.title}
+                              </Typography>
+
+                              {alert.message && (
+                                <Typography fontSize={12}>
+                                  {alert.system_key === "taeconta"
+                                    ? taecontaVisibleText(alert.message)
+                                    : alert.message}
+                                </Typography>
+                              )}
+                            </Alert>
+                          );
+                        })}
                       </Stack>
                     )}
                   </CardContent>
@@ -1656,7 +2050,7 @@ export default function Dashboard({ darkMode }: Props) {
 
                       <Grid item xs={6}>
                         <Typography color="text.secondary" variant="body2">
-                          Empresas
+                          Cuentas
                         </Typography>
                         <Typography fontWeight={900}>
                           {formatNumber(taecontaEmpresasTotal)}
