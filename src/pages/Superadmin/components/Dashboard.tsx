@@ -89,10 +89,23 @@ type DashboardResponse = {
     systems: {
       mitienda: MetricSnapshot | null;
       clicmenu: MetricSnapshot | null;
+      taeconta?: MetricSnapshot | null;
     };
     alerts: DashboardAlert[];
     sync_logs: SyncLog[];
   };
+};
+
+type AutoSyncInfo = {
+  enabled: boolean;
+  system: string;
+  interval_minutes: number;
+  attempted: boolean;
+  refreshed: boolean;
+  reason?: string | null;
+  snapshot_id?: number | null;
+  synced_at?: string | null;
+  message?: string | null;
 };
 
 const API_BASE_URL = "https://api.tecnologiasadministrativas.com/api";
@@ -208,7 +221,7 @@ function currentPeriod(year: number, month: number) {
 
 function monthlySeries(
   charts: Record<string, any>,
-  systemKey: "mitienda" | "clicmenu",
+  systemKey: "mitienda" | "clicmenu" | "taeconta",
   year: number
 ) {
   const ingresosPorMes = asObject(charts?.ingresos_por_mes);
@@ -234,7 +247,7 @@ function monthlySeries(
 
 function monthlyValue(
   charts: Record<string, any>,
-  systemKey: "mitienda" | "clicmenu",
+  systemKey: "mitienda" | "clicmenu" | "taeconta",
   year: number,
   month: number
 ) {
@@ -243,7 +256,7 @@ function monthlyValue(
 
 function annualValue(
   charts: Record<string, any>,
-  systemKey: "mitienda" | "clicmenu",
+  systemKey: "mitienda" | "clicmenu" | "taeconta",
   year: number,
   maximumMonth = 12
 ) {
@@ -345,40 +358,76 @@ export default function Dashboard({ darkMode }: Props) {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
+  const [autoSyncInfo, setAutoSyncInfo] = useState<AutoSyncInfo | null>(null);
 
-  const fetchDashboard = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const token = getAuthToken();
-
-      const response = await fetch(
-        `${API_BASE_URL}/superadmin/dashboard?year=${currentYear}&month=${currentMonth}&system=all`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+  const fetchDashboard = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) {
+          setLoading(true);
+          setError(null);
         }
-      );
 
-      const json = await response.json();
+        const token = getAuthToken();
+        const headers = {
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
 
-      if (!response.ok || !json?.success || !json?.data) {
-        throw new Error(
-          json?.message || "La respuesta del Dashboard no fue válida."
+        /*
+         * GeneralMetricsController ya contiene la regla de auto-sync
+         * oportunista de TAECONTA (5 minutos). Esta llamada la activa
+         * también cuando el usuario está únicamente en el Dashboard.
+         *
+         * Si TAECONTA no necesita sincronización, el backend reutiliza
+         * el snapshot local y no consulta nuevamente al sistema origen.
+         */
+        try {
+          const autoResponse = await fetch(
+            `${API_BASE_URL}/superadmin/metricas-generales?year=${currentYear}&month=${currentMonth}&system=taeconta`,
+            {
+              method: "GET",
+              headers,
+            }
+          );
+
+          if (autoResponse.ok) {
+            const autoJson = await autoResponse.json();
+            setAutoSyncInfo(autoJson?.auto_sync || null);
+          }
+        } catch {
+          // El Dashboard continúa usando el último snapshot local disponible.
+        }
+
+        const response = await fetch(
+          `${API_BASE_URL}/superadmin/dashboard?year=${currentYear}&month=${currentMonth}&system=all`,
+          {
+            method: "GET",
+            headers,
+          }
         );
-      }
 
-      setDashboard(json);
-    } catch (err: any) {
-      setError(err?.message || "No fue posible cargar el Dashboard.");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentYear, currentMonth]);
+        const json = await response.json();
+
+        if (!response.ok || !json?.success || !json?.data) {
+          throw new Error(
+            json?.message || "La respuesta del Dashboard no fue válida."
+          );
+        }
+
+        setDashboard(json);
+      } catch (err: any) {
+        if (!silent) {
+          setError(err?.message || "No fue posible cargar el Dashboard.");
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [currentYear, currentMonth]
+  );
 
   const syncDashboard = useCallback(async () => {
     try {
@@ -419,9 +468,25 @@ export default function Dashboard({ darkMode }: Props) {
     fetchDashboard();
   }, [fetchDashboard]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchDashboard(true);
+      }
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [fetchDashboard]);
+
   const consolidatedSnapshot = dashboard?.data?.consolidated ?? null;
   const mitiendaSnapshot = dashboard?.data?.systems?.mitienda ?? null;
   const clicmenuSnapshot = dashboard?.data?.systems?.clicmenu ?? null;
+  const taecontaSnapshot =
+    dashboard?.data?.systems?.taeconta ??
+    dashboard?.data?.selected?.find(
+      (snapshot) => snapshot.system_key === "taeconta"
+    ) ??
+    null;
 
   const alerts = dashboard?.data?.alerts ?? [];
   const logs = dashboard?.data?.sync_logs ?? [];
@@ -435,6 +500,12 @@ export default function Dashboard({ darkMode }: Props) {
 
   const clicmenuKpis = asObject(clicmenuSnapshot?.kpis);
   const clicmenuSpecific = asObject(clicmenuSnapshot?.specific_metrics);
+
+  const taecontaKpis = asObject(taecontaSnapshot?.kpis);
+  const taecontaSpecific = asObject(taecontaSnapshot?.specific_metrics);
+  const taecontaEmpresas = asObject(taecontaSpecific?.empresas);
+  const taecontaCfdi = asObject(taecontaSpecific?.cfdi);
+  const taecontaTimbres = asObject(taecontaSpecific?.timbres);
 
   const totalIngresosPlanes = firstNumber([
     {
@@ -501,6 +572,23 @@ export default function Dashboard({ darkMode }: Props) {
       },
     ]);
 
+  const ventasTaecontaMes =
+    monthlyValue(consolidatedCharts, "taeconta", currentYear, currentMonth) ||
+    firstNumber([
+      {
+        source: taecontaKpis,
+        keys: [
+          "ingresos_periodo_actual",
+          "ventas_mes",
+          "ingresos_mes",
+        ],
+      },
+      {
+        source: consolidatedKpis,
+        keys: ["taeconta_ingresos_periodo"],
+      },
+    ]);
+
   const ventasMitiendaAnual =
     annualValue(
       consolidatedCharts,
@@ -537,6 +625,28 @@ export default function Dashboard({ darkMode }: Props) {
       },
     ]);
 
+  const ventasTaecontaAnual =
+    annualValue(
+      consolidatedCharts,
+      "taeconta",
+      currentYear,
+      currentMonth
+    ) ||
+    firstNumber([
+      {
+        source: taecontaKpis,
+        keys: [
+          "total_ingresos_planes",
+          "total_ingresos",
+          "ventas_anio",
+        ],
+      },
+      {
+        source: consolidatedKpis,
+        keys: ["taeconta_ingresos_anuales"],
+      },
+    ]);
+
   const incomeBySystem = [
     {
       key: "mitienda",
@@ -557,6 +667,15 @@ export default function Dashboard({ darkMode }: Props) {
           "clic menu",
           "clic menú",
         ]) || ventasClicMenuAnual,
+    },
+    {
+      key: "taeconta",
+      name: "TAECONTA",
+      value:
+        chartIncomeBySystem(consolidatedCharts, [
+          "taeconta",
+          "tae conta",
+        ]) || ventasTaecontaAnual,
     },
   ];
 
@@ -587,17 +706,28 @@ export default function Dashboard({ darkMode }: Props) {
     currentYear
   ).slice(0, currentMonth);
 
+  const monthlyTaeconta = monthlySeries(
+    consolidatedCharts,
+    "taeconta",
+    currentYear
+  ).slice(0, currentMonth);
+
   const monthlyComparison = Array.from(
     { length: currentMonth },
     (_, index) => ({
       month: monthLabels[index],
       mitienda: Number(monthlyMitienda[index] || 0),
       clicmenu: Number(monthlyClicMenu[index] || 0),
+      taeconta: Number(monthlyTaeconta[index] || 0),
     })
   );
 
   const maxMonthlyIncome = Math.max(
-    ...monthlyComparison.flatMap((item) => [item.mitienda, item.clicmenu]),
+    ...monthlyComparison.flatMap((item) => [
+      item.mitienda,
+      item.clicmenu,
+      item.taeconta,
+    ]),
     1
   );
 
@@ -653,9 +783,73 @@ export default function Dashboard({ darkMode }: Props) {
     { source: clicmenuKpis, keys: ["planes_vencidos", "total_planes_vencidos"] },
   ]);
 
+  const taecontaEmpresasTotal = firstNumber([
+    { source: taecontaEmpresas, keys: ["total"] },
+    { source: taecontaKpis, keys: ["empresas_total"] },
+    { source: consolidatedKpis, keys: ["taeconta_empresas_total"] },
+  ]);
+
+  const taecontaEmpresasVencidas = firstNumber([
+    { source: taecontaEmpresas, keys: ["vencidas"] },
+    { source: consolidatedKpis, keys: ["taeconta_empresas_vencidas"] },
+  ]);
+
+  const taecontaEmpresasVigentes = firstNumber(
+    [
+      { source: taecontaEmpresas, keys: ["vigentes"] },
+      { source: consolidatedKpis, keys: ["taeconta_empresas_vigentes"] },
+    ],
+    Math.max(taecontaEmpresasTotal - taecontaEmpresasVencidas, 0)
+  );
+
+  const taecontaProximas30 = firstNumber([
+    { source: taecontaEmpresas, keys: ["proximas_vencer_30"] },
+    { source: consolidatedKpis, keys: ["taeconta_empresas_proximas_vencer_30"] },
+  ]);
+
+  const taecontaOperacionesMes = firstNumber([
+    { source: taecontaKpis, keys: ["operaciones_mes"] },
+    { source: consolidatedKpis, keys: ["taeconta_operaciones_mes"] },
+  ]);
+
+  const taecontaTicketPromedio = firstNumber([
+    { source: taecontaKpis, keys: ["ticket_promedio_mes"] },
+    { source: consolidatedKpis, keys: ["taeconta_ticket_promedio_mes"] },
+  ]);
+
+  const taecontaCfdiTimbrados = firstNumber([
+    { source: taecontaCfdi, keys: ["timbrados"] },
+    { source: taecontaKpis, keys: ["cfdi_timbrados_total"] },
+    { source: consolidatedKpis, keys: ["taeconta_cfdi_timbrados_total"] },
+  ]);
+
+  const taecontaCfdiCancelados = firstNumber([
+    { source: taecontaCfdi, keys: ["cancelados"] },
+    { source: taecontaKpis, keys: ["cfdi_cancelados_total"] },
+    { source: consolidatedKpis, keys: ["taeconta_cfdi_cancelados_total"] },
+  ]);
+
+  const taecontaTimbresPac = firstNumber([
+    { source: taecontaTimbres, keys: ["pac"] },
+    { source: taecontaKpis, keys: ["timbres_pac"] },
+    { source: consolidatedKpis, keys: ["taeconta_timbres_pac"] },
+  ]);
+
+  const taecontaTimbresAsignados = firstNumber([
+    { source: taecontaTimbres, keys: ["asignados"] },
+    { source: taecontaKpis, keys: ["timbres_asignados"] },
+    { source: consolidatedKpis, keys: ["taeconta_timbres_asignados"] },
+  ]);
+
+  const taecontaTimbresDisponibles = firstNumber([
+    { source: taecontaTimbres, keys: ["disponibles"] },
+    { source: taecontaKpis, keys: ["timbres_disponibles"] },
+    { source: consolidatedKpis, keys: ["taeconta_timbres_disponibles"] },
+  ]);
+
   const metrics = [
     {
-      title: "Ingresos por planes",
+      title: "Ingresos consolidados",
       value: formatMoney(totalIngresosPlanes),
       icon: <MonetizationOn />,
     },
@@ -772,7 +966,7 @@ export default function Dashboard({ darkMode }: Props) {
               </Typography>
 
               <Typography variant="body2" color="text.secondary" mt={0.5}>
-                Resumen ejecutivo consolidado de MiTiendaEnLineaMx y Clic Menú.
+                Resumen ejecutivo consolidado de MiTiendaEnLineaMx, Clic Menú y TAECONTA.
               </Typography>
 
               <Typography variant="caption" color="text.secondary">
@@ -786,7 +980,7 @@ export default function Dashboard({ darkMode }: Props) {
             <Button
               variant="outlined"
               startIcon={<Refresh />}
-              onClick={fetchDashboard}
+              onClick={() => fetchDashboard()}
               disabled={loading || syncing}
             >
               Recargar
@@ -812,6 +1006,16 @@ export default function Dashboard({ darkMode }: Props) {
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
+          </Alert>
+        )}
+
+        {autoSyncInfo?.enabled && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            TAECONTA tiene actualización automática cada{" "}
+            {autoSyncInfo.interval_minutes} minutos al consultar el Dashboard.
+            {autoSyncInfo.refreshed
+              ? " Los datos se actualizaron automáticamente en esta consulta."
+              : ""}
           </Alert>
         )}
 
@@ -947,6 +1151,16 @@ export default function Dashboard({ darkMode }: Props) {
                       })}
                       variant="outlined"
                     />
+                    <Chip
+                      size="small"
+                      label="TAECONTA"
+                      sx={(theme) => ({
+                        fontWeight: 800,
+                        color: theme.palette.success.main,
+                        borderColor: theme.palette.success.main,
+                      })}
+                      variant="outlined"
+                    />
                   </Stack>
                 </Stack>
 
@@ -980,6 +1194,10 @@ export default function Dashboard({ darkMode }: Props) {
                         (item.clicmenu / maxMonthlyIncome) * 210,
                         item.clicmenu > 0 ? 8 : 2
                       );
+                      const taecontaHeight = Math.max(
+                        (item.taeconta / maxMonthlyIncome) * 210,
+                        item.taeconta > 0 ? 8 : 2
+                      );
 
                       return (
                         <Box
@@ -1000,7 +1218,9 @@ export default function Dashboard({ darkMode }: Props) {
                             fontWeight={700}
                             sx={{ mb: 1 }}
                           >
-                            {formatMoney(item.mitienda + item.clicmenu)}
+                            {formatMoney(
+                              item.mitienda + item.clicmenu + item.taeconta
+                            )}
                           </Typography>
 
                           <Box
@@ -1044,6 +1264,24 @@ export default function Dashboard({ darkMode }: Props) {
                                   borderRadius: "8px 8px 2px 2px",
                                   bgcolor: theme.palette.warning.main,
                                   opacity: item.clicmenu > 0 ? 1 : 0.18,
+                                  transition: "height .25s ease",
+                                })}
+                              />
+                            </Tooltip>
+
+                            <Tooltip
+                              arrow
+                              title={`TAECONTA: ${formatMoney(
+                                item.taeconta
+                              )}`}
+                            >
+                              <Box
+                                sx={(theme) => ({
+                                  width: 24,
+                                  height: taecontaHeight,
+                                  borderRadius: "8px 8px 2px 2px",
+                                  bgcolor: theme.palette.success.main,
+                                  opacity: item.taeconta > 0 ? 1 : 0.18,
                                   transition: "height .25s ease",
                                 })}
                               />
@@ -1189,7 +1427,7 @@ export default function Dashboard({ darkMode }: Props) {
             </Grid>
 
             <Grid container spacing={3} sx={{ mt: 1 }}>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <Card
                   sx={(theme) => ({
                     height: "100%",
@@ -1263,7 +1501,7 @@ export default function Dashboard({ darkMode }: Props) {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <Card
                   sx={(theme) => ({
                     height: "100%",
@@ -1357,6 +1595,161 @@ export default function Dashboard({ darkMode }: Props) {
                         </Typography>
                         <Typography fontWeight={900}>
                           {formatNumber(promedioRestaurantesCuenta)}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Card
+                  sx={(theme) => ({
+                    height: "100%",
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 4,
+                  })}
+                >
+                  <CardContent>
+                    <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
+                      <Avatar
+                        sx={(theme) => ({
+                          width: 38,
+                          height: 38,
+                          backgroundColor: theme.palette.action.hover,
+                          color: theme.palette.success.main,
+                        })}
+                      >
+                        <ReceiptLong />
+                      </Avatar>
+
+                      <Box>
+                        <Typography variant="h6" fontWeight={800}>
+                          TAECONTA
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Snapshot ID: {taecontaSnapshot?.id || "N/A"} ·{" "}
+                          {taecontaSnapshot?.status || "sin datos"}
+                        </Typography>
+                      </Box>
+                    </Stack>
+
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Ventas del mes
+                        </Typography>
+                        <Typography fontWeight={900}>
+                          {formatMoney(ventasTaecontaMes)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Ventas del año
+                        </Typography>
+                        <Typography fontWeight={900}>
+                          {formatMoney(ventasTaecontaAnual)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Empresas
+                        </Typography>
+                        <Typography fontWeight={900}>
+                          {formatNumber(taecontaEmpresasTotal)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Vigentes
+                        </Typography>
+                        <Typography fontWeight={900} color="success.main">
+                          {formatNumber(taecontaEmpresasVigentes)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Vencidas
+                        </Typography>
+                        <Typography fontWeight={900} color="error.main">
+                          {formatNumber(taecontaEmpresasVencidas)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Próx. 30 días
+                        </Typography>
+                        <Typography fontWeight={900} color="warning.main">
+                          {formatNumber(taecontaProximas30)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Operaciones
+                        </Typography>
+                        <Typography fontWeight={900}>
+                          {formatNumber(taecontaOperacionesMes)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Ticket promedio
+                        </Typography>
+                        <Typography fontWeight={900}>
+                          {formatMoney(taecontaTicketPromedio)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          CFDI timbrados
+                        </Typography>
+                        <Typography fontWeight={900}>
+                          {formatNumber(taecontaCfdiTimbrados)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          CFDI cancelados
+                        </Typography>
+                        <Typography fontWeight={900}>
+                          {formatNumber(taecontaCfdiCancelados)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Timbres PAC
+                        </Typography>
+                        <Typography fontWeight={900}>
+                          {formatNumber(taecontaTimbresPac)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography color="text.secondary" variant="body2">
+                          Disponibles
+                        </Typography>
+                        <Typography fontWeight={900} color="success.main">
+                          {formatNumber(taecontaTimbresDisponibles)}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Typography color="text.secondary" variant="body2">
+                          Timbres asignados
+                        </Typography>
+                        <Typography fontWeight={900}>
+                          {formatNumber(taecontaTimbresAsignados)}
                         </Typography>
                       </Grid>
                     </Grid>

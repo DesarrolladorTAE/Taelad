@@ -82,18 +82,18 @@ export async function getSuperAdminSystems() {
 }
 
 // =========================
-// SYSTEMS - TAECONTA (NUEVO)
+// SYSTEMS - TAECONTA
 // =========================
 
 /*
- * Integración nueva y aislada para:
+ * Integración aislada para:
  * Superadmin -> Sistemas -> TAECONTA
  *
  * IMPORTANTE:
- * - No reutiliza los endpoints TAECONTA anteriores.
  * - Todas las llamadas pasan por el backend de Tecnologías.
- * - El token privado TAECONTA nunca se expone al frontend.
- * - Esta integración es exclusivamente de lectura.
+ * - El token privado de TAECONTA nunca se expone al frontend.
+ * - TAECONTA continúa siendo la fuente real de los datos.
+ * - Las operaciones de escritura se reflejan directamente en TAECONTA.
  */
 
 const TAECONTA_SYSTEM_BASE_PATH =
@@ -105,6 +105,11 @@ export type TaecontaSystemRecord =
 export type TaecontaSystemBaseResponse = {
   success: boolean;
   message?: string;
+  meta?: {
+    total?: number;
+    generated_at?: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 };
 
@@ -122,6 +127,43 @@ export type TaecontaSystemListResponse<
   data?: T[];
 };
 
+// =========================
+// TAECONTA - PAQUETES
+// =========================
+
+export type TaecontaSystemPaquete = {
+  id: number;
+  nombre: string;
+  costo: number | null;
+  cantidad_timbres: number | null;
+  activo: boolean;
+  tipo_timbre_id: number | null;
+  ruta: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type TaecontaSystemPaquetesResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemPaquete[];
+  };
+
+export type TaecontaSystemPaqueteResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemPaquete | null;
+  };
+
+export type TaecontaSystemPaqueteUpdatePayload = {
+  nombre?: string;
+  costo?: number | string;
+  cantidad_timbres?: number | string;
+  imagen?: File | null;
+};
+
+// =========================
+// TAECONTA - BANNER
+// =========================
+
 export type TaecontaSystemBanner = {
   id: number;
   nombre_imagen?: string | null;
@@ -138,6 +180,34 @@ export type TaecontaSystemBannerResponse =
     activo?: boolean;
     data?: TaecontaSystemBanner | null;
   };
+
+export type TaecontaSystemBannersResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemBanner[];
+  };
+
+export type TaecontaSystemBannerWriteResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemBanner | null;
+  };
+
+export type TaecontaSystemBannerCreatePayload = {
+  imagen: File;
+  fecha_inicio: string;
+  fecha_fin: string;
+  activo?: boolean;
+};
+
+export type TaecontaSystemBannerUpdatePayload = {
+  imagen?: File | null;
+  fecha_inicio: string;
+  fecha_fin: string;
+  activo?: boolean;
+};
+
+// =========================
+// TAECONTA - TIMBRADOS
+// =========================
 
 export type TaecontaSystemTimbradosParams = {
   page?: number;
@@ -265,19 +335,272 @@ export async function getTaecontaSystemPlanes(): Promise<TaecontaSystemListRespo
   return response.data;
 }
 
-export async function getTaecontaSystemPaquetes(): Promise<TaecontaSystemListResponse> {
+// =========================
+// TAECONTA - PAQUETES
+// =========================
+
+export async function getTaecontaSystemPaquetes(): Promise<TaecontaSystemPaquetesResponse> {
   const response =
-    await axiosClient.get<TaecontaSystemListResponse>(
+    await axiosClient.get<TaecontaSystemPaquetesResponse>(
       `${TAECONTA_SYSTEM_BASE_PATH}/paquetes`,
     );
 
   return response.data;
 }
 
+export async function getTaecontaSystemPaquete(
+  id: number | string,
+): Promise<TaecontaSystemPaqueteResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemPaqueteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/paquetes/${id}`,
+    );
+
+  return response.data;
+}
+
+export async function updateTaecontaSystemPaquete(
+  id: number | string,
+  payload: TaecontaSystemPaqueteUpdatePayload,
+): Promise<TaecontaSystemPaqueteResponse> {
+  const formData = new FormData();
+
+  if (payload.nombre !== undefined) {
+    formData.append(
+      "nombre",
+      payload.nombre.trim(),
+    );
+  }
+
+  if (payload.costo !== undefined) {
+    formData.append(
+      "costo",
+      String(payload.costo),
+    );
+  }
+
+  if (
+    payload.cantidad_timbres !== undefined
+  ) {
+    formData.append(
+      "cantidad_timbres",
+      String(payload.cantidad_timbres),
+    );
+  }
+
+  if (payload.imagen instanceof File) {
+    formData.append(
+      "imagen",
+      payload.imagen,
+      payload.imagen.name,
+    );
+  }
+
+  const response =
+    await axiosClient.post<TaecontaSystemPaqueteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/paquetes/${id}`,
+      formData,
+    );
+
+  return response.data;
+}
+
+// =========================
+// TAECONTA - BANNER VIGENTE
+// =========================
+
 export async function getTaecontaSystemBanner(): Promise<TaecontaSystemBannerResponse> {
   const response =
     await axiosClient.get<TaecontaSystemBannerResponse>(
       `${TAECONTA_SYSTEM_BASE_PATH}/banner`,
+    );
+
+  return response.data;
+}
+
+// =========================
+// TAECONTA - BANNERS ADMIN
+// =========================
+
+export async function getTaecontaSystemBanners(): Promise<TaecontaSystemBannersResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemBannersResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/banners`,
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemBannerDetalle(
+  id: number | string,
+): Promise<TaecontaSystemBannerWriteResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemBannerWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/banners/${id}`,
+    );
+
+  return response.data;
+}
+
+export async function createTaecontaSystemBanner(
+  payload: TaecontaSystemBannerCreatePayload,
+): Promise<TaecontaSystemBannerWriteResponse> {
+  const formData = new FormData();
+
+  formData.append(
+    "imagen",
+    payload.imagen,
+    payload.imagen.name,
+  );
+
+  formData.append(
+    "fecha_inicio",
+    payload.fecha_inicio,
+  );
+
+  formData.append(
+    "fecha_fin",
+    payload.fecha_fin,
+  );
+
+  formData.append(
+    "activo",
+    payload.activo === false
+      ? "0"
+      : "1",
+  );
+
+  const response =
+    await axiosClient.post<TaecontaSystemBannerWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/banners`,
+      formData,
+    );
+
+  return response.data;
+}
+
+export async function updateTaecontaSystemBanner(
+  id: number | string,
+  payload: TaecontaSystemBannerUpdatePayload,
+): Promise<TaecontaSystemBannerWriteResponse> {
+  const formData = new FormData();
+
+  formData.append(
+    "fecha_inicio",
+    payload.fecha_inicio,
+  );
+
+  formData.append(
+    "fecha_fin",
+    payload.fecha_fin,
+  );
+
+  if (payload.activo !== undefined) {
+    formData.append(
+      "activo",
+      payload.activo
+        ? "1"
+        : "0",
+    );
+  }
+
+  if (payload.imagen instanceof File) {
+    formData.append(
+      "imagen",
+      payload.imagen,
+      payload.imagen.name,
+    );
+  }
+
+  const response =
+    await axiosClient.post<TaecontaSystemBannerWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/banners/${id}`,
+      formData,
+    );
+
+  return response.data;
+}
+
+export async function toggleTaecontaSystemBannerActivo(
+  id: number | string,
+): Promise<TaecontaSystemBannerWriteResponse> {
+  const response =
+    await axiosClient.patch<TaecontaSystemBannerWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/banners/${id}/toggle-activo`,
+    );
+
+  return response.data;
+}
+
+// =========================
+// SYSTEMS - TAECONTA
+// REPORTE DE VENTAS
+// =========================
+
+export type TaecontaSystemReporteVentasData = {
+  years: number[];
+  year: number;
+  meses: string[];
+  ventas_anuales: Record<string, number>;
+};
+
+export type TaecontaSystemReporteVentasResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemReporteVentasData;
+  };
+
+export type TaecontaSystemReporteVentaRegistro = {
+  id: number;
+  empresa: string;
+  fecha: string | null;
+  paquete: string;
+  correo: string;
+  monto: number;
+  cfdi_id: number | null;
+};
+
+export type TaecontaSystemReporteVentasDetalleData = {
+  year: number;
+  month: number;
+  month_name: string;
+  grafica: Record<string, number>;
+  registros: TaecontaSystemReporteVentaRegistro[];
+};
+
+export type TaecontaSystemReporteVentasDetalleResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemReporteVentasDetalleData;
+  };
+
+export async function getTaecontaSystemReporteVentas(
+  year?: number,
+): Promise<TaecontaSystemReporteVentasResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemReporteVentasResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/reporte-ventas`,
+      {
+        params: {
+          year: year ?? undefined,
+        },
+      },
+    );
+
+  return response.data;
+}
+
+export async function getTaecontaSystemReporteVentasDetalle(
+  year: number,
+  month: number,
+): Promise<TaecontaSystemReporteVentasDetalleResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemReporteVentasDetalleResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/reporte-ventas/detalle`,
+      {
+        params: {
+          year,
+          month,
+        },
+      },
     );
 
   return response.data;

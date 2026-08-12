@@ -53,8 +53,8 @@ type MiTiendaFiltro =
   | "plan_activo"
   | "plan_vencido";
 
-type SystemKey = "todos" | "mitienda" | "clicmenu";
-type ApiSystemKey = "mitienda" | "clicmenu";
+type SystemKey = "todos" | "mitienda" | "clicmenu" | "taeconta";
+type ApiSystemKey = "mitienda" | "clicmenu" | "taeconta";
 
 type Snapshot = {
   id: number;
@@ -100,9 +100,22 @@ type MetricsPeriod = {
   short_label: string;
 };
 
+type AutoSyncInfo = {
+  enabled: boolean;
+  system: string;
+  interval_minutes: number;
+  attempted: boolean;
+  refreshed: boolean;
+  reason?: string | null;
+  snapshot_id?: number | null;
+  synced_at?: string | null;
+  message?: string | null;
+};
+
 type MetricasResponse = {
   success: boolean;
   message?: string;
+  auto_sync?: AutoSyncInfo;
   filters?: MetricsFilters;
   period?: MetricsPeriod;
   data?: {
@@ -134,6 +147,7 @@ const API_BASE_URL = "https://api.tecnologiasadministrativas.com/api";
 const SYSTEM_LABELS: Record<ApiSystemKey, string> = {
   mitienda: "MiTiendaEnLineaMx",
   clicmenu: "Clic Menú",
+  taeconta: "TAECONTA",
 };
 
 function getAuthToken() {
@@ -330,11 +344,19 @@ function getMonthlySeries(
         item?.system_key || item?.name || item?.system_name || ""
       ).toLowerCase();
 
-      return systemKey === "mitienda"
-        ? candidate.includes("mitienda") ||
-            candidate.includes("mi tienda") ||
-            candidate.includes("tiendaenlinea")
-        : candidate.includes("clic");
+      if (systemKey === "mitienda") {
+        return (
+          candidate.includes("mitienda") ||
+          candidate.includes("mi tienda") ||
+          candidate.includes("tiendaenlinea")
+        );
+      }
+
+      if (systemKey === "clicmenu") {
+        return candidate.includes("clic");
+      }
+
+      return candidate.includes("taeconta") || candidate.includes("tae conta");
     });
 
     const fallbackValue = Number(match?.value || match?.amount || 0);
@@ -453,14 +475,29 @@ function getSystemAccounts(
     ]);
   }
 
+  if (systemKey === "clicmenu") {
+    return firstNumber([
+      {
+        source: specific,
+        keys: ["cuentas_registradas", "total_cuentas", "owners_count"],
+      },
+      {
+        source: consolidated,
+        keys: ["total_cuentas_clicmenu"],
+      },
+    ]);
+  }
+
+  const empresas = asObject(specific?.empresas);
+
   return firstNumber([
     {
-      source: specific,
-      keys: ["cuentas_registradas", "total_cuentas", "owners_count"],
+      source: empresas,
+      keys: ["total"],
     },
     {
-      source: consolidated,
-      keys: ["total_cuentas_clicmenu"],
+      source: asObject(snapshot?.kpis),
+      keys: ["empresas_total"],
     },
   ]);
 }
@@ -907,6 +944,219 @@ function SystemSummary({
   );
 }
 
+function TaecontaSummary({
+  income,
+  currentIncome,
+  periodIncomeLabel,
+  empresas,
+  vigentes,
+  vencidas,
+  proximas30,
+  operaciones,
+  ticketPromedio,
+  cfdiTimbrados,
+  cfdiCancelados,
+  timbresPac,
+  timbresAsignados,
+  timbresDisponibles,
+  accent,
+}: {
+  income: number;
+  currentIncome: number;
+  periodIncomeLabel: string;
+  empresas: number;
+  vigentes: number;
+  vencidas: number;
+  proximas30: number;
+  operaciones: number;
+  ticketPromedio: number;
+  cfdiTimbrados: number;
+  cfdiCancelados: number;
+  timbresPac: number;
+  timbresAsignados: number;
+  timbresDisponibles: number;
+  accent: string;
+}) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  const metricBox = {
+    p: 1.5,
+    borderRadius: 2.5,
+    border: `1px solid ${alpha(accent, isDark ? 0.28 : 0.18)}`,
+    bgcolor: alpha(accent, isDark ? 0.08 : 0.04),
+    height: "100%",
+  };
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        height: "100%",
+        borderRadius: 4,
+        borderColor: alpha(accent, 0.25),
+        background: `linear-gradient(145deg, ${alpha(
+          accent,
+          isDark ? 0.12 : 0.06
+        )}, ${theme.palette.background.paper} 42%)`,
+      }}
+    >
+      <Stack direction="row" alignItems="center" spacing={1.5} mb={2.5}>
+        <Avatar sx={{ bgcolor: alpha(accent, 0.14), color: accent }}>
+          <BusinessCenterIcon />
+        </Avatar>
+
+        <Box>
+          <Typography fontWeight={900}>TAECONTA</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Resumen financiero, empresas, CFDI y timbres
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Grid container spacing={2}>
+        <Grid item xs={6}>
+          <Typography variant="caption" color="text.secondary">
+            Ingreso anual
+          </Typography>
+          <Typography fontWeight={900}>{formatMoney(income)}</Typography>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Typography variant="caption" color="text.secondary">
+            {periodIncomeLabel}
+          </Typography>
+          <Typography fontWeight={900}>{formatMoney(currentIncome)}</Typography>
+        </Grid>
+
+        <Grid item xs={6} sm={3}>
+          <Box sx={metricBox}>
+            <Typography variant="caption" color="text.secondary">
+              Empresas
+            </Typography>
+            <Typography variant="h6" fontWeight={900}>
+              {formatNumber(empresas)}
+            </Typography>
+          </Box>
+        </Grid>
+
+        <Grid item xs={6} sm={3}>
+          <Box sx={metricBox}>
+            <Typography variant="caption" color="text.secondary">
+              Vigentes
+            </Typography>
+            <Typography variant="h6" fontWeight={900} color="success.main">
+              {formatNumber(vigentes)}
+            </Typography>
+          </Box>
+        </Grid>
+
+        <Grid item xs={6} sm={3}>
+          <Box sx={metricBox}>
+            <Typography variant="caption" color="text.secondary">
+              Vencidas
+            </Typography>
+            <Typography variant="h6" fontWeight={900} color="error.main">
+              {formatNumber(vencidas)}
+            </Typography>
+          </Box>
+        </Grid>
+
+        <Grid item xs={6} sm={3}>
+          <Box sx={metricBox}>
+            <Typography variant="caption" color="text.secondary">
+              Próx. 30 días
+            </Typography>
+            <Typography variant="h6" fontWeight={900} color="warning.main">
+              {formatNumber(proximas30)}
+            </Typography>
+          </Box>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.25}
+            sx={{ mt: 0.5 }}
+          >
+            <Chip
+              variant="outlined"
+              label={`Operaciones: ${formatNumber(operaciones)}`}
+              sx={{ fontWeight: 850 }}
+            />
+            <Chip
+              variant="outlined"
+              label={`Ticket promedio: ${formatMoney(ticketPromedio)}`}
+              sx={{ fontWeight: 850 }}
+            />
+          </Stack>
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+              bgcolor: alpha(theme.palette.info.main, isDark ? 0.09 : 0.04),
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" fontWeight={900}>
+              CFDI
+            </Typography>
+            <Stack direction="row" justifyContent="space-between" mt={0.6}>
+              <Typography variant="body2">Timbrados</Typography>
+              <Typography variant="body2" fontWeight={900}>
+                {formatNumber(cfdiTimbrados)}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" mt={0.4}>
+              <Typography variant="body2">Cancelados</Typography>
+              <Typography variant="body2" fontWeight={900}>
+                {formatNumber(cfdiCancelados)}
+              </Typography>
+            </Stack>
+          </Box>
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+              bgcolor: alpha(theme.palette.success.main, isDark ? 0.09 : 0.04),
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" fontWeight={900}>
+              Timbres
+            </Typography>
+            <Stack direction="row" justifyContent="space-between" mt={0.6}>
+              <Typography variant="body2">PAC</Typography>
+              <Typography variant="body2" fontWeight={900}>
+                {formatNumber(timbresPac)}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" mt={0.4}>
+              <Typography variant="body2">Asignados</Typography>
+              <Typography variant="body2" fontWeight={900}>
+                {formatNumber(timbresAsignados)}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" mt={0.4}>
+              <Typography variant="body2">Disponibles</Typography>
+              <Typography variant="body2" fontWeight={900} color="success.main">
+                {formatNumber(timbresDisponibles)}
+              </Typography>
+            </Stack>
+          </Box>
+        </Grid>
+      </Grid>
+    </Paper>
+  );
+}
+
 export default function Metricas({ darkMode = false, setView }: Props) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark" || darkMode;
@@ -919,7 +1169,10 @@ export default function Metricas({ darkMode = false, setView }: Props) {
   const [period, setPeriod] = useState<MetricsPeriod | null>(null);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
+  const [syncMessage, setSyncMessage] = useState("");
+  const [autoSyncInfo, setAutoSyncInfo] = useState<AutoSyncInfo | null>(null);
 
   const year = Number(selectedYear || filters?.year || period?.year || 0);
   const monthOptions = filters?.available_months || [];
@@ -944,14 +1197,22 @@ export default function Metricas({ darkMode = false, setView }: Props) {
   const consolidatedSnapshot = getSnapshot(snapshots, "consolidado");
   const mitiendaSnapshot = getSnapshot(snapshots, "mitienda");
   const clicmenuSnapshot = getSnapshot(snapshots, "clicmenu");
+  const taecontaSnapshot = getSnapshot(snapshots, "taeconta");
 
   const consolidatedKpis = asObject(consolidatedSnapshot?.kpis);
   const consolidatedData = asObject(consolidatedSnapshot?.consolidated);
   const consolidatedCharts = asObject(consolidatedSnapshot?.charts);
   const mitiendaSpecific = asObject(mitiendaSnapshot?.specific_metrics);
+  const taecontaKpis = asObject(taecontaSnapshot?.kpis);
+  const taecontaSpecific = asObject(taecontaSnapshot?.specific_metrics);
+  const taecontaEmpresas = asObject(taecontaSpecific?.empresas);
+  const taecontaCfdi = asObject(taecontaSpecific?.cfdi);
+  const taecontaTimbres = asObject(taecontaSpecific?.timbres);
 
   const visibleSystems: ApiSystemKey[] =
-    systemFilter === "todos" ? ["mitienda", "clicmenu"] : [systemFilter];
+    systemFilter === "todos"
+      ? ["mitienda", "clicmenu", "taeconta"]
+      : [systemFilter];
 
   const mitiendaSeries = getMonthlySeriesFromSnapshots(
     snapshots,
@@ -965,6 +1226,12 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     year
   );
 
+  const taecontaSeries = getMonthlySeriesFromSnapshots(
+    snapshots,
+    "taeconta",
+    year
+  );
+
   const relationSeries = periodMonthNumbers.map((monthNumber) => {
     const monthOption = monthOptions.find(
       (item) => Number(item.value) === monthNumber
@@ -975,18 +1242,26 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     const clicmenu = visibleSystems.includes("clicmenu")
       ? Number(clicmenuSeries[monthNumber - 1] || 0)
       : 0;
+    const taeconta = visibleSystems.includes("taeconta")
+      ? Number(taecontaSeries[monthNumber - 1] || 0)
+      : 0;
 
     return {
       month: monthOption?.short_label || monthOption?.label || String(monthNumber),
       monthNumber,
       mitienda,
       clicmenu,
-      total: mitienda + clicmenu,
+      taeconta,
+      total: mitienda + clicmenu + taeconta,
     };
   });
 
   const maxBarValue = Math.max(
-    ...relationSeries.flatMap((item) => [item.mitienda, item.clicmenu]),
+    ...relationSeries.flatMap((item) => [
+      item.mitienda,
+      item.clicmenu,
+      item.taeconta,
+    ]),
     1
   );
 
@@ -1000,12 +1275,21 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     clicmenuSeries
   );
 
-  const ingresosAnuales = visibleSystems.reduce((total, key) => {
-    return (
-      total +
-      (key === "mitienda" ? mitiendaIncomeAnnual : clicmenuIncomeAnnual)
-    );
-  }, 0);
+  const taecontaIncomeAnnual = getSystemAnnualIncome(
+    taecontaSnapshot,
+    taecontaSeries
+  );
+
+  const incomeAnnualBySystem: Record<ApiSystemKey, number> = {
+    mitienda: mitiendaIncomeAnnual,
+    clicmenu: clicmenuIncomeAnnual,
+    taeconta: taecontaIncomeAnnual,
+  };
+
+  const ingresosAnuales = visibleSystems.reduce(
+    (total, key) => total + incomeAnnualBySystem[key],
+    0
+  );
 
   const mitiendaCurrentIncome = getSystemPeriodIncome(
     mitiendaSnapshot,
@@ -1019,12 +1303,22 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     periodMonthNumbers
   );
 
-  const ingresosMes = visibleSystems.reduce((total, key) => {
-    return (
-      total +
-      (key === "mitienda" ? mitiendaCurrentIncome : clicmenuCurrentIncome)
-    );
-  }, 0);
+  const taecontaCurrentIncome = getSystemPeriodIncome(
+    taecontaSnapshot,
+    taecontaSeries,
+    periodMonthNumbers
+  );
+
+  const currentIncomeBySystem: Record<ApiSystemKey, number> = {
+    mitienda: mitiendaCurrentIncome,
+    clicmenu: clicmenuCurrentIncome,
+    taeconta: taecontaCurrentIncome,
+  };
+
+  const ingresosMes = visibleSystems.reduce(
+    (total, key) => total + currentIncomeBySystem[key],
+    0
+  );
 
   const previousMitiendaSeries = getMonthlySeries(
     consolidatedCharts,
@@ -1040,12 +1334,23 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     lastAvailableMonth
   );
 
-  const ingresosAnualesPrevios = visibleSystems.reduce((total, key) => {
-    return (
-      total +
-      sum(key === "mitienda" ? previousMitiendaSeries : previousClicmenuSeries)
-    );
-  }, 0);
+  const previousTaecontaSeries = getMonthlySeries(
+    consolidatedCharts,
+    "taeconta",
+    year - 1,
+    lastAvailableMonth
+  );
+
+  const previousIncomeBySystem: Record<ApiSystemKey, number> = {
+    mitienda: sum(previousMitiendaSeries),
+    clicmenu: sum(previousClicmenuSeries),
+    taeconta: sum(previousTaecontaSeries),
+  };
+
+  const ingresosAnualesPrevios = visibleSystems.reduce(
+    (total, key) => total + previousIncomeBySystem[key],
+    0
+  );
 
   const crecimientoAnual =
     ingresosAnualesPrevios > 0
@@ -1053,58 +1358,15 @@ export default function Metricas({ darkMode = false, setView }: Props) {
         100
       : 0;
 
-  const sistemasActivos = visibleSystems.filter((key) => {
-    const snapshot = key === "mitienda" ? mitiendaSnapshot : clicmenuSnapshot;
-    return snapshot?.status === "ok";
-  }).length;
+  const snapshotBySystem: Record<ApiSystemKey, Snapshot | null> = {
+    mitienda: mitiendaSnapshot,
+    clicmenu: clicmenuSnapshot,
+    taeconta: taecontaSnapshot,
+  };
 
-  const totalEmpresas =
-    systemFilter === "todos"
-      ? firstNumber([{ source: consolidatedData, keys: ["total_cuentas"] }])
-      : getSystemAccounts(
-          systemFilter,
-          systemFilter === "mitienda" ? mitiendaSnapshot : clicmenuSnapshot,
-          consolidatedSnapshot
-        );
-
-  const planesActivos =
-    systemFilter === "todos"
-      ? firstNumber([
-          { source: consolidatedData, keys: ["total_planes_activos"] },
-          { source: consolidatedKpis, keys: ["planes_activos"] },
-        ])
-      : getSystemPlanActive(
-          systemFilter === "mitienda" ? mitiendaSnapshot : clicmenuSnapshot
-        );
-
-  const planesVencidos =
-    systemFilter === "todos"
-      ? firstNumber([
-          { source: consolidatedData, keys: ["total_planes_vencidos"] },
-          { source: consolidatedKpis, keys: ["planes_vencidos"] },
-        ])
-      : getSystemPlanExpired(
-          systemFilter === "mitienda" ? mitiendaSnapshot : clicmenuSnapshot
-        );
-
-  const proximosVencer7 =
-    systemFilter === "todos"
-      ? firstNumber([
-          {
-            source: consolidatedKpis,
-            keys: ["planes_proximos_vencer_7"],
-          },
-        ])
-      : firstNumber([
-          {
-            source: asObject(
-              systemFilter === "mitienda"
-                ? mitiendaSnapshot?.kpis
-                : clicmenuSnapshot?.kpis
-            ),
-            keys: ["planes_proximos_vencer_7"],
-          },
-        ]);
+  const sistemasActivos = visibleSystems.filter(
+    (key) => snapshotBySystem[key]?.status === "ok"
+  ).length;
 
   const mitiendaAccounts = getSystemAccounts(
     "mitienda",
@@ -1117,6 +1379,65 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     clicmenuSnapshot,
     consolidatedSnapshot
   );
+
+  const taecontaAccounts = getSystemAccounts(
+    "taeconta",
+    taecontaSnapshot,
+    consolidatedSnapshot
+  );
+
+  const totalEmpresas =
+    systemFilter === "todos"
+      ? mitiendaAccounts + clicmenuAccounts + taecontaAccounts
+      : getSystemAccounts(
+          systemFilter,
+          snapshotBySystem[systemFilter],
+          consolidatedSnapshot
+        );
+
+  const subscriptionSnapshot =
+    systemFilter === "mitienda"
+      ? mitiendaSnapshot
+      : systemFilter === "clicmenu"
+        ? clicmenuSnapshot
+        : null;
+
+  const planesActivos =
+    systemFilter === "todos"
+      ? firstNumber([
+          { source: consolidatedData, keys: ["total_planes_activos"] },
+          { source: consolidatedKpis, keys: ["planes_activos"] },
+        ])
+      : subscriptionSnapshot
+        ? getSystemPlanActive(subscriptionSnapshot)
+        : 0;
+
+  const planesVencidos =
+    systemFilter === "todos"
+      ? firstNumber([
+          { source: consolidatedData, keys: ["total_planes_vencidos"] },
+          { source: consolidatedKpis, keys: ["planes_vencidos"] },
+        ])
+      : subscriptionSnapshot
+        ? getSystemPlanExpired(subscriptionSnapshot)
+        : 0;
+
+  const proximosVencer7 =
+    systemFilter === "todos"
+      ? firstNumber([
+          {
+            source: consolidatedKpis,
+            keys: ["planes_proximos_vencer_7"],
+          },
+        ])
+      : subscriptionSnapshot
+        ? firstNumber([
+            {
+              source: asObject(subscriptionSnapshot?.kpis),
+              keys: ["planes_proximos_vencer_7"],
+            },
+          ])
+        : 0;
 
   const mitiendaPlansActive = getSystemPlanActive(mitiendaSnapshot);
   const clicmenuPlansActive = getSystemPlanActive(clicmenuSnapshot);
@@ -1151,6 +1472,66 @@ export default function Metricas({ darkMode = false, setView }: Props) {
     },
   ]);
 
+  const taecontaEmpresasTotal = firstNumber([
+    { source: taecontaEmpresas, keys: ["total"] },
+    { source: taecontaKpis, keys: ["empresas_total"] },
+  ]);
+
+  const taecontaEmpresasVencidas = firstNumber([
+    { source: taecontaEmpresas, keys: ["vencidas"] },
+    { source: consolidatedKpis, keys: ["taeconta_empresas_vencidas"] },
+  ]);
+
+  const taecontaEmpresasVigentes = firstNumber(
+    [
+      { source: taecontaEmpresas, keys: ["vigentes"] },
+      { source: consolidatedKpis, keys: ["taeconta_empresas_vigentes"] },
+    ],
+    Math.max(taecontaEmpresasTotal - taecontaEmpresasVencidas, 0)
+  );
+
+  const taecontaProximas30 = firstNumber([
+    { source: taecontaEmpresas, keys: ["proximas_vencer_30"] },
+    { source: consolidatedKpis, keys: ["taeconta_empresas_proximas_vencer_30"] },
+  ]);
+
+  const taecontaProximas7 = firstNumber([
+    { source: taecontaEmpresas, keys: ["proximas_vencer_7"] },
+  ]);
+
+  const taecontaOperaciones = firstNumber([
+    { source: taecontaKpis, keys: ["operaciones_mes"] },
+  ]);
+
+  const taecontaTicketPromedio = firstNumber([
+    { source: taecontaKpis, keys: ["ticket_promedio_mes"] },
+  ]);
+
+  const taecontaCfdiTimbrados = firstNumber([
+    { source: taecontaCfdi, keys: ["timbrados"] },
+    { source: taecontaKpis, keys: ["cfdi_timbrados_total"] },
+  ]);
+
+  const taecontaCfdiCancelados = firstNumber([
+    { source: taecontaCfdi, keys: ["cancelados"] },
+    { source: taecontaKpis, keys: ["cfdi_cancelados_total"] },
+  ]);
+
+  const taecontaTimbresPac = firstNumber([
+    { source: taecontaTimbres, keys: ["pac"] },
+    { source: taecontaKpis, keys: ["timbres_pac"] },
+  ]);
+
+  const taecontaTimbresAsignados = firstNumber([
+    { source: taecontaTimbres, keys: ["asignados"] },
+    { source: taecontaKpis, keys: ["timbres_asignados"] },
+  ]);
+
+  const taecontaTimbresDisponibles = firstNumber([
+    { source: taecontaTimbres, keys: ["disponibles"] },
+    { source: taecontaKpis, keys: ["timbres_disponibles"] },
+  ]);
+
   const abrirTiendasMiTienda = (filtro: MiTiendaFiltro) => {
     sessionStorage.setItem(
       "mitienda_filtro_tiendas",
@@ -1161,7 +1542,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
   };
 
   const totalIncomeForParticipation =
-    mitiendaIncomeAnnual + clicmenuIncomeAnnual;
+    mitiendaIncomeAnnual + clicmenuIncomeAnnual + taecontaIncomeAnnual;
 
   const mitiendaParticipation =
     totalIncomeForParticipation > 0
@@ -1173,62 +1554,158 @@ export default function Metricas({ darkMode = false, setView }: Props) {
       ? (clicmenuIncomeAnnual / totalIncomeForParticipation) * 100
       : 0;
 
-  const fetchMetricas = useCallback(async () => {
+  const taecontaParticipation =
+    totalIncomeForParticipation > 0
+      ? (taecontaIncomeAnnual / totalIncomeForParticipation) * 100
+      : 0;
+
+  const fetchMetricas = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) {
+          setLoading(true);
+          setError("");
+        }
+
+        const token = getAuthToken();
+        const params = new URLSearchParams({ system: "all" });
+
+        if (selectedYear) {
+          params.set("year", selectedYear);
+        }
+
+        if (selectedMonth) {
+          params.set("month", selectedMonth);
+        }
+
+        const response = await fetch(
+          `${API_BASE_URL}/superadmin/metricas-generales?${params.toString()}`,
+          {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          }
+        );
+
+        const json: MetricasResponse = await response.json();
+
+        if (
+          !response.ok ||
+          !json?.success ||
+          !json?.filters ||
+          !json?.period ||
+          !json?.data?.snapshots
+        ) {
+          throw new Error(
+            json?.message || "La respuesta de métricas no fue válida."
+          );
+        }
+
+        setFilters(json.filters);
+        setPeriod(json.period);
+        setSelectedYear(String(json.filters.year));
+        setSelectedMonth(String(json.filters.month));
+        setSnapshots(json.data.snapshots);
+        setAutoSyncInfo(json.auto_sync || null);
+      } catch (err: any) {
+        if (!silent) {
+          setSnapshots([]);
+          setError(
+            err?.message || "No fue posible cargar las métricas generales."
+          );
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [selectedMonth, selectedYear]
+  );
+
+  const syncMetricas = useCallback(async () => {
     try {
-      setLoading(true);
+      setSyncing(true);
       setError("");
+      setSyncMessage("");
 
       const token = getAuthToken();
-      const params = new URLSearchParams({ system: "all" });
+      const syncSystem = systemFilter === "todos" ? "all" : systemFilter;
 
-      if (selectedYear) {
-        params.set("year", selectedYear);
-      }
+      /*
+       * Si el usuario está viendo "Todos" los meses, el botón manual
+       * refresca el último mes disponible. Así evitamos lanzar una
+       * resincronización histórica completa de forma accidental.
+       */
+      const syncMonth =
+        selectedMonth && selectedMonth !== "all"
+          ? Number(selectedMonth)
+          : lastAvailableMonth;
 
-      if (selectedMonth) {
-        params.set("month", selectedMonth);
-      }
+      const syncYear = Number(
+        selectedYear || filters?.year || new Date().getFullYear()
+      );
 
       const response = await fetch(
-        `${API_BASE_URL}/superadmin/metricas-generales?${params.toString()}`,
+        `${API_BASE_URL}/superadmin/metrics/sync`,
         {
-          method: "GET",
+          method: "POST",
           headers: {
             Accept: "application/json",
+            "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
+          body: JSON.stringify({
+            system: syncSystem,
+            year: syncYear,
+            month: syncMonth,
+          }),
         }
       );
 
-      const json: MetricasResponse = await response.json();
+      const json = await response.json();
 
-      if (
-        !response.ok ||
-        !json?.success ||
-        !json?.filters ||
-        !json?.period ||
-        !json?.data?.snapshots
-      ) {
+      if (!response.ok || !json?.success) {
         throw new Error(
-          json?.message || "La respuesta de métricas no fue válida."
+          json?.message || "No fue posible sincronizar las métricas."
         );
       }
 
-      setFilters(json.filters);
-      setPeriod(json.period);
-      setSelectedYear(String(json.filters.year));
-      setSelectedMonth(String(json.filters.month));
-      setSnapshots(json.data.snapshots);
+      setSyncMessage(
+        syncSystem === "all"
+          ? "Mi Tienda, Clic Menú y TAECONTA se actualizaron correctamente."
+          : `${SYSTEM_LABELS[syncSystem as ApiSystemKey]} se actualizó correctamente.`
+      );
+
+      await fetchMetricas(true);
     } catch (err: any) {
-      setSnapshots([]);
-      setError(err?.message || "No fue posible cargar las métricas generales.");
+      setError(err?.message || "No fue posible actualizar las métricas.");
     } finally {
-      setLoading(false);
+      setSyncing(false);
     }
-  }, [selectedMonth, selectedYear]);
+  }, [
+    fetchMetricas,
+    filters?.year,
+    lastAvailableMonth,
+    selectedMonth,
+    selectedYear,
+    systemFilter,
+  ]);
 
   useEffect(() => {
     fetchMetricas();
+  }, [fetchMetricas]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchMetricas(true);
+      }
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
   }, [fetchMetricas]);
 
   const cards = useMemo(
@@ -1368,7 +1845,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                 fontSize: { xs: 14, sm: 16 },
               }}
             >
-              Comparación ejecutiva de MiTiendaEnLineaMx y Clic Menú.
+              Comparación ejecutiva de MiTiendaEnLineaMx, Clic Menú y TAECONTA.
             </Typography>
 
             <Stack
@@ -1390,7 +1867,9 @@ export default function Metricas({ darkMode = false, setView }: Props) {
 
               <Chip
                 label={`Actualizado: ${formatSyncDate(
-                  consolidatedSnapshot?.synced_at
+                  systemFilter === "taeconta"
+                    ? taecontaSnapshot?.synced_at
+                    : consolidatedSnapshot?.synced_at
                 )}`}
                 sx={{
                   color: "#fff",
@@ -1478,19 +1957,20 @@ export default function Metricas({ darkMode = false, setView }: Props) {
               <MenuItem value="todos">Todos</MenuItem>
               <MenuItem value="mitienda">MiTiendaEnLineaMx</MenuItem>
               <MenuItem value="clicmenu">Clic Menú</MenuItem>
+              <MenuItem value="taeconta">TAECONTA</MenuItem>
             </TextField>
 
             <Button
               variant="contained"
               startIcon={
-                loading ? (
+                syncing ? (
                   <CircularProgress size={18} color="inherit" />
                 ) : (
                   <RefreshIcon />
                 )
               }
-              onClick={fetchMetricas}
-              disabled={loading}
+              onClick={syncMetricas}
+              disabled={loading || syncing}
               sx={{
                 width: "100%",
                 minWidth: 0,
@@ -1516,8 +1996,28 @@ export default function Metricas({ darkMode = false, setView }: Props) {
       </Paper>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 3 }}>
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 3 }}>
           {error}
+        </Alert>
+      )}
+
+      {syncMessage && (
+        <Alert
+          severity="success"
+          onClose={() => setSyncMessage("")}
+          sx={{ mb: 2, borderRadius: 3 }}
+        >
+          {syncMessage}
+        </Alert>
+      )}
+
+      {autoSyncInfo?.enabled && (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 3 }}>
+          Actualización automática de TAECONTA activa cada{" "}
+          {autoSyncInfo.interval_minutes} minutos al consultar métricas.
+          {autoSyncInfo.refreshed
+            ? " TAECONTA se actualizó automáticamente en esta consulta."
+            : ""}
         </Alert>
       )}
 
@@ -1612,6 +2112,22 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                         </Typography>
                       </Stack>
                     )}
+
+                    {visibleSystems.includes("taeconta") && (
+                      <Stack direction="row" spacing={0.8} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            bgcolor: "success.main",
+                          }}
+                        />
+                        <Typography variant="caption" fontWeight={800}>
+                          TAECONTA
+                        </Typography>
+                      </Stack>
+                    )}
                   </Stack>
                 </Stack>
 
@@ -1682,7 +2198,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                         )}
 
                         {visibleSystems.includes("clicmenu") && (
-                          <Box>
+                          <Box mb={visibleSystems.includes("taeconta") ? 1.4 : 0}>
                             <Stack
                               direction="row"
                               justifyContent="space-between"
@@ -1707,6 +2223,42 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                                 borderRadius: 99,
                                 bgcolor: alpha(
                                   theme.palette.warning.main,
+                                  isDark ? 0.16 : 0.1
+                                ),
+                                "& .MuiLinearProgress-bar": {
+                                  borderRadius: 99,
+                                },
+                              }}
+                            />
+                          </Box>
+                        )}
+
+                        {visibleSystems.includes("taeconta") && (
+                          <Box>
+                            <Stack
+                              direction="row"
+                              justifyContent="space-between"
+                              mb={0.55}
+                            >
+                              <Typography variant="caption" fontWeight={800}>
+                                TAECONTA
+                              </Typography>
+                              <Typography variant="caption" fontWeight={900}>
+                                {formatMoney(item.taeconta)}
+                              </Typography>
+                            </Stack>
+                            <LinearProgress
+                              color="success"
+                              variant="determinate"
+                              value={Math.min(
+                                (item.taeconta / maxBarValue) * 100,
+                                100
+                              )}
+                              sx={{
+                                height: 9,
+                                borderRadius: 99,
+                                bgcolor: alpha(
+                                  theme.palette.success.main,
                                   isDark ? 0.16 : 0.1
                                 ),
                                 "& .MuiLinearProgress-bar": {
@@ -1827,6 +2379,35 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                                 />
                               </Tooltip>
                             )}
+
+                            {visibleSystems.includes("taeconta") && (
+                              <Tooltip
+                                arrow
+                                title={`TAECONTA · ${item.month}: ${formatMoney(
+                                  item.taeconta
+                                )}`}
+                              >
+                                <Box
+                                  sx={{
+                                    width: visibleSystems.length === 1 ? 28 : 22,
+                                    height: `${Math.max(
+                                      item.taeconta > 0
+                                        ? (item.taeconta / maxBarValue) * 100
+                                        : 0,
+                                      item.taeconta > 0 ? 2 : 0
+                                    )}%`,
+                                    minHeight: item.taeconta > 0 ? 5 : 0,
+                                    borderRadius: "8px 8px 3px 3px",
+                                    bgcolor: "success.main",
+                                    boxShadow: `0 8px 20px ${alpha(
+                                      theme.palette.success.main,
+                                      0.25
+                                    )}`,
+                                    transition: "height .25s ease",
+                                  }}
+                                />
+                              </Tooltip>
+                            )}
                           </Stack>
 
                           <Typography
@@ -1889,7 +2470,12 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                         placeItems: "center",
                         background: `conic-gradient(
                           ${theme.palette.primary.main} 0 ${mitiendaParticipation}%,
-                          ${theme.palette.warning.main} ${mitiendaParticipation}% 100%
+                          ${theme.palette.warning.main} ${mitiendaParticipation}% ${
+                            mitiendaParticipation + clicmenuParticipation
+                          }%,
+                          ${theme.palette.success.main} ${
+                            mitiendaParticipation + clicmenuParticipation
+                          }% 100%
                         )`,
                         position: "relative",
                         "&::after": {
@@ -1956,6 +2542,27 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                           sx={{ height: 8, borderRadius: 99 }}
                         />
                       </Box>
+
+                      <Box>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          mb={0.6}
+                        >
+                          <Typography variant="body2" fontWeight={850}>
+                            TAECONTA
+                          </Typography>
+                          <Typography variant="body2" fontWeight={900}>
+                            {taecontaParticipation.toFixed(1)}%
+                          </Typography>
+                        </Stack>
+                        <LinearProgress
+                          color="success"
+                          variant="determinate"
+                          value={taecontaParticipation}
+                          sx={{ height: 8, borderRadius: 99 }}
+                        />
+                      </Box>
                     </Stack>
                   </Stack>
                 </Paper>
@@ -1971,10 +2578,16 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                   }}
                 >
                   <Typography fontWeight={950} mb={0.5}>
-                    Estado de suscripciones
+                    {systemFilter === "taeconta"
+                      ? "Estado de empresas TAECONTA"
+                      : "Estado de suscripciones"}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Indicadores para los sistemas filtrados
+                    {systemFilter === "taeconta"
+                      ? "Vigencia de las empresas registradas"
+                      : systemFilter === "todos"
+                        ? "Mi Tienda y Clic Menú; TAECONTA se muestra por separado"
+                        : "Indicadores para el sistema filtrado"}
                   </Typography>
 
                   <Stack spacing={2} mt={3}>
@@ -1995,10 +2608,16 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                       <Stack direction="row" justifyContent="space-between">
                         <Box>
                           <Typography variant="caption" color="text.secondary">
-                            Planes activos
+                            {systemFilter === "taeconta"
+                              ? "Empresas vigentes"
+                              : "Planes activos"}
                           </Typography>
                           <Typography variant="h4" fontWeight={950}>
-                            {formatNumber(planesActivos)}
+                            {formatNumber(
+                              systemFilter === "taeconta"
+                                ? taecontaEmpresasVigentes
+                                : planesActivos
+                            )}
                           </Typography>
                         </Box>
                         <CheckCircleIcon color="success" />
@@ -2022,10 +2641,16 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                       <Stack direction="row" justifyContent="space-between">
                         <Box>
                           <Typography variant="caption" color="text.secondary">
-                            Planes vencidos
+                            {systemFilter === "taeconta"
+                              ? "Empresas vencidas"
+                              : "Planes vencidos"}
                           </Typography>
                           <Typography variant="h4" fontWeight={950}>
-                            {formatNumber(planesVencidos)}
+                            {formatNumber(
+                              systemFilter === "taeconta"
+                                ? taecontaEmpresasVencidas
+                                : planesVencidos
+                            )}
                           </Typography>
                         </Box>
                         <ErrorIcon color="error" />
@@ -2049,10 +2674,16 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                       <Stack direction="row" justifyContent="space-between">
                         <Box>
                           <Typography variant="caption" color="text.secondary">
-                            Próximos a vencer
+                            {systemFilter === "taeconta"
+                              ? "Próximas a vencer (7 días)"
+                              : "Próximos a vencer"}
                           </Typography>
                           <Typography variant="h4" fontWeight={950}>
-                            {formatNumber(proximosVencer7)}
+                            {formatNumber(
+                              systemFilter === "taeconta"
+                                ? taecontaProximas7
+                                : proximosVencer7
+                            )}
                           </Typography>
                         </Box>
                         <WarningAmberIcon color="warning" />
@@ -2066,7 +2697,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
 
           <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mt: { xs: 0, md: 0.5 } }}>
             {(systemFilter === "todos" || systemFilter === "mitienda") && (
-              <Grid item xs={12} lg={6}>
+              <Grid item xs={12} lg={systemFilter === "todos" ? 4 : 12}>
                 <SystemSummary
                   title="MiTiendaEnLineaMx"
                   icon={<StorefrontIcon />}
@@ -2121,7 +2752,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
             )}
 
             {(systemFilter === "todos" || systemFilter === "clicmenu") && (
-              <Grid item xs={12} lg={6}>
+              <Grid item xs={12} lg={systemFilter === "todos" ? 4 : 12}>
                 <SystemSummary
                   title="Clic Menú"
                   icon={<RestaurantIcon />}
@@ -2132,6 +2763,28 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                   activePlans={clicmenuPlansActive}
                   expiredPlans={clicmenuPlansExpired}
                   accent={theme.palette.warning.main}
+                />
+              </Grid>
+            )}
+
+            {(systemFilter === "todos" || systemFilter === "taeconta") && (
+              <Grid item xs={12} lg={systemFilter === "todos" ? 4 : 12}>
+                <TaecontaSummary
+                  income={taecontaIncomeAnnual}
+                  currentIncome={taecontaCurrentIncome}
+                  periodIncomeLabel={periodIncomeLabel}
+                  empresas={taecontaEmpresasTotal}
+                  vigentes={taecontaEmpresasVigentes}
+                  vencidas={taecontaEmpresasVencidas}
+                  proximas30={taecontaProximas30}
+                  operaciones={taecontaOperaciones}
+                  ticketPromedio={taecontaTicketPromedio}
+                  cfdiTimbrados={taecontaCfdiTimbrados}
+                  cfdiCancelados={taecontaCfdiCancelados}
+                  timbresPac={taecontaTimbresPac}
+                  timbresAsignados={taecontaTimbresAsignados}
+                  timbresDisponibles={taecontaTimbresDisponibles}
+                  accent={theme.palette.success.main}
                 />
               </Grid>
             )}
@@ -2161,7 +2814,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
               </Stack>
 
               <Typography variant="body2" color="text.secondary">
-                Fuente: snapshots locales sincronizados con ambos sistemas.
+                Fuente: snapshots locales sincronizados con Mi Tienda, Clic Menú y TAECONTA.
               </Typography>
             </Stack>
           </Paper>

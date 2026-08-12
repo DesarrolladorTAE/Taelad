@@ -22,6 +22,7 @@ import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 
 import TaecontaResumen from "./TaecontaResumen";
@@ -31,6 +32,7 @@ import TaecontaSystemTimbrados from "./TaecontaSystemTimbrados";
 import TaecontaPlanes from "./TaecontaPlanes";
 import TaecontaSystemPaquetes from "./TaecontaSystemPaquetes";
 import TaecontaBanner from "./TaecontaBanner";
+import TaecontaReporteVentas from "./TaecontaReporteVentas";
 
 import type {
   TaecontaEmpresaFilters,
@@ -331,6 +333,27 @@ export default function TaecontaSystemPage() {
 
     /*
     |--------------------------------------------------------------------------
+    | REPORTE DE VENTAS
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      section === "reporte-ventas"
+    ) {
+      return (
+        <Box
+          sx={{
+            width: "100%",
+            minWidth: 0,
+          }}
+        >
+          <TaecontaReporteVentas />
+        </Box>
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | DASHBOARD
     |--------------------------------------------------------------------------
     */
@@ -364,14 +387,6 @@ export default function TaecontaSystemPage() {
 
             display: "grid",
 
-            /*
-             * Móvil y tablet:
-             * uno debajo del otro.
-             *
-             * Escritorio:
-             * resumen a la izquierda,
-             * timbres a la derecha.
-             */
             gridTemplateColumns: {
               xs:
                 "minmax(0, 1fr)",
@@ -472,13 +487,6 @@ export default function TaecontaSystemPage() {
         width: "100%",
         minWidth: 0,
 
-        /*
-         * No crea encabezado propio.
-         *
-         * Este contenido vive dentro
-         * del layout general existente
-         * del Superadmin.
-         */
         px: {
           xs: 1,
           sm: 1.5,
@@ -537,11 +545,6 @@ export default function TaecontaSystemPage() {
             bgcolor:
               "background.paper",
 
-            /*
-             * Debe ser visible para
-             * permitir que el botón
-             * Panel sobresalga del card.
-             */
             overflow: "visible",
           }}
         >
@@ -575,13 +578,6 @@ export default function TaecontaSystemPage() {
                 position:
                   "absolute",
 
-                /*
-                 * En móvil queda dentro
-                 * para evitar salir del viewport.
-                 *
-                 * En escritorio sobresale
-                 * ligeramente del card.
-                 */
                 left: {
                   xs: 10,
                   md: -18,
@@ -806,6 +802,38 @@ export default function TaecontaSystemPage() {
               />
             </MenuItem>
 
+            {/* REPORTE DE VENTAS */}
+
+            <MenuItem
+              selected={
+                section ===
+                "reporte-ventas"
+              }
+              onClick={() =>
+                handleChangeSection(
+                  "reporte-ventas",
+                )
+              }
+              sx={getMenuItemSx(
+                section ===
+                  "reporte-ventas",
+              )}
+            >
+              <ListItemIcon>
+                <BarChartOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+
+              <ListItemText
+                primary="Reporte de ventas"
+                primaryTypographyProps={{
+                  fontSize: 13,
+
+                  fontWeight:
+                    700,
+                }}
+              />
+            </MenuItem>
+
             <Divider
               sx={{
                 my: 0.75,
@@ -859,10 +887,6 @@ export default function TaecontaSystemPage() {
 
               minWidth: 0,
 
-              /*
-               * En móvil reservamos el espacio
-               * superior del botón Panel.
-               */
               pt: {
                 xs: 6,
                 md: 2,

@@ -9,7 +9,8 @@ export type TaecontaSection =
   | "historial"
   | "planes"
   | "paquetes"
-  | "banner";
+  | "banner"
+  | "reporte-ventas";
 
 export type TaecontaEmpresaFilters = {
   search: string;
