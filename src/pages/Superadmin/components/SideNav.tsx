@@ -9,7 +9,6 @@ import {
 import {
   Dashboard,
   People,
-  ReceiptLong,
   Analytics,
   Apps,
   Logout,
@@ -622,21 +621,7 @@ export default function SideNav({
           TEA te da más
         </Button>
 
-        <Button
-          fullWidth
-          sx={menuButtonSx(
-            "facturacion",
-          )}
-          onClick={() =>
-            cambiarVista(
-              "facturacion",
-            )
-          }
-        >
-          <ReceiptLong />
-          Facturación
-        </Button>
-
+      
         <Button
           fullWidth
           sx={menuButtonSx(

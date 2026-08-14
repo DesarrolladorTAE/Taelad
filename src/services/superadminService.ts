@@ -162,6 +162,119 @@ export type TaecontaSystemEmpresasResponse =
     meta?: TaecontaSystemEmpresasMeta;
   };
 
+
+// =========================
+// TAECONTA - ADMINISTRACIÓN DE CUENTAS
+// =========================
+
+export type TaecontaSystemEmpresaPagosResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemRecord[];
+  };
+
+export type TaecontaSystemEmpresaSocioData = {
+  empresa?: TaecontaSystemRecord | null;
+  usuario?: TaecontaSystemRecord | null;
+  sellos?: TaecontaSystemRecord | null;
+};
+
+export type TaecontaSystemEmpresaSocioResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemEmpresaSocioData | null;
+  };
+
+export type TaecontaSystemEmpresaWriteResponse =
+  TaecontaSystemBaseResponse & {
+    data?: TaecontaSystemRecord | null;
+  };
+
+
+export type TaecontaSystemEmpresaSocioUpdatePayload = {
+  /*
+   * Datos generales de la empresa.
+   */
+  nombre?: string | null;
+  rfc?: string | null;
+  telefono?: string | null;
+  codigo_postal_id?: string | number | null;
+  regimen_sat_id?: string | number | null;
+  tipo_persona_id?: number | string | null;
+
+  /*
+   * Módulo principal habilitado por TAECONTA.
+   */
+  modulo?: number | string | null;
+
+  /*
+   * Usuario principal.
+   */
+  nuevoCorreo?: string | null;
+  nombreUsuario?: string | null;
+  contrasena?: string | null;
+
+  /*
+   * CSD.
+   */
+  certificado?: File | null;
+  llave?: File | null;
+  contrasenaLlave?: string | null;
+  contrasenaLlave_confirmation?: string | null;
+
+  /*
+   * e.firma.
+   */
+  certificado2?: File | null;
+  llave2?: File | null;
+  contrasenaLlave2?: string | null;
+  contrasenaLlave_confirmation2?: string | null;
+
+  /*
+   * Identidad gráfica.
+   */
+  logo?: File | null;
+};
+
+export type TaecontaSystemEmpresaVigenciaPayload = {
+  fecha: string;
+};
+
+export type TaecontaSystemEmpresaIndicadoresPayload = {
+  indicador: string;
+};
+
+export type TaecontaSystemEmpresaAsignacionTipo =
+  | "timbres"
+  | "paquete"
+  | "plan";
+
+export type TaecontaSystemEmpresaAsignacionPayload = {
+  tipo_asignacion?: TaecontaSystemEmpresaAsignacionTipo;
+  cantidad?: number;
+  montoFolio?: number;
+  metodoPago?: string;
+  bancoSelect?: string;
+  paquete_id?: number;
+  plan_id?: number;
+};
+
+export type TaecontaSystemEmpresaEliminarTimbresPayload = {
+  cantidad: number;
+};
+
+export type TaecontaSystemEmpresaContabilidadPayload = {
+  hab: boolean;
+};
+
+export type TaecontaSystemEmpresaCertificadoTipo =
+  | "cert"
+  | "llave"
+  | "cert2"
+  | "llave2";
+
+export type TaecontaSystemEmpresaEliminarCertificadoPayload = {
+  archivo: TaecontaSystemEmpresaCertificadoTipo;
+};
+
 // =========================
 // TAECONTA - PAQUETES
 // =========================
@@ -390,6 +503,317 @@ export async function getTaecontaSystemEmpresas(
         params: {
           vigencia,
         },
+      },
+    );
+
+  return response.data;
+}
+
+
+// =========================
+// TAECONTA - CUENTAS / ACCIONES ADMINISTRATIVAS
+// =========================
+
+/** Consulta los pagos registrados de una cuenta. */
+export async function getTaecontaSystemEmpresaPagos(
+  id: number | string,
+): Promise<TaecontaSystemEmpresaPagosResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemEmpresaPagosResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/pagos`,
+    );
+
+  return response.data;
+}
+
+/** Consulta empresa, usuario y estado seguro de sellos del socio. */
+export async function getTaecontaSystemEmpresaSocio(
+  id: number | string,
+): Promise<TaecontaSystemEmpresaSocioResponse> {
+  const response =
+    await axiosClient.get<TaecontaSystemEmpresaSocioResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/socio`,
+    );
+
+  return response.data;
+}
+
+
+/**
+ * Actualiza la información completa del socio en TAECONTA.
+ *
+ * Se utiliza FormData porque el contrato puede incluir simultáneamente:
+ * datos de empresa, usuario, módulo, logo, CSD y e.firma.
+ *
+ * No se establece manualmente Content-Type para permitir que Axios/el
+ * navegador genere correctamente el boundary de multipart/form-data.
+ */
+export async function updateTaecontaSystemEmpresaSocio(
+  id: number | string,
+  payload: TaecontaSystemEmpresaSocioUpdatePayload,
+): Promise<TaecontaSystemEmpresaSocioResponse> {
+  const formData = new FormData();
+
+  const appendText = (
+    key: string,
+    value: unknown,
+  ) => {
+    if (
+      value === undefined ||
+      value === null
+    ) {
+      return;
+    }
+
+    formData.append(
+      key,
+      String(value),
+    );
+  };
+
+  appendText(
+    "nombre",
+    payload.nombre,
+  );
+
+  appendText(
+    "rfc",
+    payload.rfc,
+  );
+
+  appendText(
+    "telefono",
+    payload.telefono,
+  );
+
+  appendText(
+    "codigo_postal_id",
+    payload.codigo_postal_id,
+  );
+
+  appendText(
+    "regimen_sat_id",
+    payload.regimen_sat_id,
+  );
+
+  appendText(
+    "tipo_persona_id",
+    payload.tipo_persona_id,
+  );
+
+  appendText(
+    "modulo",
+    payload.modulo,
+  );
+
+  appendText(
+    "nuevoCorreo",
+    payload.nuevoCorreo,
+  );
+
+  appendText(
+    "nombreUsuario",
+    payload.nombreUsuario,
+  );
+
+  /*
+   * Las contraseñas vacías no se envían.
+   * Así evitamos reemplazar credenciales existentes por una cadena vacía.
+   */
+  if (payload.contrasena?.trim()) {
+    formData.append(
+      "contrasena",
+      payload.contrasena,
+    );
+  }
+
+  if (payload.contrasenaLlave?.trim()) {
+    formData.append(
+      "contrasenaLlave",
+      payload.contrasenaLlave,
+    );
+  }
+
+  if (
+    payload.contrasenaLlave_confirmation
+      ?.trim()
+  ) {
+    formData.append(
+      "contrasenaLlave_confirmation",
+      payload.contrasenaLlave_confirmation,
+    );
+  }
+
+  if (payload.contrasenaLlave2?.trim()) {
+    formData.append(
+      "contrasenaLlave2",
+      payload.contrasenaLlave2,
+    );
+  }
+
+  if (
+    payload.contrasenaLlave_confirmation2
+      ?.trim()
+  ) {
+    formData.append(
+      "contrasenaLlave_confirmation2",
+      payload.contrasenaLlave_confirmation2,
+    );
+  }
+
+  if (payload.logo instanceof File) {
+    formData.append(
+      "logo",
+      payload.logo,
+      payload.logo.name,
+    );
+  }
+
+  if (
+    payload.certificado instanceof File
+  ) {
+    formData.append(
+      "certificado",
+      payload.certificado,
+      payload.certificado.name,
+    );
+  }
+
+  if (payload.llave instanceof File) {
+    formData.append(
+      "llave",
+      payload.llave,
+      payload.llave.name,
+    );
+  }
+
+  if (
+    payload.certificado2 instanceof File
+  ) {
+    formData.append(
+      "certificado2",
+      payload.certificado2,
+      payload.certificado2.name,
+    );
+  }
+
+  if (payload.llave2 instanceof File) {
+    formData.append(
+      "llave2",
+      payload.llave2,
+      payload.llave2.name,
+    );
+  }
+
+  const response =
+    await axiosClient.post<TaecontaSystemEmpresaSocioResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/socio`,
+      formData,
+    );
+
+  return response.data;
+}
+
+/** Actualiza la fecha de vigencia real de la cuenta en TAECONTA. */
+export async function updateTaecontaSystemEmpresaVigencia(
+  id: number | string,
+  payload: TaecontaSystemEmpresaVigenciaPayload,
+): Promise<TaecontaSystemEmpresaWriteResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemEmpresaWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/vigencia`,
+      {
+        fecha: payload.fecha,
+      },
+    );
+
+  return response.data;
+}
+
+/** Actualiza el valor serializado de indicadores de la cuenta. */
+export async function updateTaecontaSystemEmpresaIndicadores(
+  id: number | string,
+  payload: TaecontaSystemEmpresaIndicadoresPayload,
+): Promise<TaecontaSystemEmpresaWriteResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemEmpresaWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/indicadores`,
+      {
+        indicador: payload.indicador,
+      },
+    );
+
+  return response.data;
+}
+
+/** Activa o desactiva la cuenta usando el toggle real de TAECONTA. */
+export async function toggleTaecontaSystemEmpresaEstado(
+  id: number | string,
+): Promise<TaecontaSystemEmpresaWriteResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemEmpresaWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/estado`,
+    );
+
+  return response.data;
+}
+
+/** Asigna timbres, paquete o plan a la cuenta. */
+export async function assignTaecontaSystemEmpresa(
+  id: number | string,
+  payload: TaecontaSystemEmpresaAsignacionPayload,
+): Promise<TaecontaSystemEmpresaWriteResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemEmpresaWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/asignacion`,
+      payload,
+    );
+
+  return response.data;
+}
+
+/** Retira una cantidad de timbres de la cuenta. */
+export async function deleteTaecontaSystemEmpresaTimbres(
+  id: number | string,
+  payload: TaecontaSystemEmpresaEliminarTimbresPayload,
+): Promise<TaecontaSystemEmpresaWriteResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemEmpresaWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/timbres/eliminar`,
+      {
+        cantidad: payload.cantidad,
+      },
+    );
+
+  return response.data;
+}
+
+/** Habilita o deshabilita Contabilidad para la cuenta. */
+export async function updateTaecontaSystemEmpresaContabilidad(
+  id: number | string,
+  payload: TaecontaSystemEmpresaContabilidadPayload,
+): Promise<TaecontaSystemEmpresaWriteResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemEmpresaWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/contabilidad`,
+      {
+        hab: payload.hab,
+      },
+    );
+
+  return response.data;
+}
+
+/** Elimina la referencia del certificado o llave seleccionada. */
+export async function deleteTaecontaSystemEmpresaCertificado(
+  id: number | string,
+  payload: TaecontaSystemEmpresaEliminarCertificadoPayload,
+): Promise<TaecontaSystemEmpresaWriteResponse> {
+  const response =
+    await axiosClient.post<TaecontaSystemEmpresaWriteResponse>(
+      `${TAECONTA_SYSTEM_BASE_PATH}/empresas/${id}/certificados/eliminar`,
+      {
+        archivo: payload.archivo,
       },
     );
 

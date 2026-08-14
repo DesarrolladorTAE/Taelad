@@ -31,12 +31,7 @@ export default function MiTiendaDashboard({ setView }: Props) {
       icon: <PointOfSaleIcon />,
       view: "mitienda-ventas",
     },
-    {
-      title: "Métricas",
-      description: "Indicadores generales del sistema",
-      icon: <QueryStatsIcon />,
-      view: "mitienda-metricas",
-    },
+    
     {
       title: "Suscripciones",
       description: "Administración global de planes y complementos",
