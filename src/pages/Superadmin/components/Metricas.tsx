@@ -2665,7 +2665,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                             width: 10,
                             height: 10,
                             borderRadius: "50%",
-                            bgcolor: "primary.main",
+                            bgcolor: "success.main",
                           }}
                         />
                         <Typography variant="caption" fontWeight={800}>
@@ -2697,7 +2697,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                             width: 10,
                             height: 10,
                             borderRadius: "50%",
-                            bgcolor: "success.main",
+                            bgcolor: "primary.main",
                           }}
                         />
                         <Typography variant="caption" fontWeight={800}>
@@ -2754,6 +2754,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                               </Typography>
                             </Stack>
                             <LinearProgress
+                              color="success"
                               variant="determinate"
                               value={Math.min(
                                 (item.mitienda / maxBarValue) * 100,
@@ -2763,7 +2764,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                                 height: 9,
                                 borderRadius: 99,
                                 bgcolor: alpha(
-                                  theme.palette.primary.main,
+                                  theme.palette.success.main,
                                   isDark ? 0.16 : 0.1
                                 ),
                                 "& .MuiLinearProgress-bar": {
@@ -2825,7 +2826,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                               </Typography>
                             </Stack>
                             <LinearProgress
-                              color="success"
+                              color="primary"
                               variant="determinate"
                               value={Math.min(
                                 (item.taeconta / maxBarValue) * 100,
@@ -2835,7 +2836,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                                 height: 9,
                                 borderRadius: 99,
                                 bgcolor: alpha(
-                                  theme.palette.success.main,
+                                  theme.palette.primary.main,
                                   isDark ? 0.16 : 0.1
                                 ),
                                 "& .MuiLinearProgress-bar": {
@@ -2917,9 +2918,9 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                                     )}%`,
                                     minHeight: item.mitienda > 0 ? 5 : 0,
                                     borderRadius: "8px 8px 3px 3px",
-                                    bgcolor: "primary.main",
+                                    bgcolor: "success.main",
                                     boxShadow: `0 8px 20px ${alpha(
-                                      theme.palette.primary.main,
+                                      theme.palette.success.main,
                                       0.25
                                     )}`,
                                     transition: "height .25s ease",
@@ -2975,9 +2976,9 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                                     )}%`,
                                     minHeight: item.taeconta > 0 ? 5 : 0,
                                     borderRadius: "8px 8px 3px 3px",
-                                    bgcolor: "success.main",
+                                    bgcolor: "primary.main",
                                     boxShadow: `0 8px 20px ${alpha(
-                                      theme.palette.success.main,
+                                      theme.palette.primary.main,
                                       0.25
                                     )}`,
                                     transition: "height .25s ease",
@@ -3046,11 +3047,11 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                         display: "grid",
                         placeItems: "center",
                         background: `conic-gradient(
-                          ${theme.palette.primary.main} 0 ${mitiendaParticipation}%,
+                          ${theme.palette.success.main} 0 ${mitiendaParticipation}%,
                           ${theme.palette.warning.main} ${mitiendaParticipation}% ${
                             mitiendaParticipation + clicmenuParticipation
                           }%,
-                          ${theme.palette.success.main} ${
+                          ${theme.palette.primary.main} ${
                             mitiendaParticipation + clicmenuParticipation
                           }% 100%
                         )`,
@@ -3093,6 +3094,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                           </Typography>
                         </Stack>
                         <LinearProgress
+                          color="success"
                           variant="determinate"
                           value={mitiendaParticipation}
                           sx={{ height: 8, borderRadius: 99 }}
@@ -3134,7 +3136,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                           </Typography>
                         </Stack>
                         <LinearProgress
-                          color="success"
+                          color="primary"
                           variant="determinate"
                           value={taecontaParticipation}
                           sx={{ height: 8, borderRadius: 99 }}
@@ -3380,7 +3382,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                   accounts={mitiendaAccounts}
                   activePlans={mitiendaPlansActive}
                   expiredPlans={mitiendaPlansExpired}
-                  accent={theme.palette.primary.main}
+                  accent={theme.palette.success.main}
                   onAccountsClick={() =>
                     abrirTiendasMiTienda("todas")
                   }
@@ -3466,7 +3468,7 @@ export default function Metricas({ darkMode = false, setView }: Props) {
                   timbresPac={taecontaTimbresPac}
                   timbresAsignados={taecontaTimbresAsignados}
                   timbresDisponibles={taecontaTimbresDisponibles}
-                  accent={theme.palette.success.main}
+                  accent={theme.palette.primary.main}
                   onTodasClick={() =>
                     abrirCuentasTaeconta("todas")
                   }

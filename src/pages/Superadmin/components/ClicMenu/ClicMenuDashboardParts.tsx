@@ -195,6 +195,68 @@ function formatDateTime(value?: string | null) {
   });
 }
 
+function getSaleExpirationInfo(sale: any) {
+  const status = String(sale?.status || "").toLowerCase();
+
+  const expirationDate =
+    sale?.ends_at ||
+    sale?.expires_at ||
+    sale?.subscription?.ends_at ||
+    sale?.subscription?.expires_at ||
+    sale?.current_subscription?.ends_at ||
+    sale?.current_subscription?.expires_at ||
+    null;
+
+  if (!expirationDate) {
+    return null;
+  }
+
+  if (status === "expired") {
+    return {
+      label: "Venció",
+      date: formatDate(expirationDate),
+    };
+  }
+
+  if (
+    status === "trialing" ||
+    status === "active" ||
+    status === "paid"
+  ) {
+    return {
+      label: "Vence",
+      date: formatDate(expirationDate),
+    };
+  }
+
+  return null;
+}
+
+function SaleStatusWithExpiration({ sale }: { sale: any }) {
+  const expiration = getSaleExpirationInfo(sale);
+
+  return (
+    <Stack spacing={0.35} alignItems="flex-start">
+      <StatusChip value={sale?.status} />
+
+      {expiration && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            fontSize: 11,
+            lineHeight: 1.2,
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {expiration.label}: {expiration.date}
+        </Typography>
+      )}
+    </Stack>
+  );
+}
+
 
 
 function isSubscriptionActive(subscription: any) {
@@ -1265,7 +1327,7 @@ export function SalesTableCard({
                     <TableCell>{sale?.provider || "Sin proveedor"}</TableCell>
 
                     <TableCell>
-                      <StatusChip value={sale?.status} />
+                      <SaleStatusWithExpiration sale={sale} />
                     </TableCell>
 
                     <TableCell align="right">

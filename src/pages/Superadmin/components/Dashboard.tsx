@@ -1479,8 +1479,8 @@ export default function Dashboard({ darkMode, setView }: Props) {
                       label="MiTiendaEnLineaMx"
                       sx={(theme) => ({
                         fontWeight: 800,
-                        color: theme.palette.primary.main,
-                        borderColor: theme.palette.primary.main,
+                        color: theme.palette.success.main,
+                        borderColor: theme.palette.success.main,
                       })}
                       variant="outlined"
                     />
@@ -1499,8 +1499,8 @@ export default function Dashboard({ darkMode, setView }: Props) {
                       label="TAECONTA"
                       sx={(theme) => ({
                         fontWeight: 800,
-                        color: theme.palette.success.main,
-                        borderColor: theme.palette.success.main,
+                        color: theme.palette.primary.main,
+                        borderColor: theme.palette.primary.main,
                       })}
                       variant="outlined"
                     />
@@ -1587,7 +1587,7 @@ export default function Dashboard({ darkMode, setView }: Props) {
                                   width: 24,
                                   height: mitiendaHeight,
                                   borderRadius: "8px 8px 2px 2px",
-                                  bgcolor: theme.palette.primary.main,
+                                  bgcolor: theme.palette.success.main,
                                   opacity: item.mitienda > 0 ? 1 : 0.18,
                                   transition: "height .25s ease",
                                 })}
@@ -1623,7 +1623,7 @@ export default function Dashboard({ darkMode, setView }: Props) {
                                   width: 24,
                                   height: taecontaHeight,
                                   borderRadius: "8px 8px 2px 2px",
-                                  bgcolor: theme.palette.success.main,
+                                  bgcolor: theme.palette.primary.main,
                                   opacity: item.taeconta > 0 ? 1 : 0.18,
                                   transition: "height .25s ease",
                                 })}
@@ -1700,7 +1700,29 @@ export default function Dashboard({ darkMode, setView }: Props) {
                             <LinearProgress
                               variant="determinate"
                               value={percent}
-                              sx={{ height: 10, borderRadius: 10 }}
+                              sx={(theme) => {
+                                const barColor =
+                                  item.key === "mitienda"
+                                    ? theme.palette.success.main
+                                    : item.key === "taeconta"
+                                      ? theme.palette.primary.main
+                                      : theme.palette.warning.main;
+
+                                return {
+                                  height: 10,
+                                  borderRadius: 10,
+                                  bgcolor:
+                                    item.key === "mitienda"
+                                      ? theme.palette.success.light
+                                      : item.key === "taeconta"
+                                        ? theme.palette.primary.light
+                                        : theme.palette.warning.light,
+                                  "& .MuiLinearProgress-bar": {
+                                    borderRadius: 10,
+                                    backgroundColor: barColor,
+                                  },
+                                };
+                              }}
                             />
                           </Box>
                         );
@@ -1837,7 +1859,7 @@ export default function Dashboard({ darkMode, setView }: Props) {
                           width: 38,
                           height: 38,
                           backgroundColor: theme.palette.action.hover,
-                          color: theme.palette.primary.main,
+                          color: theme.palette.success.main,
                         })}
                       >
                         <Storefront />
@@ -1911,7 +1933,7 @@ export default function Dashboard({ darkMode, setView }: Props) {
                           width: 38,
                           height: 38,
                           backgroundColor: theme.palette.action.hover,
-                          color: theme.palette.primary.main,
+                          color: theme.palette.warning.main,
                         })}
                       >
                         <Restaurant />
@@ -2012,7 +2034,7 @@ export default function Dashboard({ darkMode, setView }: Props) {
                           width: 38,
                           height: 38,
                           backgroundColor: theme.palette.action.hover,
-                          color: theme.palette.success.main,
+                          color: theme.palette.primary.main,
                         })}
                       >
                         <ReceiptLong />
