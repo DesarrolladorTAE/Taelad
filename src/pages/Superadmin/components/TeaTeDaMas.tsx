@@ -78,6 +78,8 @@ const meses = [
 ];
 
 const REFERIDOS_DETALLE_PER_PAGE = 16;
+const PRINCIPAL_REFERIDOS_PER_PAGE = 16;
+const PRINCIPAL_REFERIDOS_VISIBLE_ROWS = 7;
 
 type VistaTea = "principal" | "usuarios" | "detalle";
 
@@ -180,17 +182,71 @@ function formatoFechaHora(value?: string | null) {
 }
 
 function logoSistema(value?: string | null) {
-  const key = String(value || "").toLowerCase();
+  const key = String(value || "")
+    .trim()
+    .toLowerCase();
 
   const logos: Record<string, string> = {
     mtelmx: "/app/mitienda.png",
     taeconta: "/app/taeconta.png",
-    clicmenu: "/app/clicmenu.png",
+    clicmenu: "/logo/clicmenu-naranja.png",
     telorecargo: "/app/telorecargo.png",
     chatingbot: "/app/chatingbot.png",
   };
 
-  return logos[key] || "/logo/logo.png";
+  return logos[key] || "";
+}
+
+function abreviaturaSistema(value?: string | null) {
+  const key = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  const abreviaturas: Record<string, string> = {
+    mtelmx: "MT",
+    taeconta: "TAE",
+    clicmenu: "CM",
+    telorecargo: "TR",
+    chatingbot: "CB",
+  };
+
+  return abreviaturas[key] || "SYS";
+}
+
+function colorSistema(value?: string | null) {
+  const key = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  const colores: Record<string, { fondo: string; texto: string }> = {
+    mtelmx: {
+      fondo: "rgba(46, 125, 50, 0.12)",
+      texto: "#2e7d32",
+    },
+    taeconta: {
+      fondo: "rgba(21, 101, 192, 0.12)",
+      texto: "#1565c0",
+    },
+    clicmenu: {
+      fondo: "rgba(237, 108, 2, 0.12)",
+      texto: "#ed6c02",
+    },
+    telorecargo: {
+      fondo: "rgba(123, 31, 162, 0.12)",
+      texto: "#7b1fa2",
+    },
+    chatingbot: {
+      fondo: "rgba(0, 121, 107, 0.12)",
+      texto: "#00796b",
+    },
+  };
+
+  return (
+    colores[key] || {
+      fondo: "rgba(117, 117, 117, 0.12)",
+      texto: "#616161",
+    }
+  );
 }
 
 function SistemaLogo({
@@ -200,19 +256,54 @@ function SistemaLogo({
   sistema?: string | null;
   size?: number;
 }) {
+  const [errorImagen, setErrorImagen] = useState(false);
+
+  const src = logoSistema(sistema);
+  const nombre = nombreSistema(sistema);
+  const colores = colorSistema(sistema);
+
+  useEffect(() => {
+    setErrorImagen(false);
+  }, [sistema, src]);
+
+  if (!src || errorImagen) {
+    return (
+      <Avatar
+        variant="rounded"
+        title={nombre}
+        aria-label={nombre}
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          bgcolor: colores.fondo,
+          color: colores.texto,
+          fontSize: size <= 30 ? 9 : 10,
+          fontWeight: 900,
+          letterSpacing: 0.2,
+          border: "1px solid",
+          borderColor: colores.texto,
+        }}
+      >
+        {abreviaturaSistema(sistema)}
+      </Avatar>
+    );
+  }
+
   return (
     <Box
       component="img"
-      src={logoSistema(sistema)}
-      alt={nombreSistema(sistema)}
+      src={src}
+      alt={nombre}
+      title={nombre}
       sx={{
         width: size,
         height: size,
         objectFit: "contain",
         flexShrink: 0,
       }}
-      onError={(e) => {
-        e.currentTarget.src = "/logo/logo.png";
+      onError={() => {
+        setErrorImagen(true);
       }}
     />
   );
@@ -375,28 +466,83 @@ function GananciaChip({ item }: { item: TeaReferidoConGanancia }) {
   );
 }
 
+function scrollAreaSx(theme: any, maxHeight: number) {
+  const thumb =
+    theme.palette.mode === "dark"
+      ? "rgba(255,255,255,0.22)"
+      : "rgba(0,0,0,0.22)";
+
+  const thumbHover =
+    theme.palette.mode === "dark"
+      ? "rgba(255,255,255,0.34)"
+      : "rgba(0,0,0,0.34)";
+
+  const track =
+    theme.palette.mode === "dark"
+      ? "rgba(255,255,255,0.06)"
+      : "rgba(0,0,0,0.06)";
+
+  return {
+    maxHeight,
+    overflowY: "auto",
+    overflowX: "hidden",
+    pr: 1,
+    scrollbarGutter: "stable",
+    scrollbarWidth: "thin",
+    scrollbarColor: `${thumb} ${track}`,
+    "&::-webkit-scrollbar": {
+      width: 10,
+      height: 10,
+    },
+    "&::-webkit-scrollbar-track": {
+      backgroundColor: track,
+      borderRadius: 999,
+    },
+    "&::-webkit-scrollbar-thumb": {
+      backgroundColor: thumb,
+      borderRadius: 999,
+      border: "2px solid transparent",
+      backgroundClip: "padding-box",
+    },
+    "&::-webkit-scrollbar-thumb:hover": {
+      backgroundColor: thumbHover,
+    },
+  } as const;
+}
+
 function KpiCard({
   title,
   value,
   subtitle,
   icon,
   compact = false,
+  onClick,
 }: {
   title: string;
   value: number | string;
   subtitle?: string;
   icon: ReactNode;
   compact?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <Paper
       variant="outlined"
+      onClick={onClick}
       sx={{
         p: compact ? { xs: 1.25, md: 1.5 } : { xs: 1.5, md: 2 },
         borderRadius: 4,
         height: "100%",
         minHeight: compact ? 100 : undefined,
         overflow: "hidden",
+        cursor: onClick ? "pointer" : "default",
+        transition: "0.2s ease",
+        '&:hover': onClick
+          ? {
+              transform: 'translateY(-2px)',
+              boxShadow: 4,
+            }
+          : undefined,
       }}
     >
       <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
@@ -937,6 +1083,7 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
   const [busquedaUsuario, setBusquedaUsuario] = useState("");
   const [usuariosPage, setUsuariosPage] = useState(0);
   const [referidosPage, setReferidosPage] = useState(0);
+  const [principalReferidosPage, setPrincipalReferidosPage] = useState(0);
 
   const params = useMemo<TeaReferidoDashboardParams & Record<string, any>>(() => {
     if (vista === "detalle" && usuarioSeleccionado) {
@@ -965,7 +1112,8 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
       mes,
       anio,
       orden,
-      referidos_page: 1,
+      referidos_page: principalReferidosPage + 1,
+      referidos_per_page: PRINCIPAL_REFERIDOS_PER_PAGE,
       usuarios_page: 1,
     };
   }, [
@@ -983,6 +1131,7 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
     usuarioSeleccionado?.user_id,
     usuariosPage,
     referidosPage,
+    principalReferidosPage,
   ]);
 
   const cargarDatos = async () => {
@@ -993,11 +1142,11 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
       const response = await obtenerTeaReferidosDashboard(params);
       setData(response);
     } catch (err: any) {
-      console.error("Error cargando TEA te da más:", err);
+      console.error("Error cargando TAE te da más:", err);
       setError(
         err?.response?.data?.message ||
           err?.response?.data?.error ||
-          `No fue posible cargar los datos de TEA te da más. ${
+          `No fue posible cargar los datos de TAE te da más. ${
             err?.response?.status ? `Status: ${err.response.status}` : ""
           }`,
       );
@@ -1012,14 +1161,20 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
 
   const resumen = data?.resumen;
 
-  const usuariosFiltrados = useMemo(() => {
-    const rows = data?.usuarios_tea?.data || [];
+  const usuariosTaePaginados =
+    (data as any)?.usuarios_tae || data?.usuarios_tea;
 
-    if (!busquedaUsuario.trim()) return rows;
+  const usuariosFiltrados = useMemo<TeaUsuarioTeaItem[]>(() => {
+    const rows: TeaUsuarioTeaItem[] =
+      (usuariosTaePaginados?.data || []) as TeaUsuarioTeaItem[];
+
+    if (!busquedaUsuario.trim()) {
+      return rows;
+    }
 
     const q = busquedaUsuario.trim().toLowerCase();
 
-    return rows.filter((item) => {
+    return rows.filter((item: TeaUsuarioTeaItem) => {
       const fullName = nombreUsuario(item).toLowerCase();
 
       return (
@@ -1029,16 +1184,17 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
         String(item.phone || "").toLowerCase().includes(q)
       );
     });
-  }, [data?.usuarios_tea?.data, busquedaUsuario]);
+  }, [usuariosTaePaginados?.data, busquedaUsuario]);
+
 
   const nuevos = useMemo(
     () => (data?.nuevos || []) as TeaReferidoConGanancia[],
     [data?.nuevos],
   );
 
-  const recientes = useMemo(
-    () => (data?.recientes_mes_actual || []) as TeaReferidoConGanancia[],
-    [data?.recientes_mes_actual],
+  const referidosMesPrincipal = useMemo(
+    () => (data?.referidos_mes_seleccionado?.data || []) as TeaReferidoConGanancia[],
+    [data?.referidos_mes_seleccionado?.data],
   );
 
   const referidosDetalle = useMemo(
@@ -1054,6 +1210,7 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
     setRegistroDetalle(null);
     setUsuariosPage(0);
     setReferidosPage(0);
+    setPrincipalReferidosPage(0);
     setBusquedaUsuario("");
   }, []);
 
@@ -1078,6 +1235,7 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
     setRegistroDetalle(null);
     setUsuariosPage(0);
     setReferidosPage(0);
+    setPrincipalReferidosPage(0);
     setBusquedaUsuario("");
   };
 
@@ -1117,6 +1275,17 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
   const regresarAHistorialUsuario = () => {
     setRegistroDetalle(null);
     setModoDetalle("historico");
+  };
+
+  const irAConfirmados = () => {
+    setStatus("confirmado");
+    setPrincipalReferidosPage(0);
+
+    window.setTimeout(() => {
+      document
+        .getElementById("tae-registros-mes")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
   };
 
   if (vista === "usuarios") {
@@ -1332,10 +1501,10 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
 
               <TablePagination
                 component="div"
-                count={data?.usuarios_tea?.total || 0}
+                count={usuariosTaePaginados?.total || 0}
                 page={usuariosPage}
                 onPageChange={(_, newPage) => setUsuariosPage(newPage)}
-                rowsPerPage={data?.usuarios_tea?.per_page || 20}
+                rowsPerPage={usuariosTaePaginados?.per_page || 20}
                 rowsPerPageOptions={[20]}
               />
             </>
@@ -1760,7 +1929,7 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
       >
         <Box>
           <Typography variant={isMobile ? "h5" : "h4"} fontWeight={900}>
-            TEA te da más
+            TAE te da más
           </Typography>
 
           <Typography color="text.secondary">
@@ -1783,23 +1952,23 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
         orden={orden}
         onSistemaChange={(value) => {
           setSistema(value);
-          setReferidosPage(0);
+          setPrincipalReferidosPage(0);
         }}
         onStatusChange={(value) => {
           setStatus(value);
-          setReferidosPage(0);
+          setPrincipalReferidosPage(0);
         }}
         onMesChange={(value) => {
           setMes(value);
-          setReferidosPage(0);
+          setPrincipalReferidosPage(0);
         }}
         onAnioChange={(value) => {
           setAnio(value);
-          setReferidosPage(0);
+          setPrincipalReferidosPage(0);
         }}
         onOrdenChange={(value) => {
           setOrden(value);
-          setReferidosPage(0);
+          setPrincipalReferidosPage(0);
         }}
       />
 
@@ -1862,8 +2031,9 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
               <KpiCard
                 title="Confirmados"
                 value={toNumber(resumen?.confirmados_mes_seleccionado)}
-                subtitle={`Confirmados de ${nombreMes(mes)} ${anio}`}
+                subtitle={`Clic para ver confirmados de ${nombreMes(mes)} ${anio}`}
                 icon={<CheckCircle />}
+                onClick={irAConfirmados}
               />
             </Grid>
 
@@ -2040,7 +2210,11 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
               )}
             </Paper>
 
-            <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, borderRadius: 4 }}>
+            <Paper
+              id="tae-registros-mes"
+              variant="outlined"
+              sx={{ p: { xs: 1.5, md: 2 }, borderRadius: 4 }}
+            >
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 justifyContent="space-between"
@@ -2049,146 +2223,161 @@ export default function TeaTeDaMas({ resetKey = 0 }: TeaTeDaMasProps = {}) {
               >
                 <Box>
                   <Typography variant="h6" fontWeight={900}>
-                    Recientes del mes
+                    Registros del mes
                   </Typography>
 
                   <Typography variant="caption" color="text.secondary">
                     {nombreMes(mes)} {anio}
+                    {status ? ` · Estado: ${status}` : ""}
+                    {sistema ? ` · Sistema: ${nombreSistema(sistema)}` : ""}
                   </Typography>
                 </Box>
 
                 <Typography variant="caption" color="text.secondary">
-                    Se muestran {Math.min(7, data?.recientes_mes_actual?.length || 0)} visibles de{" "}
-                   {data?.recientes_mes_actual?.length || 0}
-                  </Typography>
+                  Mostrando {referidosMesPrincipal.length} visibles de {data?.referidos_mes_seleccionado?.total || 0}
+                </Typography>
               </Stack>
 
               {isMobile ? (
-                <Stack
-                  spacing={1.25}
-                  sx={{
-                    maxHeight: 620,
-                    overflowY: "auto",
-                    pr: 0.5,
-                  }}
-                >
-                  {recientes.map((item) => (
-                    <MovimientoCard
-                      key={item.id}
-                      item={item}
-                      mostrarUsuarioTae
-                    />
-                  ))}
-
-                  {recientes.length === 0 && (
-                    <Typography color="text.secondary" align="center" py={3}>
-                      Sin recientes del mes.
-                    </Typography>
-                  )}
-                </Stack>
-              ) : (
-                <TableContainer
-                  sx={{
-                    maxHeight: 520,
-                    overflowY: "auto",
-                    overflowX: "hidden",
-                    pr: 1,
-                    scrollbarGutter: "stable",
-                  }}
-                >
-                  <Table
-                    size="small"
-                    stickyHeader
-                    sx={{
-                      tableLayout: "fixed",
-                      width: "100%",
-                      "& td, & th": {
-                        whiteSpace: "normal",
-                        wordBreak: "break-word",
-                        verticalAlign: "top",
-                      },
-                      "& td:last-of-type, & th:last-of-type": {
-                        whiteSpace: "nowrap",
-                        wordBreak: "normal",
-                        overflow: "visible",
-                      },
-                    }}
+                <>
+                  <Stack
+                    spacing={1.25}
+                    sx={scrollAreaSx(theme, 760)}
                   >
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ width: "13%" }}>Fecha</TableCell>
-                        <TableCell sx={{ width: "18%" }}>Usuario TAE</TableCell>
-                        <TableCell sx={{ width: "25%" }}>Cuenta referida</TableCell>
-                        <TableCell sx={{ width: "15%" }}>Producto</TableCell>
-                        <TableCell sx={{ width: "13%" }}>Ganancia</TableCell>
-                        <TableCell
-                          sx={{
-                            width: "16%",
-                            minWidth: 130,
-                            whiteSpace: "nowrap",
-                            wordBreak: "normal",
-                          }}
-                        >
-                          Estado
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
+                    {referidosMesPrincipal.map((item) => (
+                      <MovimientoCard
+                        key={item.id}
+                        item={item}
+                        mostrarUsuarioTae
+                      />
+                    ))}
 
-                    <TableBody>
-                      {recientes.map((item) => (
-                        <TableRow key={item.id} hover>
-                          <TableCell>{formatoFechaHora(item.fecha_registro)}</TableCell>
+                    {referidosMesPrincipal.length === 0 && (
+                      <Typography color="text.secondary" align="center" py={3}>
+                        Sin registros del mes.
+                      </Typography>
+                    )}
+                  </Stack>
 
-                          <TableCell>
-                            {item.usuario ? nombreUsuario(item.usuario) : "-"}
-                          </TableCell>
-
-                          <TableCell>
-                            <NombreConSistema item={item} compact />
-                          </TableCell>
-
-                          <TableCell>
-                            <Typography fontWeight={700} lineHeight={1.25}>
-                              {item.nombre_producto || "-"}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Costo: {formatoMoneda(item.costo_producto)}
-                            </Typography>
-                          </TableCell>
-
-                          <TableCell>
-                            <Typography fontWeight={900}>
-                              {formatoMoneda(item.monto)}
-                            </Typography>
-                            <Box mt={0.5}>
-                              <GananciaChip item={item} />
-                            </Box>
-                          </TableCell>
-
+                  <TablePagination
+                    component="div"
+                    count={data?.referidos_mes_seleccionado?.total || 0}
+                    page={principalReferidosPage}
+                    onPageChange={(_, newPage) => setPrincipalReferidosPage(newPage)}
+                    rowsPerPage={PRINCIPAL_REFERIDOS_PER_PAGE}
+                    rowsPerPageOptions={[PRINCIPAL_REFERIDOS_PER_PAGE]}
+                    labelRowsPerPage="Filas por página"
+                  />
+                </>
+              ) : (
+                <>
+                  <TableContainer
+                    sx={scrollAreaSx(theme, PRINCIPAL_REFERIDOS_VISIBLE_ROWS * 62)}
+                  >
+                    <Table
+                      size="small"
+                      stickyHeader
+                      sx={{
+                        tableLayout: "fixed",
+                        width: "100%",
+                        "& td, & th": {
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                          verticalAlign: "top",
+                        },
+                        "& td:last-of-type, & th:last-of-type": {
+                          whiteSpace: "nowrap",
+                          wordBreak: "normal",
+                          overflow: "visible",
+                        },
+                      }}
+                    >
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ width: "13%" }}>Fecha</TableCell>
+                          <TableCell sx={{ width: "18%" }}>Usuario TAE</TableCell>
+                          <TableCell sx={{ width: "25%" }}>Cuenta referida</TableCell>
+                          <TableCell sx={{ width: "15%" }}>Producto</TableCell>
+                          <TableCell sx={{ width: "13%" }}>Ganancia</TableCell>
                           <TableCell
                             sx={{
-                              width: 130,
+                              width: "16%",
                               minWidth: 130,
                               whiteSpace: "nowrap",
                               wordBreak: "normal",
-                              overflow: "visible",
                             }}
                           >
-                            <StatusChip status={item.status} />
+                            Estado
                           </TableCell>
                         </TableRow>
-                      ))}
+                      </TableHead>
 
-                      {recientes.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={6} align="center">
-                            Sin recientes del mes.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                      <TableBody>
+                        {referidosMesPrincipal.map((item) => (
+                          <TableRow key={item.id} hover>
+                            <TableCell>{formatoFechaHora(item.fecha_registro)}</TableCell>
+
+                            <TableCell>
+                              {item.usuario ? nombreUsuario(item.usuario) : "-"}
+                            </TableCell>
+
+                            <TableCell>
+                              <NombreConSistema item={item} compact />
+                            </TableCell>
+
+                            <TableCell>
+                              <Typography fontWeight={700} lineHeight={1.25}>
+                                {item.nombre_producto || "-"}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                Costo: {formatoMoneda(item.costo_producto)}
+                              </Typography>
+                            </TableCell>
+
+                            <TableCell>
+                              <Typography fontWeight={900}>
+                                {formatoMoneda(item.monto)}
+                              </Typography>
+                              <Box mt={0.5}>
+                                <GananciaChip item={item} />
+                              </Box>
+                            </TableCell>
+
+                            <TableCell
+                              sx={{
+                                width: 130,
+                                minWidth: 130,
+                                whiteSpace: "nowrap",
+                                wordBreak: "normal",
+                                overflow: "visible",
+                              }}
+                            >
+                              <StatusChip status={item.status} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+
+                        {referidosMesPrincipal.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} align="center">
+                              Sin registros del mes.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+
+                  <TablePagination
+                    component="div"
+                    count={data?.referidos_mes_seleccionado?.total || 0}
+                    page={principalReferidosPage}
+                    onPageChange={(_, newPage) => setPrincipalReferidosPage(newPage)}
+                    rowsPerPage={PRINCIPAL_REFERIDOS_PER_PAGE}
+                    rowsPerPageOptions={[PRINCIPAL_REFERIDOS_PER_PAGE]}
+                    labelRowsPerPage="Filas por página"
+                  />
+                </>
               )}
             </Paper>
           </Stack>

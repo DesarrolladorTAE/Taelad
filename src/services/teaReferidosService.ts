@@ -5,7 +5,10 @@ const API_BASE_URL = "https://api.tecnologiasadministrativas.com/api";
 const TEA_REFERIDOS_DASHBOARD_URL = `${API_BASE_URL}/tea-referidos/dashboard`;
 const TEA_HISTORIAL_GLOBAL_USUARIO_URL = `${API_BASE_URL}/superadmin/users`;
 
-export type TeaReferidoStatus = "pendiente" | "confirmado" | "rechazado";
+export type TeaReferidoStatus =
+  | "pendiente"
+  | "confirmado"
+  | "rechazado";
 
 export type TeaReferidoSistema =
   | "mtelmx"
@@ -17,14 +20,18 @@ export type TeaReferidoSistema =
 export type TeaReferidoOrden = "asc" | "desc";
 
 export type TeaReferidoDashboardParams = {
-  sistema?: string;
-  status?: string;
+  sistema?: TeaReferidoSistema | string;
+  status?: TeaReferidoStatus | string;
   mes?: number | string;
   anio?: number | string;
   orden?: TeaReferidoOrden;
   user_id?: number | string;
+
   usuarios_page?: number;
+  usuarios_per_page?: number;
+
   referidos_page?: number;
+  referidos_per_page?: number;
 };
 
 export type TeaHistorialGlobalUsuarioParams = {
@@ -39,31 +46,45 @@ export type TeaUsuario = {
   email?: string | null;
   phone?: string | null;
   codigo_ref?: string | null;
+  aplica_comision?: boolean | number | null;
 };
 
 export type TeaReferido = {
   id: number;
-  ganancia_id?: number | null;
+
+  ganancia_id?: number | string | null;
+
+  id_user?: number | null;
   user_id: number;
+
   referido_user_id?: number | null;
+
   nombre_referido: string;
+
   codigo_ref_usado?: string | null;
   external_id?: string | null;
-  sistema: string;
+
+  sistema: TeaReferidoSistema | string;
   status: TeaReferidoStatus | string;
+
   fecha_registro: string;
   fecha_confirmacion?: string | null;
+  fecha_pago?: string | null;
+
   observaciones?: string | null;
+
   created_at?: string | null;
   updated_at?: string | null;
 
   nombre_producto?: string | null;
   costo_producto?: number | string | null;
+
+  tipo?: string | null;
   porcentaje_comision?: number | string | null;
   monto?: number | string | null;
-  fecha_pago?: string | null;
 
   usuario?: TeaUsuario | null;
+
   referido_usuario?: TeaUsuario | null;
   referidoUsuario?: TeaUsuario | null;
 };
@@ -87,6 +108,7 @@ export type TeaResumen = {
   ganancia_total?: number | string;
   ganancia_confirmada?: number | string;
   ganancia_pendiente?: number | string;
+
   ganancia_mes_seleccionado?: number | string;
   ganancia_confirmada_mes_seleccionado?: number | string;
   ganancia_pendiente_mes_seleccionado?: number | string;
@@ -94,31 +116,60 @@ export type TeaResumen = {
 
 export type TeaRankingItem = {
   user_id: number;
+
   name?: string | null;
   apellidos?: string | null;
   email?: string | null;
   phone?: string | null;
+
   codigo_ref?: string | null;
+  aplica_comision?: boolean | number | null;
+
   cantidad_referidos: number | string;
+
+  confirmados?: number | string;
+  pendientes?: number | string;
+  rechazados?: number | string;
+
+  referidos_mes_seleccionado?: number | string;
+  confirmados_mes_seleccionado?: number | string;
+  pendientes_mes_seleccionado?: number | string;
+
+  referidos_mes_actual?: number | string;
+
+  ganancia_total?: number | string;
+
+  sistemas?: string | null;
+
   ultimo_referido?: string | null;
 };
 
 export type TeaUsuarioTeaItem = {
   user_id: number;
+
   name?: string | null;
   apellidos?: string | null;
   email?: string | null;
   phone?: string | null;
+
   codigo_ref?: string | null;
+  aplica_comision?: boolean | number | null;
+
   cantidad_referidos: number | string;
+
   confirmados: number | string;
   pendientes: number | string;
   rechazados: number | string;
+
   referidos_mes_seleccionado: number | string;
+
   confirmados_mes_seleccionado?: number | string;
   pendientes_mes_seleccionado?: number | string;
+
   referidos_mes_actual: number | string;
+
   sistemas?: string | null;
+
   ultimo_referido?: string | null;
 
   ganancia_total?: number | string;
@@ -128,25 +179,41 @@ export type TeaUsuarioTeaItem = {
 
 export type TeaUsuariosTeaPaginated = {
   current_page: number;
+
   data: TeaUsuarioTeaItem[];
+
   first_page_url?: string | null;
   from?: number | null;
+
   last_page: number;
   last_page_url?: string | null;
+
   next_page_url?: string | null;
-  path?: string;
-  per_page: number;
   prev_page_url?: string | null;
+
+  path?: string;
+
+  per_page: number;
+
   to?: number | null;
   total: number;
+
+  links?: Array<{
+    url?: string | null;
+    label?: string;
+    active?: boolean;
+  }>;
 };
 
 export type TeaPorSistemaItem = {
-  sistema: string;
+  sistema: TeaReferidoSistema | string;
+
   total: number | string;
+
   confirmados: number | string;
   pendientes: number | string;
   rechazados: number | string;
+
   ganancia_total?: number | string;
   ganancia_confirmada?: number | string;
   ganancia_pendiente?: number | string;
@@ -154,10 +221,13 @@ export type TeaPorSistemaItem = {
 
 export type TeaPorMesItem = {
   mes: string;
+
   total: number | string;
+
   confirmados: number | string;
   pendientes: number | string;
   rechazados: number | string;
+
   ganancia_total?: number | string;
   ganancia_confirmada?: number | string;
   ganancia_pendiente?: number | string;
@@ -165,64 +235,110 @@ export type TeaPorMesItem = {
 
 export type TeaReferidosPaginated = {
   current_page: number;
+
   data: TeaReferido[];
+
   first_page_url?: string | null;
   from?: number | null;
+
   last_page: number;
   last_page_url?: string | null;
+
   next_page_url?: string | null;
-  path?: string;
-  per_page: number;
   prev_page_url?: string | null;
+
+  path?: string;
+
+  per_page: number;
+
   to?: number | null;
   total: number;
+
+  links?: Array<{
+    url?: string | null;
+    label?: string;
+    active?: boolean;
+  }>;
 };
 
 export type TeaReferidosDashboardResponse = {
   ok: boolean;
+
   filters: {
-    sistema?: string | null;
-    status?: string | null;
+    sistema?: TeaReferidoSistema | string | null;
+    status?: TeaReferidoStatus | string | null;
+
     mes: number;
     anio: number;
+
     orden: TeaReferidoOrden;
+
     user_id?: number | string | null;
   };
+
   detalle_usuario?: TeaUsuario | null;
+
   resumen: TeaResumen;
+
   ranking_mayor_menor?: TeaRankingItem[];
+
+  /**
+   * Nombre anterior.
+   * Se mantiene porque el backend todavía lo envía
+   * para compatibilidad.
+   */
   usuarios_tea: TeaUsuariosTeaPaginated;
+
+  /**
+   * Nombre correcto nuevo.
+   */
+  usuarios_tae?: TeaUsuariosTeaPaginated;
+
   nuevos: TeaReferido[];
+
   recientes_mes_actual: TeaReferido[];
+
   referidos_mes_seleccionado: TeaReferidosPaginated;
+
   por_sistema: TeaPorSistemaItem[];
+
   por_mes: TeaPorMesItem[];
 };
 
 export type TeaHistorialGlobalUsuarioItem = {
   anio: number;
   mes: number;
+
   mes_nombre: string;
   periodo: string;
+
   total_referidos: number;
+
   confirmados: number;
   pendientes: number;
+
   ganancia_total: number;
 };
 
 export type TeaHistorialGlobalUsuarioTotales = {
   total_referidos: number;
+
   confirmados: number;
   pendientes: number;
+
   ganancia_total: number;
 };
 
 export type TeaHistorialGlobalUsuarioResponse = {
   ok?: boolean;
+
   data: TeaHistorialGlobalUsuarioItem[];
+
   totales?: TeaHistorialGlobalUsuarioTotales;
+
   current_page: number;
   last_page: number;
+
   per_page: number;
   total: number;
 };
@@ -242,17 +358,27 @@ function getHeaders() {
   return {
     Accept: "application/json",
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {}),
   };
 }
 
 function limpiarParams(
-  params?: TeaReferidoDashboardParams | TeaHistorialGlobalUsuarioParams,
+  params?:
+    | TeaReferidoDashboardParams
+    | TeaHistorialGlobalUsuarioParams,
 ) {
   const cleanParams: Record<string, string | number> = {};
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
+    if (
+      value !== undefined &&
+      value !== null &&
+      value !== ""
+    ) {
       cleanParams[key] = value as string | number;
     }
   });
@@ -261,15 +387,16 @@ function limpiarParams(
 }
 
 export async function obtenerTeaReferidosDashboard(
-  params?: TeaReferidoDashboardParams,
+  params: TeaReferidoDashboardParams = {},
 ): Promise<TeaReferidosDashboardResponse> {
-  const response = await axios.get<TeaReferidosDashboardResponse>(
-    TEA_REFERIDOS_DASHBOARD_URL,
-    {
-      headers: getHeaders(),
-      params: limpiarParams(params),
-    },
-  );
+  const response =
+    await axios.get<TeaReferidosDashboardResponse>(
+      TEA_REFERIDOS_DASHBOARD_URL,
+      {
+        headers: getHeaders(),
+        params: limpiarParams(params),
+      },
+    );
 
   return response.data;
 }
@@ -278,18 +405,20 @@ export async function obtenerTeaHistorialGlobalUsuario(
   userId: number | string,
   params: TeaHistorialGlobalUsuarioParams = {},
 ): Promise<TeaHistorialGlobalUsuarioResponse> {
-  const response = await axios.get<TeaHistorialGlobalUsuarioResponse>(
-    `${TEA_HISTORIAL_GLOBAL_USUARIO_URL}/${userId}/historial-global`,
-    {
-      headers: getHeaders(),
-      params: limpiarParams(params),
-    },
-  );
+  const response =
+    await axios.get<TeaHistorialGlobalUsuarioResponse>(
+      `${TEA_HISTORIAL_GLOBAL_USUARIO_URL}/${userId}/historial-global`,
+      {
+        headers: getHeaders(),
+        params: limpiarParams(params),
+      },
+    );
 
   return response.data;
 }
 
 export const teaReferidosService = {
   obtenerDashboard: obtenerTeaReferidosDashboard,
-  obtenerHistorialGlobalUsuario: obtenerTeaHistorialGlobalUsuario,
+  obtenerHistorialGlobalUsuario:
+    obtenerTeaHistorialGlobalUsuario,
 };

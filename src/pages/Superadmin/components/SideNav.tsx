@@ -516,16 +516,45 @@ export default function SideNav({
           }}
         >
           <Box
-            component="img"
-            src="/logo/logo.png"
-            alt="Logo"
-            sx={{
-              width: 55,
+  sx={(theme) => ({
+    width: 58,
+    height: 58,
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 2,
+    overflow: "hidden",
 
-              height:
-                "auto",
-            }}
-          />
+    backgroundColor:
+      theme.palette.mode === "dark"
+        ? "#111827"
+        : "#ffffff",
+
+    border: `1px solid ${
+      theme.palette.mode === "dark"
+        ? "rgba(255,255,255,0.10)"
+        : "rgba(15,23,42,0.08)"
+    }`,
+  })}
+>
+  <Box
+    component="img"
+    src={
+      darkMode
+        ? "/logo/logo-dark.png"
+        : "/logo/logo.png"
+    }
+    alt="Tecnologías Administrativas ELAD"
+    sx={{
+      width: "100%",
+      height: "100%",
+      objectFit: "contain",
+      display: "block",
+      p: 0.5,
+    }}
+  />
+</Box>
 
           <Box
             sx={{
@@ -618,7 +647,7 @@ export default function SideNav({
           }
         >
           <Loyalty />
-          TEA te da más
+          TAE te da más
         </Button>
 
       
