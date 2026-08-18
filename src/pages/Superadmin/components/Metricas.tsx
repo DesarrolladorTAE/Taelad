@@ -689,23 +689,32 @@ function SystemSummary({
   }>;
 }) {
   const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
 
-  const clickableSx = (enabled: boolean) => ({
-    p: enabled ? 1.15 : 0,
-    mx: enabled ? -1.15 : 0,
-    my: enabled ? -1.15 : 0,
+  const metricBoxSx = (
+    color: string,
+    enabled: boolean,
+  ) => ({
+    p: { xs: 1.1, sm: 1.25 },
+    height: "100%",
+    minHeight: 72,
     borderRadius: 2.5,
+    border: `1px solid ${alpha(color, isDark ? 0.5 : 0.34)}`,
+    bgcolor: alpha(color, isDark ? 0.1 : 0.045),
     cursor: enabled ? "pointer" : "default",
-    transition: "background-color .18s ease, transform .18s ease",
+    transition:
+      "background-color .18s ease, transform .18s ease, border-color .18s ease, box-shadow .18s ease",
     "&:hover": enabled
       ? {
-          bgcolor: alpha(accent, theme.palette.mode === "dark" ? 0.13 : 0.08),
+          bgcolor: alpha(color, isDark ? 0.16 : 0.075),
+          borderColor: alpha(color, isDark ? 0.72 : 0.5),
           transform: "translateY(-1px)",
+          boxShadow: `0 8px 20px ${alpha(color, isDark ? 0.12 : 0.08)}`,
         }
       : undefined,
     "&:focus-visible": enabled
       ? {
-          outline: `2px solid ${alpha(accent, 0.65)}`,
+          outline: `2px solid ${alpha(color, 0.7)}`,
           outlineOffset: 2,
         }
       : undefined,
@@ -730,11 +739,14 @@ function SystemSummary({
         p: 2.5,
         height: "100%",
         borderRadius: 4,
-        borderColor: alpha(accent, 0.25),
+        border: `1.5px solid ${alpha(accent, isDark ? 0.48 : 0.32)}`,
         background: `linear-gradient(145deg, ${alpha(
           accent,
-          theme.palette.mode === "dark" ? 0.12 : 0.06
+          isDark ? 0.12 : 0.06
         )}, ${theme.palette.background.paper} 42%)`,
+        boxShadow: isDark
+          ? `0 14px 30px ${alpha(accent, 0.08)}`
+          : `0 14px 30px ${alpha(accent, 0.06)}`,
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1.5} mb={2.5}>
@@ -750,7 +762,7 @@ function SystemSummary({
         </Box>
       </Stack>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={1.5}>
         <Grid item xs={6}>
           <Typography variant="caption" color="text.secondary">
             Ingreso anual
@@ -773,7 +785,7 @@ function SystemSummary({
             onKeyDown={(event) =>
               activateWithKeyboard(event, onAccountsClick)
             }
-            sx={clickableSx(Boolean(onAccountsClick))}
+            sx={metricBoxSx(accent, Boolean(onAccountsClick))}
           >
             <Typography variant="caption" color="text.secondary">
               Cuentas
@@ -792,7 +804,7 @@ function SystemSummary({
             onKeyDown={(event) =>
               activateWithKeyboard(event, onActiveClick)
             }
-            sx={clickableSx(Boolean(onActiveClick))}
+            sx={metricBoxSx(theme.palette.success.main, Boolean(onActiveClick))}
           >
             <Typography variant="caption" color="text.secondary">
               Activos
@@ -811,7 +823,7 @@ function SystemSummary({
             onKeyDown={(event) =>
               activateWithKeyboard(event, onExpiredClick)
             }
-            sx={clickableSx(Boolean(onExpiredClick))}
+            sx={metricBoxSx(theme.palette.error.main, Boolean(onExpiredClick))}
           >
             <Typography variant="caption" color="text.secondary">
               Vencidos
@@ -1006,51 +1018,29 @@ function TaecontaSummary({
 
   const clickableSx = (
     callback?: () => void,
+    color: string = accent,
   ) => ({
     minWidth: 0,
-
-    p: callback
-      ? 1
-      : 0,
-
-    mx: callback
-      ? -1
-      : 0,
-
-    my: callback
-      ? -1
-      : 0,
-
-    borderRadius: 2,
-
-    cursor: callback
-      ? "pointer"
-      : "default",
-
+    p: { xs: 1, sm: 1.15 },
+    height: "100%",
+    minHeight: 72,
+    borderRadius: 2.5,
+    border: `1px solid ${alpha(color, isDark ? 0.5 : 0.34)}`,
+    bgcolor: alpha(color, isDark ? 0.1 : 0.045),
+    cursor: callback ? "pointer" : "default",
     transition:
-      "background-color .18s ease, transform .18s ease",
-
+      "background-color .18s ease, transform .18s ease, border-color .18s ease, box-shadow .18s ease",
     "&:hover": callback
       ? {
-          bgcolor: alpha(
-            accent,
-            isDark
-              ? 0.12
-              : 0.06,
-          ),
-
-          transform:
-            "translateY(-1px)",
+          bgcolor: alpha(color, isDark ? 0.16 : 0.075),
+          borderColor: alpha(color, isDark ? 0.72 : 0.5),
+          transform: "translateY(-1px)",
+          boxShadow: `0 8px 20px ${alpha(color, isDark ? 0.12 : 0.08)}`,
         }
       : undefined,
-
     "&:focus-visible": callback
       ? {
-          outline: `2px solid ${alpha(
-            accent,
-            0.7,
-          )}`,
-
+          outline: `2px solid ${alpha(color, 0.7)}`,
           outlineOffset: 2,
         }
       : undefined,
@@ -1088,10 +1078,14 @@ function TaecontaSummary({
 
         borderRadius: 4,
 
-        borderColor: alpha(
+        border: `1.5px solid ${alpha(
           accent,
-          0.25,
-        ),
+          isDark ? 0.48 : 0.32,
+        )}`,
+
+        boxShadow: isDark
+          ? `0 14px 30px ${alpha(accent, 0.08)}`
+          : `0 14px 30px ${alpha(accent, 0.06)}`,
 
         background: `linear-gradient(
           145deg,
@@ -1162,7 +1156,7 @@ function TaecontaSummary({
 
       <Grid
         container
-        spacing={2}
+        spacing={1.5}
         sx={{
           minWidth: 0,
         }}
@@ -1266,6 +1260,7 @@ function TaecontaSummary({
             }
             sx={clickableSx(
               onTodasClick,
+              accent,
             )}
           >
             <Typography
@@ -1318,6 +1313,7 @@ function TaecontaSummary({
             }
             sx={clickableSx(
               onVigentesClick,
+              theme.palette.success.main,
             )}
           >
             <Typography
@@ -1371,6 +1367,7 @@ function TaecontaSummary({
             }
             sx={clickableSx(
               onVencidasClick,
+              theme.palette.error.main,
             )}
           >
             <Typography
@@ -1426,6 +1423,7 @@ function TaecontaSummary({
             }
             sx={clickableSx(
               onProximas30Click,
+              theme.palette.warning.main,
             )}
           >
             <Typography
@@ -1462,22 +1460,24 @@ function TaecontaSummary({
             minWidth: 0,
           }}
         >
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-          >
-            Operaciones
-          </Typography>
+          <Box sx={clickableSx(undefined, accent)}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
+              Operaciones
+            </Typography>
 
-          <Typography
-            variant="h6"
-            fontWeight={900}
-          >
-            {formatNumber(
-              operaciones,
-            )}
-          </Typography>
+            <Typography
+              variant="h6"
+              fontWeight={900}
+            >
+              {formatNumber(
+                operaciones,
+              )}
+            </Typography>
+          </Box>
         </Grid>
 
         {/* TICKET */}

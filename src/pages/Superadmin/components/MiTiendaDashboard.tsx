@@ -39,12 +39,12 @@ export default function MiTiendaDashboard({ setView }: Props) {
       view: "mitienda-suscripciones",
     },
     {
-      title: "Blogs",
-      description:
-        "Administración de publicaciones, categorías, etiquetas y multimedia",
-      icon: <ArticleIcon />,
-      view: "mitienda-blogs",
-    },
+  title: "Blogs",
+  description:
+    "Administración de publicaciones, categorías, etiquetas y multimedia",
+  icon: <ArticleIcon />,
+  view: "mitienda-blogs",
+},
   ];
 
   return (

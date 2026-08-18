@@ -55,6 +55,8 @@ type MiTiendaAlertaFiltro =
   | "todas"
   | "activas"
   | "vencidas"
+  | "demo_activo"
+  | "demo_vencido"
   | "plan_activo"
   | "plan_vencido";
 
@@ -383,31 +385,35 @@ function dashboardAlertAction(
     ].join(" ")
   );
 
+  const compactText = text.replace(
+    /[^a-z0-9]/g,
+    ""
+  );
+
   /*
-   * Algunas alertas específicas llegan con system_key genérico
-   * (por ejemplo "consolidado"), pero el título/mensaje sí indica
-   * claramente "Clic Menú", "MiTienda" o "TAECONTA".
+   * Primero intentamos usar system_key.
+   * Si el backend envía una alerta "consolidada", únicamente la
+   * asociamos a un sistema cuando el propio texto lo identifica.
    *
-   * Primero respetamos system_key cuando es específico. Si no lo es,
-   * resolvemos el sistema únicamente cuando el texto lo identifica
-   * de forma explícita. Las alertas realmente generales permanecen
-   * informativas.
+   * Una alerta consolidada como "Planes vencidos entre los sistemas"
+   * permanece fuera del panel porque no existe un único filtro que
+   * pueda mostrar exactamente esos registros.
    */
   let system = rawSystem;
 
   if (
-    !["taeconta", "clicmenu", "clicmenuapp", "mitienda", "mitiendaenlineamx", "mtelmx"].includes(system)
+    ![
+      "taeconta",
+      "clicmenu",
+      "clicmenuapp",
+      "mitienda",
+      "mitiendaenlineamx",
+      "mtelmx",
+    ].includes(system)
   ) {
-    const compactText = text.replace(/[^a-z0-9]/g, "");
-
-    if (
-      compactText.includes("taeconta") ||
-      compactText.includes("taeconta")
-    ) {
+    if (compactText.includes("taeconta")) {
       system = "taeconta";
-    } else if (
-      compactText.includes("clicmenu")
-    ) {
+    } else if (compactText.includes("clicmenu")) {
       system = "clicmenu";
     } else if (
       compactText.includes("mitiendaenlineamx") ||
@@ -415,73 +421,131 @@ function dashboardAlertAction(
       compactText.includes("mtelmx")
     ) {
       system = "mitienda";
+    } else {
+      return null;
     }
   }
 
-  if (system === "taeconta") {
-    const isCuentaAlert =
-      text.includes("cuenta") ||
-      text.includes("empresa");
+  const isExpired =
+    text.includes("vencid") ||
+    text.includes("expir");
 
-    if (!isCuentaAlert) {
+  const isUpcoming =
+    text.includes("proxim") &&
+    text.includes("venc");
+
+  const isActive =
+    text.includes("activ") ||
+    text.includes("vigent");
+
+  const isAccount =
+    text.includes("cuenta") ||
+    text.includes("empresa");
+
+  const isPlanOrSubscription =
+    text.includes("plan") ||
+    text.includes("suscrip");
+
+  const isDemo =
+    text.includes("demo") ||
+    text.includes("demostr");
+
+  const isRestaurant =
+    text.includes("restaurante");
+
+  const withoutActivePlan =
+    text.includes("sin plan") ||
+    text.includes("sin suscrip");
+
+  const mentions7Days =
+    text.includes("7 dia") ||
+    text.includes("7 dias") ||
+    text.includes("_7") ||
+    text.includes("-7");
+
+  const mentions30Days =
+    text.includes("30 dia") ||
+    text.includes("30 dias") ||
+    text.includes("_30") ||
+    text.includes("-30");
+
+  /*
+   * TAECONTA
+   *
+   * Filtros existentes:
+   * todas | vigentes | proximas7 | proximas30 | vencidas
+   *
+   * Solo aceptamos alertas relacionadas con cuentas/empresas y cuyo
+   * estado tenga una correspondencia exacta con esos filtros.
+   */
+  if (system === "taeconta") {
+    if (!isAccount) {
       return null;
     }
 
-    if (
-      text.includes("proxim") &&
-      text.includes("venc")
-    ) {
-      if (
-        text.includes("7 dia") ||
-        text.includes("7 dias") ||
-        text.includes("_7") ||
-        text.includes("-7")
-      ) {
+    if (isUpcoming) {
+      if (mentions7Days) {
         return {
           system: "taeconta",
           filter: "proximas7",
         };
       }
 
-      return {
-        system: "taeconta",
-        filter: "proximas30",
-      };
+      if (mentions30Days) {
+        return {
+          system: "taeconta",
+          filter: "proximas30",
+        };
+      }
+
+      return null;
     }
 
-    if (
-      text.includes("vencid") ||
-      text.includes("expir")
-    ) {
+    if (isExpired) {
       return {
         system: "taeconta",
         filter: "vencidas",
       };
     }
 
-    if (
-      text.includes("vigent") ||
-      text.includes("activ")
-    ) {
+    if (isActive) {
       return {
         system: "taeconta",
         filter: "vigentes",
       };
     }
 
-    return {
-      system: "taeconta",
-      filter: "todas",
-    };
+    return null;
   }
 
+  /*
+   * CLIC MENÚ
+   *
+   * Filtros existentes:
+   * todas | activas | vencidas
+   *
+   * No mostramos por ahora:
+   * - demos vencidos;
+   * - restaurantes sin plan;
+   * - próximas a vencer.
+   *
+   * Esas alertas requieren filtros específicos que todavía no existen.
+   */
   if (
     system === "clicmenu" ||
     system === "clicmenuapp"
   ) {
     if (
-      text.includes("vencid") ||
-      text.includes("expir")
+      isDemo ||
+      (isRestaurant && withoutActivePlan) ||
+      isUpcoming
+    ) {
+      return null;
+    }
+
+    if (
+      isPlanOrSubscription &&
+      isExpired
     ) {
       return {
         system: "clicmenu",
@@ -489,14 +553,9 @@ function dashboardAlertAction(
       };
     }
 
-    /*
-     * Clic Menú no tendrá un botón visible de 7/15/30 días.
-     * Una alerta de próximo vencimiento abre la sección de planes
-     * activos, que son los candidatos todavía vigentes.
-     */
     if (
-      text.includes("proxim") &&
-      text.includes("venc")
+      isPlanOrSubscription &&
+      isActive
     ) {
       return {
         system: "clicmenu",
@@ -504,30 +563,47 @@ function dashboardAlertAction(
       };
     }
 
-    if (
-      text.includes("activ") ||
-      text.includes("vigent")
-    ) {
-      return {
-        system: "clicmenu",
-        filter: "activas",
-      };
-    }
-
-    return {
-      system: "clicmenu",
-      filter: "todas",
-    };
+    return null;
   }
 
+  /*
+   * MI TIENDA
+   *
+   * Filtros existentes:
+   * todas | activas | vencidas |
+   * demo_activo | demo_vencido |
+   * plan_activo | plan_vencido
+   *
+   * Una alerta de "próximos a vencer" no se redirige a "activos",
+   * porque ese filtro mostraría registros adicionales que no forman
+   * parte exacta de la advertencia.
+   */
   if (
     system === "mitienda" ||
     system === "mitiendaenlineamx" ||
     system === "mtelmx"
   ) {
+    if (isUpcoming) {
+      return null;
+    }
+
+    if (isDemo && isExpired) {
+      return {
+        system: "mitienda",
+        filter: "demo_vencido",
+      };
+    }
+
+    if (isDemo && isActive) {
+      return {
+        system: "mitienda",
+        filter: "demo_activo",
+      };
+    }
+
     if (
-      text.includes("vencid") ||
-      text.includes("expir")
+      isPlanOrSubscription &&
+      isExpired
     ) {
       return {
         system: "mitienda",
@@ -536,8 +612,8 @@ function dashboardAlertAction(
     }
 
     if (
-      text.includes("proxim") &&
-      text.includes("venc")
+      isPlanOrSubscription &&
+      isActive
     ) {
       return {
         system: "mitienda",
@@ -545,20 +621,21 @@ function dashboardAlertAction(
       };
     }
 
-    if (
-      text.includes("activ") ||
-      text.includes("vigent")
-    ) {
+    if (isExpired) {
       return {
         system: "mitienda",
-        filter: "plan_activo",
+        filter: "vencidas",
       };
     }
 
-    return {
-      system: "mitienda",
-      filter: "todas",
-    };
+    if (isActive) {
+      return {
+        system: "mitienda",
+        filter: "activas",
+      };
+    }
+
+    return null;
   }
 
   return null;
@@ -832,6 +909,26 @@ export default function Dashboard({ darkMode, setView }: Props) {
     null;
 
   const alerts = dashboard?.data?.alerts ?? [];
+
+  const actionableAlerts = alerts.reduce<
+    Array<{
+      alert: DashboardAlert;
+      action: DashboardAlertAction;
+    }>
+  >((items, alert) => {
+    const action =
+      dashboardAlertAction(alert);
+
+    if (action) {
+      items.push({
+        alert,
+        action,
+      });
+    }
+
+    return items;
+  }, []);
+
   const logs = dashboard?.data?.sync_logs ?? [];
 
   const consolidatedKpis = asObject(consolidatedSnapshot?.kpis);
@@ -1764,77 +1861,185 @@ export default function Dashboard({ darkMode, setView }: Props) {
                       </Box>
                     </Stack>
 
-                    {alerts.length === 0 ? (
-                      <Typography color="text.secondary">
-                        No hay alertas activas.
-                      </Typography>
-                    ) : (
-                      <Stack spacing={1.5}>
-                        {alerts.slice(0, 5).map((alert) => {
-                          const action =
-                            dashboardAlertAction(alert);
-
-                          const clickable =
-                            action !== null;
-
-                          return (
-                            <Alert
-                              key={alert.id}
-                              severity={alertSeverity(alert.severity)}
-                              variant="outlined"
-                              role={clickable ? "button" : undefined}
-                              tabIndex={clickable ? 0 : undefined}
-                              onClick={() => {
-                                if (action) {
-                                  ejecutarAlerta(
-                                    action
-                                  );
-                                }
-                              }}
-                              onKeyDown={(event) => {
-                                if (
-                                  action &&
-                                  (event.key === "Enter" ||
-                                    event.key === " ")
-                                ) {
-                                  event.preventDefault();
-                                  ejecutarAlerta(
-                                    action
-                                  );
-                                }
-                              }}
-                              sx={{
-                                cursor: clickable
-                                  ? "pointer"
-                                  : "default",
-                                transition:
-                                  "transform .18s ease, box-shadow .18s ease",
-                                "&:hover": clickable
-                                  ? {
-                                      transform:
-                                        "translateY(-2px)",
-                                      boxShadow:
-                                        "0 8px 20px rgba(15,23,42,.10)",
-                                    }
-                                  : undefined,
-                              }}
-                            >
-                              <Typography fontWeight={800} fontSize={13}>
-                                {alert.system_key === "taeconta"
-                                  ? taecontaVisibleText(alert.title)
-                                  : alert.title}
-                              </Typography>
-
-                              {alert.message && (
-                                <Typography fontSize={12}>
-                                  {alert.system_key === "taeconta"
-                                    ? taecontaVisibleText(alert.message)
-                                    : alert.message}
-                                </Typography>
-                              )}
-                            </Alert>
-                          );
+                    {actionableAlerts.length === 0 ? (
+                      <Box
+                        sx={(theme) => ({
+                          p: 2,
+                          borderRadius: 3,
+                          border: `1px dashed ${theme.palette.divider}`,
+                          bgcolor: theme.palette.action.hover,
                         })}
+                      >
+                        <Typography
+                          fontWeight={800}
+                          fontSize={13}
+                        >
+                          No hay alertas accionables.
+                        </Typography>
+
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          display="block"
+                          mt={0.4}
+                        >
+                          Solo se muestran advertencias que pueden abrir
+                          directamente una vista con el filtro correspondiente.
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Stack
+                        spacing={1.5}
+                        sx={(theme) => ({
+                          maxHeight: {
+                            xs: 360,
+                            sm: 420,
+                          },
+                          overflowY: "auto",
+                          pr: 0.5,
+                          scrollbarWidth: "thin",
+                          scrollbarColor:
+                            theme.palette.mode === "dark"
+                              ? "#475569 transparent"
+                              : "#94A3B8 transparent",
+                          "&::-webkit-scrollbar": {
+                            width: 8,
+                          },
+                          "&::-webkit-scrollbar-track": {
+                            background: "transparent",
+                          },
+                          "&::-webkit-scrollbar-thumb": {
+                            backgroundColor:
+                              theme.palette.mode === "dark"
+                                ? "#475569"
+                                : "#94A3B8",
+                            borderRadius: 8,
+                            border: "2px solid transparent",
+                            backgroundClip: "padding-box",
+                          },
+                          "&::-webkit-scrollbar-thumb:hover": {
+                            backgroundColor:
+                              theme.palette.mode === "dark"
+                                ? "#64748B"
+                                : "#64748B",
+                          },
+                        })}
+                      >
+                        {actionableAlerts.map(
+                          ({
+                            alert,
+                            action,
+                          }) => {
+                            const isTaeconta =
+                              action.system ===
+                              "taeconta";
+
+                            const actionLabel =
+                              action.system ===
+                              "taeconta"
+                                ? "Ver cuentas"
+                                : action.system ===
+                                    "clicmenu"
+                                  ? "Ver suscripciones"
+                                  : "Ver tiendas";
+
+                            return (
+                              <Alert
+                                key={alert.id}
+                                severity={alertSeverity(
+                                  alert.severity
+                                )}
+                                variant="outlined"
+                                role="button"
+                                tabIndex={0}
+                                onClick={() =>
+                                  ejecutarAlerta(
+                                    action
+                                  )
+                                }
+                                onKeyDown={(
+                                  event
+                                ) => {
+                                  if (
+                                    event.key ===
+                                      "Enter" ||
+                                    event.key ===
+                                      " "
+                                  ) {
+                                    event.preventDefault();
+
+                                    ejecutarAlerta(
+                                      action
+                                    );
+                                  }
+                                }}
+                                sx={(theme) => ({
+                                  cursor:
+                                    "pointer",
+                                  borderRadius: 3,
+                                  transition:
+                                    "transform .18s ease, box-shadow .18s ease, background-color .18s ease",
+                                  "&:hover": {
+                                    transform:
+                                      "translateY(-2px)",
+                                    bgcolor:
+                                      theme.palette
+                                        .action.hover,
+                                    boxShadow:
+                                      theme.palette
+                                        .mode ===
+                                      "dark"
+                                        ? "0 8px 20px rgba(0,0,0,.24)"
+                                        : "0 8px 20px rgba(15,23,42,.10)",
+                                  },
+                                  "&:focus-visible":
+                                    {
+                                      outline:
+                                        `2px solid ${theme.palette.primary.main}`,
+                                      outlineOffset:
+                                        2,
+                                    },
+                                })}
+                              >
+                                <Typography
+                                  fontWeight={800}
+                                  fontSize={13}
+                                >
+                                  {isTaeconta
+                                    ? taecontaVisibleText(
+                                        alert.title
+                                      )
+                                    : alert.title}
+                                </Typography>
+
+                                {alert.message && (
+                                  <Typography
+                                    fontSize={12}
+                                    sx={{
+                                      mt: 0.35,
+                                    }}
+                                  >
+                                    {isTaeconta
+                                      ? taecontaVisibleText(
+                                          alert.message
+                                        )
+                                      : alert.message}
+                                  </Typography>
+                                )}
+
+                                <Typography
+                                  variant="caption"
+                                  color="primary.main"
+                                  fontWeight={900}
+                                  display="block"
+                                  mt={0.75}
+                                >
+                                  {actionLabel} →
+                                </Typography>
+                              </Alert>
+                            );
+                          }
+                        )}
                       </Stack>
                     )}
                   </CardContent>

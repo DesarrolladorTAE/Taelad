@@ -26,6 +26,10 @@ export default function SuperAdminPanel() {
     <Shell>
       {(darkMode, view, setView) => {
         switch (view) {
+          /* =====================================================
+             GENERAL
+          ===================================================== */
+
           case "dashboard":
             return (
               <Dashboard
@@ -48,18 +52,9 @@ export default function SuperAdminPanel() {
               />
             );
 
-          /*
-          |--------------------------------------------------------------------------
-          | TAECONTA
-          |--------------------------------------------------------------------------
-          |
-          | "taeconta-inicio" se conserva únicamente por compatibilidad
-          | con rutas o estados anteriores.
-          |
-          | Ya NO renderiza TaecontaInicio.
-          | Ambos accesos abren directamente el Dashboard real de TAECONTA.
-          |
-          */
+          /* =====================================================
+             TAECONTA
+          ===================================================== */
 
           case "taeconta-inicio":
           case "taeconta-informacion":
@@ -67,28 +62,30 @@ export default function SuperAdminPanel() {
               <TaecontaSystemPage />
             );
 
-          /*
-          |--------------------------------------------------------------------------
-          | OTROS MÓDULOS
-          |--------------------------------------------------------------------------
-          */
+          /* =====================================================
+             OTROS MÓDULOS
+          ===================================================== */
 
           case "tea-te-da-mas":
-            return <TeaTeDaMas />;
+            return (
+              <TeaTeDaMas />
+            );
 
           case "facturacion":
-            return <Facturacion />;
+            return (
+              <Facturacion />
+            );
 
           case "usuarios":
-            return <Usuarios />;
+            return (
+              <Usuarios />
+            );
 
           case "tabla_services":
             return (
               <TablaServices
                 volver={() =>
-                  setView(
-                    "dashboard",
-                  )
+                  setView("dashboard")
                 }
               />
             );
@@ -98,11 +95,9 @@ export default function SuperAdminPanel() {
               <Configuracion />
             );
 
-          /*
-          |--------------------------------------------------------------------------
-          | MI TIENDA
-          |--------------------------------------------------------------------------
-          */
+          /* =====================================================
+             MI TIENDA EN LÍNEA MX
+          ===================================================== */
 
           case "mitienda-dashboard":
             return (
@@ -132,6 +127,13 @@ export default function SuperAdminPanel() {
               />
             );
 
+          /*
+           * La card Blogs de MiTiendaDashboard entra
+           * DIRECTAMENTE al administrador de blogs.
+           *
+           * No pasa por ninguna pantalla intermedia
+           * de Blogs / Historial de ventas.
+           */
           case "mitienda-blogs":
             return (
               <BlogAdminShell
@@ -142,11 +144,9 @@ export default function SuperAdminPanel() {
               />
             );
 
-          /*
-          |--------------------------------------------------------------------------
-          | CLIC MENÚ
-          |--------------------------------------------------------------------------
-          */
+          /* =====================================================
+             CLIC MENÚ
+          ===================================================== */
 
           case "clicmenu-inicio":
             return (
@@ -170,11 +170,9 @@ export default function SuperAdminPanel() {
               />
             );
 
-          /*
-          |--------------------------------------------------------------------------
-          | TECNOLOGÍAS ADMINISTRATIVAS ELAD
-          |--------------------------------------------------------------------------
-          */
+          /* =====================================================
+             TECNOLOGÍAS ADMINISTRATIVAS ELAD
+          ===================================================== */
 
           case "elad-blog":
             return (
@@ -185,6 +183,10 @@ export default function SuperAdminPanel() {
                 setView={setView}
               />
             );
+
+          /* =====================================================
+             FALLBACK
+          ===================================================== */
 
           default:
             return (

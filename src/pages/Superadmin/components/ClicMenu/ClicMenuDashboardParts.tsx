@@ -20,6 +20,7 @@ import {
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Tooltip,
@@ -1097,6 +1098,9 @@ export function SalesTableCard({
   onExportCsv?: () => void;
   exportDisabled?: boolean;
 }) {
+  const SALES_PER_PAGE = 16;
+  const [page, setPage] = useState(0);
+
   const getOwnerLabel = (owner: Owner) => {
     return (
       [owner.name, owner.last_name_paternal, owner.last_name_maternal]
@@ -1105,30 +1109,103 @@ export function SalesTableCard({
     );
   };
 
+  const totalFilteredSales = sales.length;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(totalFilteredSales / SALES_PER_PAGE)
+  );
+
+  const safePage = Math.min(page, totalPages - 1);
+
+  const paginatedSales = sales.slice(
+    safePage * SALES_PER_PAGE,
+    safePage * SALES_PER_PAGE + SALES_PER_PAGE
+  );
+
+  useEffect(() => {
+    if (page > totalPages - 1) {
+      setPage(Math.max(0, totalPages - 1));
+    }
+  }, [page, totalPages]);
+
+  const applyFilters = () => {
+    setPage(0);
+    onApplyFilters();
+  };
+
+  const clearFilters = () => {
+    setPage(0);
+    onClearFilters();
+  };
+
+  const scrollbarSx = {
+    scrollbarWidth: "thin",
+    scrollbarColor: "auto",
+    "&::-webkit-scrollbar": {
+      width: 9,
+      height: 9,
+    },
+    "&::-webkit-scrollbar-track": {
+      borderRadius: 999,
+    },
+    "&::-webkit-scrollbar-thumb": {
+      borderRadius: 999,
+      border: "2px solid transparent",
+      backgroundClip: "padding-box",
+    },
+  };
+
   return (
     <Paper
       elevation={0}
       sx={{
-        p: 2,
+        p: { xs: 1.25, sm: 2 },
         borderRadius: 4,
         border: "1px solid",
         borderColor: "divider",
         bgcolor: "background.paper",
+        minWidth: 0,
+        overflow: "hidden",
       }}
     >
       <Stack spacing={2}>
-        <Typography variant="h6" fontWeight={900}>
-          {title}
-        </Typography>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", sm: "center" }}
+          spacing={1}
+        >
+          <Typography
+            variant="h6"
+            fontWeight={900}
+            sx={{
+              minWidth: 0,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {title}
+          </Typography>
+
+          {totalFilteredSales > 0 && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ flexShrink: 0 }}
+            >
+              {totalFilteredSales} registro(s) · 16 por página
+            </Typography>
+          )}
+        </Stack>
 
         <Paper
           elevation={0}
           sx={{
-            p: 1.5,
+            p: { xs: 1.25, sm: 1.5 },
             borderRadius: 3,
             border: "1px solid",
             borderColor: "divider",
             bgcolor: "background.default",
+            minWidth: 0,
           }}
         >
           <Stack spacing={1.5}>
@@ -1138,26 +1215,40 @@ export function SalesTableCard({
               alignItems={{ xs: "stretch", md: "center" }}
               spacing={1}
             >
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography fontWeight={900}>Filtros avanzados</Typography>
                 <Typography color="text.secondary" sx={{ fontSize: 13 }}>
                   Filtra las ventas por propietario, restaurante, estado o proveedor.
                 </Typography>
               </Box>
 
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                sx={{ flexShrink: 0 }}
+              >
                 <Button
                   variant="contained"
-                  onClick={onApplyFilters}
-                  sx={{ height: 38, borderRadius: 2, fontWeight: 900 }}
+                  onClick={applyFilters}
+                  sx={{
+                    height: 38,
+                    borderRadius: 2,
+                    fontWeight: 900,
+                    width: { xs: "100%", sm: "auto" },
+                  }}
                 >
                   Aplicar filtros
                 </Button>
 
                 <Button
                   variant="outlined"
-                  onClick={onClearFilters}
-                  sx={{ height: 38, borderRadius: 2, fontWeight: 900 }}
+                  onClick={clearFilters}
+                  sx={{
+                    height: 38,
+                    borderRadius: 2,
+                    fontWeight: 900,
+                    width: { xs: "100%", sm: "auto" },
+                  }}
                 >
                   Limpiar
                 </Button>
@@ -1287,59 +1378,306 @@ export function SalesTableCard({
         )}
 
         {sales.length > 0 && (
-          <Box sx={{ overflowX: "auto" }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Fecha</TableCell>
-                  <TableCell>Restaurante</TableCell>
-                  <TableCell>Propietario</TableCell>
-                  <TableCell>Plan</TableCell>
-                  <TableCell>Proveedor</TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell align="right">Monto</TableCell>
-                </TableRow>
-              </TableHead>
+          <>
+            {/* MÓVIL */}
+            <Box
+              sx={(theme) => ({
+                display: { xs: "block", sm: "none" },
+                maxHeight: "68vh",
+                overflowY: "auto",
+                overflowX: "hidden",
+                pr: 0.5,
+                scrollbarGutter: "stable",
+                ...scrollbarSx,
+                scrollbarColor:
+                  theme.palette.mode === "dark"
+                    ? "#475569 transparent"
+                    : "#94A3B8 transparent",
+                "&::-webkit-scrollbar-track": {
+                  backgroundColor:
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.05)"
+                      : "rgba(15,23,42,0.05)",
+                  borderRadius: 999,
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor:
+                    theme.palette.mode === "dark" ? "#475569" : "#94A3B8",
+                  borderRadius: 999,
+                  border: "2px solid transparent",
+                  backgroundClip: "padding-box",
+                },
+                "&::-webkit-scrollbar-thumb:hover": {
+                  backgroundColor:
+                    theme.palette.mode === "dark" ? "#64748B" : "#64748B",
+                },
+              })}
+            >
+              <Stack spacing={1}>
+                {paginatedSales.map((sale, index) => (
+                  <Paper
+                    key={sale.id || index}
+                    elevation={0}
+                    sx={{
+                      p: 1.25,
+                      borderRadius: 3,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      bgcolor: "background.default",
+                    }}
+                  >
+                    <Stack spacing={1.15}>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                        spacing={1}
+                      >
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography
+                            fontWeight={900}
+                            sx={{
+                              overflowWrap: "anywhere",
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            {sale?.restaurant?.trade_name || "Restaurante"}
+                          </Typography>
 
-              <TableBody>
-                {sales.map((sale, index) => (
-                  <TableRow key={sale.id || index} hover>
-                    <TableCell>{formatDateTime(sale?.created_at)}</TableCell>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            {formatDateTime(sale?.created_at)}
+                          </Typography>
+                        </Box>
 
-                    <TableCell>
-                      <Typography fontWeight={800}>
-                        {sale?.restaurant?.trade_name || "Restaurante"}
-                      </Typography>
-                    </TableCell>
+                        <SaleStatusWithExpiration sale={sale} />
+                      </Stack>
 
-                    <TableCell>
-                      {[
-                        sale?.restaurant?.owner?.name,
-                        sale?.restaurant?.owner?.last_name_paternal,
-                        sale?.restaurant?.owner?.last_name_maternal,
-                      ]
-                        .filter(Boolean)
-                        .join(" ") || "Sin propietario"}
-                    </TableCell>
+                      <Divider />
 
-                    <TableCell>{getPlanLabelFromSale(sale)}</TableCell>
+                      <Grid container spacing={1}>
+                        <Grid item xs={12}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            Propietario
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            fontWeight={800}
+                            sx={{ overflowWrap: "anywhere" }}
+                          >
+                            {[
+                              sale?.restaurant?.owner?.name,
+                              sale?.restaurant?.owner?.last_name_paternal,
+                              sale?.restaurant?.owner?.last_name_maternal,
+                            ]
+                              .filter(Boolean)
+                              .join(" ") || "Sin propietario"}
+                          </Typography>
+                        </Grid>
 
-                    <TableCell>{sale?.provider || "Sin proveedor"}</TableCell>
+                        <Grid item xs={6}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            Plan
+                          </Typography>
+                          <Typography variant="body2" fontWeight={800}>
+                            {getPlanLabelFromSale(sale)}
+                          </Typography>
+                        </Grid>
 
-                    <TableCell>
-                      <SaleStatusWithExpiration sale={sale} />
-                    </TableCell>
+                        <Grid item xs={6}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            Proveedor
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            fontWeight={800}
+                            sx={{ overflowWrap: "anywhere" }}
+                          >
+                            {sale?.provider || "Sin proveedor"}
+                          </Typography>
+                        </Grid>
 
-                    <TableCell align="right">
-                      <Typography fontWeight={900}>
-                        {formatMoney(sale?.paid_price)}
-                      </Typography>
+                        <Grid item xs={12}>
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            spacing={1}
+                          >
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Monto
+                            </Typography>
+
+                            <Typography fontWeight={900}>
+                              {formatMoney(sale?.paid_price)}
+                            </Typography>
+                          </Stack>
+                        </Grid>
+                      </Grid>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
+
+            {/* TABLET / ESCRITORIO */}
+            <Box
+              sx={(theme) => ({
+                display: { xs: "none", sm: "block" },
+                maxHeight: 505,
+                overflow: "auto",
+                borderRadius: 2,
+                scrollbarGutter: "stable",
+                ...scrollbarSx,
+                scrollbarColor:
+                  theme.palette.mode === "dark"
+                    ? "#475569 transparent"
+                    : "#94A3B8 transparent",
+                "&::-webkit-scrollbar-track": {
+                  backgroundColor:
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.05)"
+                      : "rgba(15,23,42,0.05)",
+                  borderRadius: 999,
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor:
+                    theme.palette.mode === "dark" ? "#475569" : "#94A3B8",
+                  borderRadius: 999,
+                  border: "2px solid transparent",
+                  backgroundClip: "padding-box",
+                },
+                "&::-webkit-scrollbar-thumb:hover": {
+                  backgroundColor: "#64748B",
+                },
+              })}
+            >
+              <Table
+                size="small"
+                stickyHeader
+                sx={{
+                  minWidth: 940,
+                  tableLayout: "fixed",
+                  "& .MuiTableCell-head": {
+                    bgcolor: "background.paper",
+                    fontWeight: 900,
+                    zIndex: 2,
+                  },
+                  "& .MuiTableCell-root": {
+                    verticalAlign: "top",
+                  },
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ width: 132 }}>Fecha</TableCell>
+                    <TableCell sx={{ width: 205 }}>Restaurante</TableCell>
+                    <TableCell sx={{ width: 190 }}>Propietario</TableCell>
+                    <TableCell sx={{ width: 115 }}>Plan</TableCell>
+                    <TableCell sx={{ width: 105 }}>Proveedor</TableCell>
+                    <TableCell sx={{ width: 150 }}>Estado</TableCell>
+                    <TableCell sx={{ width: 115 }} align="right">
+                      Monto
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Box>
+                </TableHead>
+
+                <TableBody>
+                  {paginatedSales.map((sale, index) => (
+                    <TableRow key={sale.id || index} hover>
+                      <TableCell>{formatDateTime(sale?.created_at)}</TableCell>
+
+                      <TableCell>
+                        <Typography
+                          fontWeight={800}
+                          sx={{ overflowWrap: "anywhere" }}
+                        >
+                          {sale?.restaurant?.trade_name || "Restaurante"}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell>
+                        <Typography sx={{ overflowWrap: "anywhere" }}>
+                          {[
+                            sale?.restaurant?.owner?.name,
+                            sale?.restaurant?.owner?.last_name_paternal,
+                            sale?.restaurant?.owner?.last_name_maternal,
+                          ]
+                            .filter(Boolean)
+                            .join(" ") || "Sin propietario"}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell>{getPlanLabelFromSale(sale)}</TableCell>
+
+                      <TableCell>
+                        <Typography sx={{ overflowWrap: "anywhere" }}>
+                          {sale?.provider || "Sin proveedor"}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell>
+                        <SaleStatusWithExpiration sale={sale} />
+                      </TableCell>
+
+                      <TableCell align="right">
+                        <Typography fontWeight={900}>
+                          {formatMoney(sale?.paid_price)}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+
+            <TablePagination
+              component="div"
+              count={totalFilteredSales}
+              page={safePage}
+              onPageChange={(_, newPage) => setPage(newPage)}
+              rowsPerPage={SALES_PER_PAGE}
+              rowsPerPageOptions={[SALES_PER_PAGE]}
+              labelRowsPerPage="Registros por página"
+              labelDisplayedRows={({ from, to, count }) =>
+                `${from}-${to} de ${count}`
+              }
+              sx={{
+                mt: 0.5,
+                overflow: "hidden",
+                "& .MuiTablePagination-toolbar": {
+                  minHeight: 48,
+                  px: { xs: 0, sm: 1 },
+                  flexWrap: { xs: "wrap", sm: "nowrap" },
+                  justifyContent: { xs: "center", sm: "flex-end" },
+                  rowGap: 0.5,
+                },
+                "& .MuiTablePagination-spacer": {
+                  display: { xs: "none", sm: "block" },
+                },
+                "& .MuiTablePagination-selectLabel": {
+                  display: "none",
+                },
+                "& .MuiInputBase-root": {
+                  display: "none",
+                },
+              }}
+            />
+          </>
         )}
       </Stack>
     </Paper>
