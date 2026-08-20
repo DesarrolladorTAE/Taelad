@@ -566,7 +566,7 @@ export default function SideNav({
               fontWeight={800}
               noWrap
             >
-              Administrador
+              SuperAdmin
             </Typography>
 
             <Typography

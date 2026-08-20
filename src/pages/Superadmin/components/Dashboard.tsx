@@ -1402,7 +1402,8 @@ export default function Dashboard({ darkMode, setView }: Props) {
 
             <Box>
               <Typography variant="h4" fontWeight={800}>
-                Panel SuperAdministrador
+                Panel 
+                SuperAdmin
               </Typography>
 
               <Typography variant="body2" color="text.secondary" mt={0.5}>
